@@ -18,6 +18,8 @@ library(tidyverse)
 library(tidyr)
 library(glue)
 
+
+
 # COLUMNS (from the header)
 ##FORMAT-:DEP	Total reads covering this position (for subs del positions should be ignored)
 ##FORMAT-:FAZ	Reads presenting A for this position, forward strand
