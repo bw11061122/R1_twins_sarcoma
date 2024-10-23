@@ -57,7 +57,7 @@ library(stringr)
 
 ###################################################################################################################################
 # Read the merged dataframe 
-setwd('/Users/bw18/Desktop/1SB/Analysis')
+setwd('/Users/bw18/Desktop/1SB')
 twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv'))
 
 # Drop columns with PD38is_wgs (used as reference)

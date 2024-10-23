@@ -27,17 +27,17 @@ library(pheatmap)
 
 ###################################################################################################################################
 # Read the merged dataframe 
-setwd('/Users/bw18/Desktop/1SB/Analysis')
+setwd('/Users/bw18/Desktop/1SB')
 twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv'))
-
-# Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241018.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts)) # 2,559
-twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 # Drop columns with PD38is_wgs (used as reference)
 twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
-twins_filtered_dt[, c(twins_PDv38is) := NULL]
+twins_dt[, c(twins_PDv38is) := NULL]
+
+# Filter to only include mutations retained for filtering 
+muts = read.table('Data/mutations_include_20241023.txt') %>% unlist()
+paste('Number of mutations that passed required filters:', length(muts)) # 1,966
+twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 ###################################################################################################################################
 # Specify settings for plotting 
@@ -54,9 +54,7 @@ col_bar = '#8c08d3'
 ######################################################################################################
 # SAMPLES
 # create lists of possible samples of interest
-samples_names = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak", "PD63383bb",
-                  "PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap",  "PD63383ap", "PD63383aq",
-                  "PD62341b", "PD62341h", "PD62341n", "PD62341u")
+samples_names = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak", "PD63383bb", "PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap",  "PD63383ap", "PD63383aq", "PD62341b", "PD62341h", "PD62341n", "PD62341u")
 samples_normal = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak", "PD63383bb", "PD62341h", "PD62341n")
 samples_tumour = c("PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap",  "PD63383ap", "PD63383aq", "PD62341b", "PD62341u")
 samples_PD62341 = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap", "PD62341b", "PD62341h", "PD62341n", "PD62341u")
@@ -66,6 +64,42 @@ samples_normal_PD63383 = c("PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD6
 samples_tumour_PD62341 = c("PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap", "PD62341b", "PD62341u")
 samples_tumour_PD63383 = c( "PD63383ap", "PD63383aq")
 
+samples_mtr = grep("MTR", names(twins_dt), value = TRUE)
+samples_dep = grep("DEP", names(twins_dt), value = TRUE)
+samples_vaf = grep("VAF", names(twins_dt), value = TRUE)
+
+samples_normal_mtr = paste(samples_normal, 'MTR', sep='_')
+samples_normal_dep = paste(samples_normal, 'DEP', sep='_')
+samples_normal_vaf = paste(samples_normal, 'VAF', sep='_')
+
+samples_tumour_mtr = paste(samples_tumour, 'MTR', sep='_')
+samples_tumour_dep = paste(samples_tumour, 'DEP', sep='_')
+samples_tumour_vaf = paste(samples_tumour, 'VAF', sep='_')
+
+samples_normal_PD62341_mtr = paste(samples_normal_PD62341, 'MTR', sep='_')
+samples_normal_PD62341_dep = paste(samples_normal_PD62341, 'DEP', sep='_')
+samples_normal_PD62341_vaf = paste(samples_normal_PD62341, 'VAF', sep='_')
+
+samples_tumour_PD62341_mtr = paste(samples_tumour_PD62341, 'MTR', sep='_')
+samples_tumour_PD62341_dep = paste(samples_tumour_PD62341, 'DEP', sep='_')
+samples_tumour_PD62341_vaf = paste(samples_tumour_PD62341, 'VAF', sep='_')
+
+samples_normal_PD63383_mtr = paste(samples_normal_PD63383, 'MTR', sep='_')
+samples_normal_PD63383_dep = paste(samples_normal_PD63383, 'DEP', sep='_')
+samples_normal_PD63383_vaf = paste(samples_normal_PD63383, 'VAF', sep='_')
+
+samples_tumour_PD63383_mtr = paste(samples_tumour_PD63383, 'MTR', sep='_')
+samples_tumour_PD63383_dep = paste(samples_tumour_PD63383, 'DEP', sep='_')
+samples_tumour_PD63383_vaf = paste(samples_tumour_PD63383, 'VAF', sep='_')
+
+samples_PD62341_mtr = paste(samples_PD62341, 'MTR', sep='_')
+samples_PD62341_dep = paste(samples_PD62341, 'DEP', sep='_')
+samples_PD62341_vaf = paste(samples_PD62341, 'VAF', sep='_')
+
+samples_PD63383_mtr = paste(samples_PD63383, 'MTR', sep='_')
+samples_PD63383_dep = paste(samples_PD63383, 'DEP', sep='_')
+samples_PD63383_vaf = paste(samples_PD63383, 'VAF', sep='_')
+
 ######################################################################################################
 # Add column to indicate chromosomes lost in the tumour
 twins_filtered_dt[, loss := as.factor(fcase( 
@@ -74,85 +108,57 @@ twins_filtered_dt[, loss := as.factor(fcase(
 ))]
 
 ######################################################################################################
+# subset MTR, DEP and VAF data
 
-# Names of samples with correct descriptor
-samples_normal_mtr = paste(samples_normal, 'MTR', sep='_')
-samples_tumour_mtr = paste(samples_tumour, 'MTR', sep='_')
-samples_PD62341_mtr = paste(samples_PD62341, 'MTR', sep='_')
-samples_PD63383_mtr = paste(samples_PD63383, 'MTR', sep='_')
-samples_normal_PD62341_mtr = paste(samples_normal_PD62341, 'MTR', sep='_')
-samples_normal_PD63383_mtr = paste(samples_normal_PD63383, 'MTR', sep='_')
-samples_tumour_PD62341_mtr = paste(samples_tumour_PD62341, 'MTR', sep='_')
-samples_tumour_PD63383_mtr = paste(samples_tumour_PD63383, 'MTR', sep='_')
-
-samples_normal_vaf = paste(samples_normal, 'VAF', sep='_')
-samples_tumour_vaf = paste(samples_tumour, 'VAF', sep='_')
-samples_PD62341_vaf = paste(samples_PD62341, 'VAF', sep='_')
-samples_PD63383_vaf = paste(samples_PD63383, 'VAF', sep='_')
-samples_normal_PD62341_vaf = paste(samples_normal_PD62341, 'VAF', sep='_')
-samples_normal_PD63383_vaf = paste(samples_normal_PD63383, 'VAF', sep='_')
-samples_tumour_PD62341_vaf = paste(samples_tumour_PD62341, 'VAF', sep='_')
-samples_tumour_PD63383_vaf = paste(samples_tumour_PD63383, 'VAF', sep='_')
-
-samples_normal_dep = paste(samples_normal, 'DEP', sep='_')
-samples_tumour_dep = paste(samples_tumour, 'DEP', sep='_')
-samples_PD62341_dep = paste(samples_PD62341, 'DEP', sep='_')
-samples_PD63383_dep = paste(samples_PD63383, 'DEP', sep='_')
-samples_normal_PD62341_dep = paste(samples_normal_PD62341, 'DEP', sep='_')
-samples_normal_PD63383_dep = paste(samples_normal_PD63383, 'DEP', sep='_')
-samples_tumour_PD62341_dep = paste(samples_tumour_PD62341, 'DEP', sep='_')
-samples_tumour_PD63383_dep = paste(samples_tumour_PD63383, 'DEP', sep='_')
-
-######################################################################################################
-# For each mutation, create subsetted dataframes VAF, DEP, MTR
-cols_mtr = grep("MTR", names(twins_filtered_dt), value = TRUE)
-cols_dep = grep("DEP", names(twins_filtered_dt), value = TRUE)
-cols_vaf = grep("VAF", names(twins_filtered_dt), value = TRUE)
-
-twins_filtered_mtr = twins_filtered_dt[,c('mut_ID', cols_mtr), with=FALSE]
-twins_filtered_dep = twins_filtered_dt[,c('mut_ID', cols_dep), with=FALSE]
-twins_filtered_vaf = twins_filtered_dt[,c('mut_ID', cols_vaf), with=FALSE]
-
-cols_normal_mtr = paste(samples_normal, 'MTR', sep='_')
-cols_normal_dep = paste(samples_normal, 'DEP', sep='_')
-cols_normal_vaf = paste(samples_normal, 'VAF', sep='_')
+twins_filtered_mtr = twins_filtered_dt[,c('mut_ID', samples_mtr), with=FALSE]
+twins_filtered_dep = twins_filtered_dt[,c('mut_ID', samples_dep), with=FALSE]
+twins_filtered_vaf = twins_filtered_dt[,c('mut_ID', samples_vaf), with=FALSE]
 
 # determine min, max and mean nr of variant reads / depth / vaf
-twins_filtered_mtr[,mean_mtr := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = cols_mtr]
-twins_filtered_mtr[,median_mtr := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = cols_mtr]
-twins_filtered_mtr[,min_mtr := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = cols_mtr]
-twins_filtered_mtr[,max_mtr := apply(.SD, 1, max), .SDcols = cols_mtr]
+twins_filtered_mtr[,mean_mtr := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_mtr]
+twins_filtered_mtr[,median_mtr := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_mtr]
+twins_filtered_mtr[,min_mtr := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_mtr]
+twins_filtered_mtr[,max_mtr := apply(.SD, 1, max), .SDcols = samples_mtr]
 
-twins_filtered_dep[,mean_dep := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = cols_dep]
-twins_filtered_dep[,median_dep := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = cols_dep]
-twins_filtered_dep[,min_dep := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = cols_dep]
-twins_filtered_dep[,max_dep := apply(.SD, 1, max), .SDcols = cols_dep]
+twins_filtered_dep[,mean_dep := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_dep]
+twins_filtered_dep[,median_dep := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_dep]
+twins_filtered_dep[,min_dep := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_dep]
+twins_filtered_dep[,max_dep := apply(.SD, 1, max), .SDcols = samples_dep]
 
-twins_filtered_vaf[,mean_vaf := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = cols_vaf]
-twins_filtered_vaf[,median_vaf := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = cols_vaf]
-twins_filtered_vaf[,min_vaf := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = cols_vaf]
-twins_filtered_vaf[,max_vaf := apply(.SD, 1, max), .SDcols = cols_vaf]
+twins_filtered_vaf[,mean_vaf := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_vaf]
+twins_filtered_vaf[,median_vaf := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_vaf]
+twins_filtered_vaf[,min_vaf := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_vaf]
+twins_filtered_vaf[,max_vaf := apply(.SD, 1, max), .SDcols = samples_vaf]
 
 # determine this specifically in normal samples (in case of ploidy changes in the tumour)
-twins_filtered_mtr[,mean_mtr_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = cols_normal_mtr]
-twins_filtered_mtr[,median_mtr_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = cols_normal_mtr]
-twins_filtered_mtr[,min_mtr_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = cols_normal_mtr]
-twins_filtered_mtr[,max_mtr_normal := apply(.SD, 1, max), .SDcols = cols_normal_mtr]
+twins_filtered_mtr[,mean_mtr_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_normal_mtr]
+twins_filtered_mtr[,median_mtr_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_normal_mtr]
+twins_filtered_mtr[,min_mtr_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_normal_mtr]
+twins_filtered_mtr[,max_mtr_normal := apply(.SD, 1, max), .SDcols = samples_normal_mtr]
 
-twins_filtered_dep[,mean_dep_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = cols_normal_dep]
-twins_filtered_dep[,median_dep_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = cols_normal_dep]
-twins_filtered_dep[,min_dep_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = cols_normal_dep]
-twins_filtered_dep[,max_dep_normal := apply(.SD, 1, max), .SDcols = cols_normal_dep]
+twins_filtered_dep[,mean_dep_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_normal_dep]
+twins_filtered_dep[,median_dep_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_normal_dep]
+twins_filtered_dep[,min_dep_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_normal_dep]
+twins_filtered_dep[,max_dep_normal := apply(.SD, 1, max), .SDcols = samples_normal_dep]
 
-twins_filtered_vaf[,mean_vaf_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = cols_normal_vaf]
-twins_filtered_vaf[,median_vaf_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = cols_normal_vaf]
-twins_filtered_vaf[,min_vaf_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = cols_normal_vaf]
-twins_filtered_vaf[,max_vaf_normal := apply(.SD, 1, max), .SDcols = cols_normal_vaf]
+twins_filtered_vaf[,mean_vaf_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_normal_vaf]
+twins_filtered_vaf[,median_vaf_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_normal_vaf]
+twins_filtered_vaf[,min_vaf_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_normal_vaf]
+twins_filtered_vaf[,max_vaf_normal := apply(.SD, 1, max), .SDcols = samples_normal_vaf]
 
-twins_filtered_dt[, loss := as.factor(fcase( 
-  Chrom %in% c('chr1', 'chr18'), 'loss in tumour', # chr1 and chr18 segments lost in tumour samples
-  !Chrom %in% c('chr1', 'chr18'), 'normal ploidy'
-))]
+# Note: it's find that you see some columns where there is the max VAF in normal samples is 0 
+# can i see these mutations
+twins_filtered_vaf[, sum_vaf_normal0 := rowSums(.SD==0), .SDcols = samples_normal_vaf]
+twins_filtered_vaf[sum_vaf_normal0==12, mut_ID]
+# all look good 
+# "chr10_72139813_C_T" 
+# "chr15_68707110_G_A" 
+# "chr3_189240074_C_A" 
+# "chr3_95470911_T_A"  
+# "chr5_28014472_C_T"  
+# "chr5_58182780_T_A"  
+# "chr8_91252357_A_C"  
+# "chrX_64561555_C_T" 
 
 ######################################################################################################
 # Examine interesting classes of mutations
@@ -170,13 +176,16 @@ twins_filtered_mtr[, sum_normal_PD63383 := rowSums(.SD>=4), .SDcols = samples_no
 
 twins_filtered_mtr[sum_tumour == 10 & sum_normal == 0] # 1 
 # "chr2_199565129_G_A" # looks okay
-twins_filtered_mtr[sum_tumour >= 6 & sum_normal == 0] # 6 
-# "chr12_106354695_C_T" # looks okay
-# "chr14_45928734_G_A" # poor mapping 
-# "chr14_45928737_G_T" # poor mapping  
-# "chr2_199565129_G_A" # looks okay
-# "chr7_152562130_G_A" # looks okay   
-# "chrX_115495236_T_C" # some insertions so not the most believable, double check
+
+twins_filtered_mtr[sum_tumour == 9 & sum_normal == 0] # 2 
+# chr12_106354695_C_T # looks okay, missing in PD62341ak
+# "chrX_115495236_T_C" # looks okay to me (double check but I would believe it), missing in PD62341b
+
+twins_filtered_mtr[sum_tumour == 8 & sum_normal == 0] # empty  
+
+twins_filtered_mtr[sum_tumour == 7 & sum_normal == 0] # 2  
+# "chr14_45928737_G_T" # poor mapping
+# "chr7_152562130_G_A" # looks okay, missing in PD62341ak, PD62341ag, PD62341u
 
 twins_filtered_mtr[sum_tumour == 10 & sum_normal == 1] # 4 
 # "chr16_32621521_C_A" # mapping quality not excellent
@@ -1068,5 +1077,42 @@ twins_vaf[mut_ID =='chr14_105458006_C_A']
 # would be good to know the aggregate VAF in normal tissues
 # my exact binomial classified it as likely germline in PD62341 so maybe this is also a filter to look at 
 
+
+######################################################################################################
+######################################################################################################
+
+# OTHER MUTATIONS (OLD FILTERING)
+# Checking some mutations on JBrowse:
+# "chr10_100754461_C_T" - looks great 
+# "chr13_100405282_G_T"- looks great 
+# "chr6_160324993_G_A"
+# "chr2_95914901_C_A" = a bit questionable but I would take it 
+# "chr1_1433044_C_T" - I'd buy it 
+# "chr12_39248376_A_T" - looks great 
+
+# not looking very good:
+# "chr10_45856845_G_A"
+# "chr11_4313654_C_T"
+# "chr11_4344722_C_A" - not terrible but quite poor mapping quality 
+# "chr21_45822642_T_G" - phasing looks good but v questionable mapping
+# "chr1_16891590_G_A" - sometimes questionable mapping - but I would believe this is real
+# "chr1_111340150_T_G" - clear issues with mapping 
+# "chr7_154076175_C_T" - issues with mapping
+# "chr4_15679_A_T" - huge issues with mapping 
+# "chr22_20717458_T_C" - definitely has some mapping issues 
+# "chr1_109412643_A_C" - insertions in most reads 
+# "chr18_41634003_C_G" - mapping issues 
+# "chr14_82508185_C_A" - next to an insertion 
+# "chr9_66076217_A_G" - looks terrible 
+# "chr7_154076175_C_T" - poor mapping quality 
+# "chr19_11361902_T_C" - very close to insertions so quite questionable 
+# "chr10_30842788_C_A" - close to insertions 
+# "chr14_19129291_C_T" - poor mapping quality 
+# "chr1_248453436_T_C" - poor mapping quality 
+
+# I think sample q is either contaminated or common origin 
+# chr16_32621521_C_A mapping quality could be better
+# chr22_16694683_C_A mapping quality is maybe not excellent but at the same time maybe it's okay - can check 
+# chr2_57814739_A_C this is a bit too close to quite many insertions for comfort 
 
 

@@ -18,8 +18,6 @@ library(tidyverse)
 library(tidyr)
 library(glue)
 
-
-
 # COLUMNS (from the header)
 ##FORMAT-:DEP	Total reads covering this position (for subs del positions should be ignored)
 ##FORMAT-:FAZ	Reads presenting A for this position, forward strand
@@ -58,6 +56,8 @@ library(glue)
 ###################################################################################################################################
 
 # Read the files (received from Henry Lee-Six)
+setwd('/Users/bw18/Desktop/1SB/')
+
 twins1 = data.table(read.csv('Data/PD62341v_PD62341q_snp_vaf_removed_header.tsv', sep = '\t'))
 twins2 = data.table(read.csv('Data/PD63383w_PD63383t_snp_vaf_removed_header.tsv', sep = '\t'))
 twins3 = data.table(read.csv('Data/PDv38is_wgs_PD62341v_snp_vaf_removed_header.tsv', sep = '\t'))
@@ -169,4 +169,6 @@ write.csv(twins_df, 'Data/pileup_merged_20241012.tsv', row.names=FALSE)
 
 ###################################################################################################################################
 ###################################################################################################################################
-
+###################################################################################################################################
+###################################################################################################################################
+# ALL DONE
