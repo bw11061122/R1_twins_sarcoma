@@ -54,6 +54,7 @@ library(tidyr)
 library(glue)
 library(comprehenr) # list comprehension in R 
 library(stringr)
+library(VGAM)
 
 ###################################################################################################################################
 # Read the merged dataframe 
@@ -332,6 +333,82 @@ paste('Number of likely germline mutations (PD63383):', dim(twins_normal[f6_like
 paste('Number of likely germline mutations (both twins):', dim(twins_normal[f6_likelyGermline_bothTwins==1])[1]) # 350,300
 
 ######################################################################################################
+# FILTERING WITH SHEARWATER FILTER: ONLY ON MUTATIONS RETAINED SO FAR
+# This filter is run after excluding likely germline mutations because it is computationally intensive 
+
+# LOGIC FROM: https://www.nature.com/articles/s41596-024-00962-8#Sec20 (Sequoia Nature protocols)
+# To filter out artefactual variants, we fit a beta-binomial distribution to variant counts and depths across samples and estimate an overdispersion parameter (ρ, rho). 
+# The beta-binomial distribution with low values of ρ resembles a binomial distribution, while higher values have a bimodal distribution. 
+# Artefactual variants are usually best represented by a beta-binomial distribution with low overdispersion, as they appear uniformly distributed across samples. 
+# By contrast, true somatic variants are present at a high VAF in some samples, but are absent in others, and are best represented by a beta-binomial distribution with high overdispersion. 
+# For each putative mutation, we determine the maximum likelihood overdispersion parameter (ρ) using a fast grid search (ranging the value of ρ from 10−6 to 10−0.05) 
+# and keep variants that have an overdispersion higher than a certain threshold (Fig. 2a,b). 
+# We typically use a threshold of 0.1 for SNVs and 0.15 for indels, to account for the higher degree of noise present in indel counts. 
+# Lowering the thresholds may result in higher sensitivity at the cost of introducing more false positive mutation calls. 
+# The estimation of ρ can be done on all candidate mutations, but since this step is relatively time consuming, it is often constrained to shared variant calls after applying the previously mentioned germline filter.
+
+# FUNCTIONS FROM: https://github.com/TimCoorens/PanBody_Phylogenies/blob/main/Filtering/beta_binom_filter.R
+estimateRho_gridml = function(NV_vec, NR_vec) {
+  
+  # Function to estimate maximum likelihood value of rho for beta-binomial
+  rhovec = 10^seq(-6,-0.05,by=0.05) # rho will be bounded within 1e-6 and 0.89 # initialise 120 values
+  mu=sum(NV_vec)/sum(NR_vec) # this is the probability of success 
+  ll = sapply(rhovec, function(rhoj) sum(dbetabinom(x=NV_vec, size=NR_vec, rho=rhoj, prob=mu, log=T)))
+  # to each element of the rhovec, apply the function of summing dbetabinom distribution
+  return(rhovec[ll==max(ll)][1])
+  
+}
+
+beta.binom.filter = function(NR,NV,cutoff=0.1, binom.pval=F,pval.cutoff=0.05){
+  
+  # Function to apply beta-binomial filter for artefacts. Works best on sets of
+  # clonal samples (ideally >10 or so). As before, takes NV and NR as input. 
+  # Optionally calculates pvalue of likelihood beta-binomial with estimated rho
+  # fits better than binomial. This was supposed to protect against low-depth variants,
+  # but use with caution. Returns logical vector with good variants = TRUE
+  
+  # initialize a vector of rho for each mutation 
+  rho_est = pval = rep(NA,nrow(NR))
+
+  # for each mutation
+  for (k in 1:nrow(NR)){
+    rho_est[k]=estimateRho_gridml(NV_vec = as.numeric(NV[k,]), # NV_vec is a number from NV in this row (vector?)
+                                  NR_vec=as.numeric(NR[k,])) # NR_vec is a number from NR in this row (vector?)
+    
+    if(binom.pval){
+      mu = sum(as.numeric(NV[k,]))/sum(as.numeric(NR[k,]))
+      LL0 = sum(dbinom(as.numeric(NV[k,]),as.numeric(NR[k,]),prob=mu))
+      LL1 = sum(dbetabinom(as.numeric(NV[k,]),as.numeric(NR[k,]),prob=mu,rho=rho_est[k]))
+      pval[k] = (1-pchisq(2*(LL1-LL0),df=1)) / 2
+    }
+    
+    # check progress  
+    if (k%%1000==0){
+      print(k)
+    }
+  }
+  
+  if(binom.pval){
+    qval=p.adjust(pval,method="BH")
+    flt_rho=qval<=pval.cutoff&rho_est>cutoff
+  }else{
+    flt_rho=rho_est>=cutoff
+  }
+  return(rho_est)
+}
+
+# I don't know what NV and NR are
+# nv could be nr of variant reads and nr number of all reads
+twins_normal_filtered = twins_normal[f6_likelyGermline_bothTwins==0]
+NV = data.table(twins_normal_filtered[mut_ID=='chr14_105458006_C_A', samples_normal_mtr, with=FALSE])
+NR = data.table(twins_normal_filtered[mut_ID=='chr14_105458006_C_A', samples_normal_dep, with=FALSE])
+
+rho = data.table(beta.binom.filter(NV, NR))
+twins_normal_filtered = cbind(twins_normal_filtered, rho)
+setnames(twins_normal_filtered, 'V1', 'rho')
+muts_exclude_beta_binomial = twins_normal_filtered[!is.na(rho), mut_ID] %>% unlist()
+
+######################################################################################################
 # FILTERING BASED ON DISTANCE TO INDELS (DATA FROM PINDEL)
 # I will want to remove substitutions present next to any indels because these can lead to mapping issues 
 
@@ -460,6 +537,9 @@ twins_dt_merge = merge(twins_dt_merge, germline_filters, by = 'mut_ID')
 twins_dt_merge = merge(twins_dt_merge, strand_filters, by = 'mut_ID')
 twins_dt_filters = merge(twins_dt_merge, mdr_filters, by = 'mut_ID')
 
+# add filter from beta-binomial (rho)
+twins_dt_filters[, f9_betaBinomial := as.numeric(mut_ID %in% muts_exclude_beta_binomial)]
+
 ######################################################################################################
 # CHECK NR OF MUTATIONS EXCLUDED IN EACH FILTER
 
@@ -516,6 +596,17 @@ twins_filtered_mtr[, sum_tumour_PD63383 := rowSums(.SD>=4), .SDcols = samples_tu
 twins_filtered_mtr[, sum_normal_PD62341 := rowSums(.SD>=4), .SDcols = samples_normal_PD62341_mtr]
 twins_filtered_mtr[, sum_normal_PD63383 := rowSums(.SD>=4), .SDcols = samples_normal_PD63383_mtr]
 mut_included = twins_filtered[, mut_ID] %>% unlist()
+
+######################################################################################################
+# POINT TO CHECK BEFORE YOU FILTER EVERYTHING OUT
+
+# Are there mutations classified as germline NOT present in all samples
+twins_dt_filters[f6_likelyGermline_bothTwins==1 & f4_mtr4_presentInAll == 0] # 1
+# chr10_101084438_A_C deletions, not real 
+
+# Are there mutations present in all samples NOT classified as germline
+twins_dt_filters[f6_likelyGermline_bothTwins==0 & f4_mtr4_presentInAll == 1]
+# chr10_104859936_T_C # poor mapping, not real 
 
 ######################################################################################################
 # SAVE FILTERED MUTATIONS TO A TXT FILE

@@ -174,27 +174,39 @@ twins_filtered_mtr[, sum_normal_PD63383 := rowSums(.SD>=4), .SDcols = samples_no
 
 # select mutations which are only / mostly present in the tumour
 
+# Mutations present in many tumour samples and no normal samples 
 twins_filtered_mtr[sum_tumour == 10 & sum_normal == 0] # 1 
 # "chr2_199565129_G_A" # looks okay
-
 twins_filtered_mtr[sum_tumour == 9 & sum_normal == 0] # 2 
 # chr12_106354695_C_T # looks okay, missing in PD62341ak
 # "chrX_115495236_T_C" # looks okay to me (double check but I would believe it), missing in PD62341b
-
 twins_filtered_mtr[sum_tumour == 8 & sum_normal == 0] # empty  
-
 twins_filtered_mtr[sum_tumour == 7 & sum_normal == 0] # 2  
 # "chr14_45928737_G_T" # poor mapping
 # "chr7_152562130_G_A" # looks okay, missing in PD62341ak, PD62341ag, PD62341u
+twins_filtered_mtr[sum_tumour == 6 & sum_normal == 0] # 1 
+# chr14_45928734_G_A # poor mapping 
 
+# Mutations present in many tumour samples and 1 normal sample (check for contamination)
 twins_filtered_mtr[sum_tumour == 10 & sum_normal == 1] # 4 
 # "chr16_32621521_C_A" # mapping quality not excellent
 # "chr17_78256883_C_T"
 # "chr22_17774668_G_A"  
 # "chr22_30553442_G_T" 
 
-twins_filtered_mtr[sum_tumour >= 6 & sum_normal <= 1] # 26 
-twins_filtered_mtr[sum_tumour >= 6 & sum_normal <= 1, mut_ID] 
+twins_filtered_mtr[sum_tumour == 9 & sum_normal == 1]
+twins_filtered_mtr[sum_tumour == 8 & sum_normal == 1]
+twins_filtered_mtr[sum_tumour == 7 & sum_normal == 1]
+twins_filtered_mtr[sum_tumour == 6 & sum_normal == 1]
+
+# Mutations present in many tumour samples and 1 normal sample (check for contamination)
+twins_filtered_mtr[sum_tumour == 10 & sum_normal == 2]
+twins_filtered_mtr[sum_tumour == 9 & sum_normal == 2]
+twins_filtered_mtr[sum_tumour == 8 & sum_normal == 2]
+twins_filtered_mtr[sum_tumour == 7 & sum_normal == 2]
+twins_filtered_mtr[sum_tumour == 6 & sum_normal == 2]
+
+
 
 # "chr10_51734221_A_T"  
 # "chr12_106354695_C_T" 
@@ -1076,6 +1088,8 @@ twins_vaf[mut_ID =='chr14_105458006_C_A']
 # VAF in PD62341v == 0.1892
 # would be good to know the aggregate VAF in normal tissues
 # my exact binomial classified it as likely germline in PD62341 so maybe this is also a filter to look at 
+
+
 
 
 ######################################################################################################
