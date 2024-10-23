@@ -359,54 +359,25 @@ estimateRho_gridml = function(NV_vec, NR_vec) {
   
 }
 
-beta.binom.filter = function(NR,NV,cutoff=0.1, binom.pval=F,pval.cutoff=0.05){
-  
-  # Function to apply beta-binomial filter for artefacts. Works best on sets of
-  # clonal samples (ideally >10 or so). As before, takes NV and NR as input. 
-  # Optionally calculates pvalue of likelihood beta-binomial with estimated rho
-  # fits better than binomial. This was supposed to protect against low-depth variants,
-  # but use with caution. Returns logical vector with good variants = TRUE
-  
-  # initialize a vector of rho for each mutation 
-  rho_est = pval = rep(NA,nrow(NR))
+twins_normal_filtered = twins_normal[f6_likelyGermline_bothTwins==0]
+paste('Number of mutations which are likely not germline:', dim(twins_normal_filtered)[1])
 
-  # for each mutation
-  for (k in 1:nrow(NR)){
-    rho_est[k]=estimateRho_gridml(NV_vec = as.numeric(NV[k,]), # NV_vec is a number from NV in this row (vector?)
-                                  NR_vec=as.numeric(NR[k,])) # NR_vec is a number from NR in this row (vector?)
-    
-    if(binom.pval){
-      mu = sum(as.numeric(NV[k,]))/sum(as.numeric(NR[k,]))
-      LL0 = sum(dbinom(as.numeric(NV[k,]),as.numeric(NR[k,]),prob=mu))
-      LL1 = sum(dbetabinom(as.numeric(NV[k,]),as.numeric(NR[k,]),prob=mu,rho=rho_est[k]))
-      pval[k] = (1-pchisq(2*(LL1-LL0),df=1)) / 2
-    }
-    
-    # check progress  
-    if (k%%1000==0){
-      print(k)
-    }
-  }
+# initialize possible values of rho to screen 
+rhovec = 10^seq(-6,-0.05,by=0.05) 
+rhos = c()
+
+# for each row in the dataframe, identify the vector of MTRs and vector of DEPs
+for (i in 1:dim(twins_normal_filtered)[1]){
   
-  if(binom.pval){
-    qval=p.adjust(pval,method="BH")
-    flt_rho=qval<=pval.cutoff&rho_est>cutoff
-  }else{
-    flt_rho=rho_est>=cutoff
-  }
-  return(rho_est)
+  mtrs = as.numeric(twins_normal_filtered[i, samples_normal_mtr, with=FALSE] %>% unlist())
+  deps = as.numeric(twins_normal_filtered[i, samples_normal_dep, with=FALSE] %>% unlist())
+  mu=sum(mtrs)/sum(deps)
+  ll = sapply(rhovec, function(rhoj) sum(dbetabinom(x=mtrs, size=deps, rho=rhoj, prob=mu, log=T)))
+  rhos[i] = rhovec[ll==max(ll)][1]
+  
 }
 
-# I don't know what NV and NR are
-# nv could be nr of variant reads and nr number of all reads
-twins_normal_filtered = twins_normal[f6_likelyGermline_bothTwins==0]
-NV = data.table(twins_normal_filtered[mut_ID=='chr14_105458006_C_A', samples_normal_mtr, with=FALSE])
-NR = data.table(twins_normal_filtered[mut_ID=='chr14_105458006_C_A', samples_normal_dep, with=FALSE])
 
-rho = data.table(beta.binom.filter(NV, NR))
-twins_normal_filtered = cbind(twins_normal_filtered, rho)
-setnames(twins_normal_filtered, 'V1', 'rho')
-muts_exclude_beta_binomial = twins_normal_filtered[!is.na(rho), mut_ID] %>% unlist()
 
 ######################################################################################################
 # FILTERING BASED ON DISTANCE TO INDELS (DATA FROM PINDEL)
