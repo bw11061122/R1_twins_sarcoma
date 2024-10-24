@@ -235,28 +235,28 @@ twins_vaf[,max_vaf_normal := apply(.SD, 1, max), .SDcols = samples_normal_vaf]
 # FILTERING BASED ON COVERAGE (total number of reads covering a base)
 
 # Filter out mutations which have consistently low or high coverage
-# Based on the histogram (QC plots below) I decided to use filters 15 and 60
-# Only retain mutations which are covered by at least 15 reads in all normal samples
-# Only retain mutations which are covered by max 60 reads in all normal samples
+# Based on the histogram (20241011_pileup_qcplots.R), the appropriate boundaries are perhaps 20 and 50
+# I'm debating what exact coverage value would be best to use to max specificity / sensitivity 
 # Default cut-off in Sequoia (clonal samples) is median > 10x and < 500x, but it is perhaps better to use thresholds based on the coverage distirbution in my samples 
 paste('Number of sites with min coverage below 15 (normal samples):', dim(twins_dep[min_dep_normal < 15])[1]) # 22,199
 paste('Number of sites with max coverage above 60 (normal samples):', dim(twins_dep[max_dep_normal > 60])[1]) # 19,038
 
-paste('Number of sites with min coverage below 15 (normal samples):', dim(twins_dep[median_dep_normal < 20])[1]) # 14,500
-paste('Number of sites with max coverage above 60 (normal samples):', dim(twins_dep[median_dep_normal > 50])[1]) # 1,342
+paste('Number of sites with median coverage below 20 (normal samples):', dim(twins_dep[median_dep_normal < 20])[1]) # 9,215
+paste('Number of sites with median coverage above 50 (normal samples):', dim(twins_dep[median_dep_normal > 50])[1]) # 500
 
-paste('Number of sites with median coverage below 20 (all samples):', dim(twins_dep[median_dep < 20])[1]) # 13,691
-paste('Number of sites with median coverage above 50 (all samples):', dim(twins_dep[median_dep > 50])[1]) # 1,432
+paste('Number of sites with median coverage below 20 (all samples):', dim(twins_dep[median_dep < 20])[1]) # 8,878
+paste('Number of sites with median coverage above 50 (all samples):', dim(twins_dep[median_dep > 50])[1]) # 527
 
 # Filter out mutations where there are no reads in at least 1 sample (cannot tell status in the sample)
-twins_dep[,sum_no_reads := rowSums(.SD==0), .SDcols = cols_dep]
-paste('Number of mutations w/o any reads in at least one sample:', dim(twins_dep[sum_no_reads>0])[1]) # 3144
+twins_dep[,sum_no_reads := rowSums(.SD==0), .SDcols = cols_normal_dep]
+paste('Number of mutations w/o any reads in at least one sample:', dim(twins_dep[sum_no_reads>0])[1]) # 2,720
+# I am only looking at normal samples here because there could be weird copy number changes in tumour samples
 
 # Add columns with specific filters
-twins_dep[,f3_lowDepth := as.numeric(median_dep < 20)] # 1 if does not pass the filter 
-twins_dep[,f3_highDepth := as.numeric(median_dep > 50)] # 1 if does not pass the filter
-twins_dep[,f3_lowDepth_normal := as.numeric(median_dep_normal < 20)] # 1 if does not pass the filter 
-twins_dep[,f3_highDepth_normal := as.numeric(median_dep_normal > 50)] # 1 if does not pass the filter
+twins_dep[,f3_lowDepth := as.numeric(median_dep < 15)] # 1 if does not pass the filter 
+twins_dep[,f3_highDepth := as.numeric(median_dep > 60)] # 1 if does not pass the filter
+twins_dep[,f3_lowDepth_normal := as.numeric(median_dep_normal < 15)] # 1 if does not pass the filter 
+twins_dep[,f3_highDepth_normal := as.numeric(median_dep_normal > 60)] # 1 if does not pass the filter
 twins_dep[,f3_noReadsMapped := as.numeric(sum_no_reads > 0)] # 1 if does not pass the filter
 
 ######################################################################################################
@@ -333,8 +333,8 @@ paste('Number of likely germline mutations (PD63383):', dim(twins_normal[f6_like
 paste('Number of likely germline mutations (both twins):', dim(twins_normal[f6_likelyGermline_bothTwins==1])[1]) # 350,300
 
 ######################################################################################################
-# FILTERING WITH SHEARWATER FILTER: ONLY ON MUTATIONS RETAINED SO FAR
-# This filter is run after excluding likely germline mutations because it is computationally intensive 
+# FILTERING WITH SHEARWATER FILTER: EXCLUDE MUTATIONS CLASSIFIED AS GERMLINE
+# This filter is run after excluding likely germline mutations to reduce computational demands 
 
 # LOGIC FROM: https://www.nature.com/articles/s41596-024-00962-8#Sec20 (Sequoia Nature protocols)
 # To filter out artefactual variants, we fit a beta-binomial distribution to variant counts and depths across samples and estimate an overdispersion parameter (ρ, rho). 
@@ -347,8 +347,9 @@ paste('Number of likely germline mutations (both twins):', dim(twins_normal[f6_l
 # Lowering the thresholds may result in higher sensitivity at the cost of introducing more false positive mutation calls. 
 # The estimation of ρ can be done on all candidate mutations, but since this step is relatively time consuming, it is often constrained to shared variant calls after applying the previously mentioned germline filter.
 
+# I am running this filter only on the data from normal mutations (12 samples)
 twins_normal_filtered = twins_normal[f6_likelyGermline_bothTwins==0]
-paste('Number of mutations which are likely not germline:', dim(twins_normal_filtered)[1])
+paste('Number of mutations which are likely not germline:', dim(twins_normal_filtered)[1]) # 11,987
 
 # initialize possible values of rho to screen 
 rhovec = 10^seq(-6,-0.05,by=0.05) 
@@ -368,10 +369,11 @@ for (i in 1:dim(twins_normal_filtered)[1]){
 # merge rhos with the data table 
 twins_normal_filtered = cbind(twins_normal_filtered, data.table(rhos))
 
-# identify mutations where the value is <= 0.05, which you will want to remove 
-# Sequoia recommends 0.1, but I think for these purposes this could be too stringent (there are some real mutations with rho ~ 0.7)
-muts_likely_artefact = twins_normal_filtered[rhos < 0.05, mut_ID] %>% unlist()
-paste('Number of likely artefactual mutations:', length(muts_likely_artefact)) # 11,021 
+# identify mutations where the value is <= 0.01, which you will want to remove 
+# Sequoia recommends 0.1, but I think for these purposes this could be too stringent
+muts_exclude_betabinomial = twins_normal_filtered[rhos < 0.01, mut_ID] %>% unlist()
+paste('Number of likely artefactual mutations:', length(muts_exclude_betabinomial)) # 9,126
+paste('Number of non-germline mutations that pass the filter:', dim(twins_normal_filtered)[1] - length(muts_exclude_betabinomial)) # 2,861
 
 ######################################################################################################
 # FILTERING BASED ON DISTANCE TO INDELS (DATA FROM PINDEL)
@@ -503,7 +505,7 @@ twins_dt_merge = merge(twins_dt_merge, strand_filters, by = 'mut_ID')
 twins_dt_filters = merge(twins_dt_merge, mdr_filters, by = 'mut_ID')
 
 # add filter from beta-binomial (rho)
-twins_dt_filters[, f9_betaBinomial := as.numeric(mut_ID %in% muts_likely_artefact)]
+twins_dt_filters[, f9_betaBinomial := as.numeric(mut_ID %in% muts_exclude_beta_binomial)]
 
 ######################################################################################################
 # CHECK NR OF MUTATIONS EXCLUDED IN EACH FILTER
@@ -530,7 +532,7 @@ dim(twins_dt_filters[f7_FailedIndelNearby10==1])[1] # 8,506 # not much of a diff
 dim(twins_dt_filters[f8_strandBias==1])[1] # 11,467
 dim(twins_dt_filters[f8_MDR3all==1])[1] # 23,710
 dim(twins_dt_filters[f8_MDR3min10==1])[1] # 14,763
-dim(twins_dt_filters[f9_betaBinomial==1])[1] # 11,021
+dim(twins_dt_filters[f9_betaBinomial==1])[1] # 905
 
 ######################################################################################################
 # CHECK NR OF MUTATIONS THAT PASS ALL FILTERS
@@ -541,15 +543,21 @@ columns_all_filters = c('f1_PASS', 'f2_mappedY', 'f3_lowDepth', 'f3_lowDepth_nor
                        'f7_FailedIndelNearby10', 'f8_strandBias', 'f8_MDR3all', 'f8_MDR3min10', 'f9_betaBinomial')
 
 twins_dt_filters[, sum_all_filters := rowSums(.SD), .SDcols = columns_all_filters] 
-paste('Number of mutations that pass all filters:', dim(twins_dt_filters[sum_all_filters==0])[1]) # 0  
+paste('Number of mutations that pass all filters:', dim(twins_dt_filters[sum_all_filters==0])[1]) # 50  
 # Not all filters should be required and we don't want to remove specific classes like mutations germline in one twin only 
 
-columns_req_filters = c('f2_mappedY', 'f3_lowDepth', 'f3_highDepth', 'f3_noReadsMapped',
+columns_qc_filters = c('f1_PASS', 'f2_mappedY', 'f3_lowDepth_normal', 'f3_highDepth_normal', 'f3_noReadsMapped', 
+                       'f4_mtr4_presentInAll', 'f4_mtr4_presentInNone', 'f4_mtr4_presentInOne',
+                       'f5_maxVAF01', 'f5_VAFna', 'f6_likelyGermline_bothTwins', 
+                       'f7_FailedIndelNearby10', 'f8_strandBias', 'f8_MDR3min10', 'f9_betaBinomial')
+twins_dt_filters[, sum_qc_filters := rowSums(.SD), .SDcols = columns_qc_filters] 
+paste('Number of mutations that pass all filters:', dim(twins_dt_filters[sum_qc_filters==0])[1]) # 531  
+
+columns_req_filters = c('f2_mappedY', 'f3_lowDepth_normal', 'f3_highDepth_normal', 'f3_noReadsMapped',
                         'f4_mtr4_presentInAll', 'f4_mtr4_presentInNone', 'f4_mtr4_presentInOne', 'f5_maxVAF01', 'f5_VAFna',
                         'f6_likelyGermline_bothTwins', 'f7_FailedIndelNearby10', 'f9_betaBinomial')
 twins_dt_filters[, sum_req_filters := rowSums(.SD), .SDcols = columns_req_filters] 
-paste('Number of mutations that pass required filters:', dim(twins_dt_filters[sum_req_filters==0])[1]) # 1,966  
-# the beta binomial thing brings this down to 164 so this is quite problematic 
+paste('Number of mutations that pass required filters:', dim(twins_dt_filters[sum_req_filters==0])[1]) # 2,577  
 
 cols_info = c('VariantID', 'Chrom', 'Pos', 'Ref', 'Alt', 'Qual', 'Filter', 'Gene', 'Transcript', 'RNA', 'CDS',
               'Protein', 'Effect')
@@ -580,7 +588,7 @@ twins_dt_filters[f6_likelyGermline_bothTwins==0 & f4_mtr4_presentInAll == 1]
 ######################################################################################################
 # SAVE FILTERED MUTATIONS TO A TXT FILE
 paste('Number of mutations that passed required filters:', length(mut_included)) # 1,966
-write.table(mut_included, 'Data/mutations_include_20241023.txt', quote = FALSE, col.names = F, row.names = F)
+write.table(mut_included, 'Data/mutations_include_20241024.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
 ######################################################################################################

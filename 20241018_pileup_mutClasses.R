@@ -35,7 +35,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241023.txt') %>% unlist()
+muts = read.table('Data/mutations_include_20241024.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 1,966
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
@@ -161,7 +161,7 @@ twins_filtered_vaf[sum_vaf_normal0==12, mut_ID]
 # "chrX_64561555_C_T" 
 
 ######################################################################################################
-# Examine interesting classes of mutations
+# Create a dataframe with values presence / absence based on MTR data 
 
 twins_filtered_mtr[, sum_tumour := rowSums(.SD>=4), .SDcols = samples_tumour_mtr]
 twins_filtered_mtr[, sum_normal := rowSums(.SD>=4), .SDcols = samples_normal_mtr]
@@ -172,84 +172,301 @@ twins_filtered_mtr[, sum_tumour_PD63383 := rowSums(.SD>=4), .SDcols = samples_tu
 twins_filtered_mtr[, sum_normal_PD62341 := rowSums(.SD>=4), .SDcols = samples_normal_PD62341_mtr]
 twins_filtered_mtr[, sum_normal_PD63383 := rowSums(.SD>=4), .SDcols = samples_normal_PD63383_mtr]
 
-# select mutations which are only / mostly present in the tumour
+######################################################################################################
+# Examine interesting classes of mutations
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+# TUMOUR EVOLUTION
+
+# Identify mutations private to the tumour
 
 # Mutations present in many tumour samples and no normal samples 
 twins_filtered_mtr[sum_tumour == 10 & sum_normal == 0] # 1 
 # "chr2_199565129_G_A" # looks okay
+
 twins_filtered_mtr[sum_tumour == 9 & sum_normal == 0] # 2 
 # chr12_106354695_C_T # looks okay, missing in PD62341ak
 # "chrX_115495236_T_C" # looks okay to me (double check but I would believe it), missing in PD62341b
+
 twins_filtered_mtr[sum_tumour == 8 & sum_normal == 0] # empty  
+
 twins_filtered_mtr[sum_tumour == 7 & sum_normal == 0] # 2  
 # "chr14_45928737_G_T" # poor mapping
 # "chr7_152562130_G_A" # looks okay, missing in PD62341ak, PD62341ag, PD62341u
+
 twins_filtered_mtr[sum_tumour == 6 & sum_normal == 0] # 1 
 # chr14_45928734_G_A # poor mapping 
+
+twins_filtered_mtr[sum_tumour == 5 & sum_normal == 0] # 4
+# chr16_17805832_C_T # looks okay 
+# chr2_111603601_A_G # rather poor mapping quality 
+# chr7_153784080_C_G # mutations on poorly mapped reads
+# chr8_21444725_G_A # looks okay
+
+twins_filtered_mtr[sum_tumour == 4 & sum_normal == 0] # 2
+# chr13_28953051_G_T # looks okay
+# chr15_28718667_A_G # poor mapping
+
+twins_filtered_mtr[sum_tumour == 3 & sum_normal == 0] # 16  
+# "chr10_87249207_G_T" # poor mapping 
+# "chr11_43029745_A_T" # looks okay
+# "chr12_19555916_C_T" # looks okay
+# "chr12_82832044_C_A" # looks okay
+# "chr1_143987248_C_T" # poor mapping 
+# "chr21_13120203_G_A" # poor mapping 
+# "chr2_174270140_T_A" # poor mapping 
+# "chr2_231591536_G_T" # looks okay
+# "chr3_195504485_G_C" # poor mapping
+# "chr5_141433408_A_T" # deletions
+# "chr5_83262853_T_A" # insertions
+# "chr6_91355049_C_T" # insertions
+# "chr7_152796118_A_T" # variable mapping 
+# "chr8_2342452_C_T" # poor mapping 
+# "chr8_6177429_A_T" # poor mapping 
+# "chr9_38999165_A_G" # poor mapping
 
 # Mutations present in many tumour samples and 1 normal sample (check for contamination)
 twins_filtered_mtr[sum_tumour == 10 & sum_normal == 1] # 4 
 # "chr16_32621521_C_A" # mapping quality not excellent
-# "chr17_78256883_C_T"
-# "chr22_17774668_G_A"  
-# "chr22_30553442_G_T" 
+# "chr17_78256883_C_T" # looks okay
+# "chr22_17774668_G_A" # looks okay 
+# "chr22_30553442_G_T" # looks okay
 
 twins_filtered_mtr[sum_tumour == 9 & sum_normal == 1]
-twins_filtered_mtr[sum_tumour == 8 & sum_normal == 1]
-twins_filtered_mtr[sum_tumour == 7 & sum_normal == 1]
-twins_filtered_mtr[sum_tumour == 6 & sum_normal == 1]
+# chr12_61020950_C_A # looks okay
+# chr14_104122986_G_T # looks okay (nb some mis-mapping)
+# chr19_3961910_G_A # looks okay
+# chr7_115240063_T_C # looks okay
+# chr7_120677593_C_T # looks okay
+# chr8_46678612_T_C # looks okay
+# chrX_46375010_C_T # looks okay
+# chrX_56448796_C_A # looks okay
 
-# Mutations present in many tumour samples and 1 normal sample (check for contamination)
+twins_filtered_mtr[sum_tumour == 8 & sum_normal == 1] # 1
+# "chr2_57814739_A_C" # mixed feelings - looks okay but quite a lot of insertions, double check
+
+twins_filtered_mtr[sum_tumour == 7 & sum_normal == 1] # 2
+# chr12_84029949_C_A # looks okay
+# chr6_77631804_C_A # looks okay
+
+twins_filtered_mtr[sum_tumour == 6 & sum_normal == 1] # 5
+# chr10_51734221_A_T # looks okay
+# chr12_112652964_C_T # looks okay
+# chr15_94939486_G_A # looks okay
+# chr6_58221412_T_C # mutations on poorly mapped reads
+# chr8_87226547_A_G # poor mapping 
+
+twins_filtered_mtr[sum_tumour == 5 & sum_normal == 1] # 8
+# "chr11_26060345_G_T" # looks okay
+# "chr12_129105882_A_G" # poor mapping 
+# "chr13_103318073_T_A" # looks okay
+# "chr14_54164980_C_G" # looks okay
+# "chr17_70958446_C_T" # looks okay
+# "chr2_87466042_G_A" # poor mapping    
+# "chr6_168731130_C_T" # looks okay  
+# "chr6_8310684_G_T" # looks okay
+
+twins_filtered_mtr[sum_tumour == 4 & sum_normal == 1] # 11
+# chr12_114403258_G_A" # looks okay
+# "chr15_23357707_C_T"  # poor mapping 
+# "chr16_89042129_G_A"  # poor mapping 
+# "chr18_1379467_G_T"  # looks okay
+# "chr2_113447401_A_T" # poor mapping 
+# "chr2_131534951_C_T" # poor mapping 
+# "chr2_95748047_C_T" # very few reads, some mapping issues - mixed feelings
+# "chr4_135461656_G_A" # looks okay
+# "chr8_133213958_T_C" # deletions
+# "chr8_33050650_A_C" # deletions  
+# "chr9_6697738_A_T" # indels  
+
+twins_filtered_mtr[sum_tumour == 3 & sum_normal == 1] # 34
+# "chr10_49979259_G_T" # poor mapping 
+# "chr11_127782363_A_C" # poor mapping
+# "chr11_4225536_T_C" # poor mapping  
+# "chr11_4252756_G_T" # poor mapping 
+# "chr11_67710577_G_T" # poor mapping 
+# "chr12_75561694_T_C" # poor mapping 
+# "chr15_30819247_G_A" # poor mapping
+# "chr17_18716394_G_T" # poor mapping
+# "chr18_15378233_T_C" # poor mapping
+# "chr19_39186678_T_G" # poor mapping 
+# "chr19_50086327_C_T" # poor mapping  
+# "chr1_120476102_T_G" # poor mapping
+# "chr1_145588334_T_C" # poor mapping
+# "chr1_148952577_G_A" # poor mapping 
+# "chr1_16649763_G_A" # poor mapping   
+# "chr1_201459206_G_C" # poor mapping
+# "chr1_248574696_C_G" # poor mapping
+# "chr22_24260204_G_T" # poor mapping  
+# "chr2_113565897_A_G" # poor mapping  
+# "chr2_87257985_T_C" # poor mapping  
+# "chr2_87470055_G_A" # poor mapping  
+# "chr3_119005597_G_A" # poor mapping 
+# "chr4_179587218_G_A" # looks real!
+# "chr5_110777251_A_G" # poor mapping 
+# "chr5_69476229_C_T" # poor mapping   
+# "chr5_99523861_G_C" # poor mapping  
+# "chr7_104559847_T_G" # poor mapping 
+# "chr8_141860196_G_A" # looks okay
+# "chr9_41083153_A_G" # poor mapping  
+# "chr9_41948814_C_T" # poor mapping  
+# "chr9_64485288_C_T" # poor mapping  
+# "chrX_144081878_T_C" # poor mapping
+# "chrX_97349036_G_A" # poor mapping
+
+# Mutations present in many tumour samples and 2 normal samples (check for contamination)
 twins_filtered_mtr[sum_tumour == 10 & sum_normal == 2]
+# "chr13_60216504_A_C" # looks okay
+# "chr15_48353502_C_A" # looks okay
+# "chr15_56691722_C_T" # looks okay
+# "chr16_4003400_G_A" # looks okay
+# "chr1_69984580_G_A" # can estimate contamination from this one!!
+# "chr2_133311125_G_T" # looks okay
+# "chr5_136349883_C_T" # looks okay
+# "chr5_37790015_G_A" # looks okay
+# "chr6_95827754_C_A" # mapping could be better but still decent
+# "chr9_11364991_T_A" # looks okay
+# "chrX_68803487_C_T" # looks okay
+
 twins_filtered_mtr[sum_tumour == 9 & sum_normal == 2]
+# "chr12_10337296_G_T" # variable mapping 
+# "chr12_39248376_A_T" # looks okay
+# "chr18_71485446_G_A" # looks like del of the other copy - can estimate contamination
+# "chr21_45729938_T_A" # looks okay
+# "chr22_16694683_C_A" # looks okay
+# "chr2_119170376_C_T" # really not sure, double check 
+# "chr2_187893783_G_T" # looks okay
+# "chr3_94699090_G_T" # looks okay
+# "chr4_180479634_G_A" # looks okay
+# "chr5_112010886_G_A" # looks okay
+# "chr7_12297469_T_G" # looks okay
+# "chr8_54112201_C_A" # looks okay
+# "chr9_94529993_C_T" # quite a lot of mis-mapped reads 
+
+# there are two mutations next to each other that show a very similar pattern and VAF 
+# the other is: chr8_54112197_T_C, and is called as present in 9 tumour samples and 3 normal
+# normal chr8_54112197_T_C: PD62341aa, h, PD63383 bb
+# normal chr8_54112201_C_A: PD62341h, PD63383bb (3 reads in PD62341aa)
+
 twins_filtered_mtr[sum_tumour == 8 & sum_normal == 2]
+# chr2_78054577_G_A # looks okay
+# chr3_153319439_A_G # looks okay
+
 twins_filtered_mtr[sum_tumour == 7 & sum_normal == 2]
+# chr2_158600954_G_A # looks okay
+# chr7_143823602_A_G # poor mapping 
+
 twins_filtered_mtr[sum_tumour == 6 & sum_normal == 2]
-
-
-
-# "chr10_51734221_A_T"  
-# "chr12_106354695_C_T" 
-# "chr12_112652964_C_T" 
-# "chr12_61020950_C_A" 
-# "chr12_84029949_C_A"  
-# "chr14_104122986_G_T" 
-# "chr14_45928734_G_A" # mapping quality issues 
-# "chr14_45928737_G_T" # mapping quality issues 
-# "chr15_94939486_G_A"  
-# "chr16_32621521_C_A" # mapping quality not excellent
-# "chr17_78256883_C_T"  
-# "chr19_3961910_G_A"  
-# "chr22_17774668_G_A"  
-# "chr22_30553442_G_T"  
-# "chr2_199565129_G_A"  
-# "chr2_57814739_A_C" # fair share of insertions 
-# "chr6_58221412_T_C" # mapping issues   
-# "chr6_77631804_C_A"   
-# "chr7_115240063_T_C"  
-# "chr7_120677593_C_T" 
-# "chr7_152562130_G_A"  
-# "chr8_46678612_T_C"   
-# "chr8_87226547_A_G" # mapping issues   
-# "chrX_115495236_T_C" 
-# "chrX_46375010_C_T"   
-# "chrX_56448796_C_A" 
-
-# NOTE there is a mutation X_56448822_T_C which looks real and must have arisen earlier
-# present in all samples and not just the tumour + C_A is in some reads with T_C but not all
+# chr15_30811818_A_G # poor mapping 
+# chr18_64267234_G_A # looks okay, inspect further - is this on the deleted copy?
+# chr1_243074560_C_T # poor mapping
+# chr2_113513495_A_G # poor mapping
+# chr2_131290036_G_A # poor mapping 
+# chr2_172537945_G_A # poor mapping
+# chr3_195982104_C_T # poor mapping
+# chr4_68662000_A_T # variable mapping, double check
+# chr9_41808224_G_T # poor mapping 
 
 ######################################################################################################
-# select mutations which are only present in the tumour and either twin
+# Mutations shared between tumour and one twin 
 
-twins_filtered_mtr[sum_tumour >= 6 & sum_normal_PD62341 >= 4 & sum_normal_PD63383 == 0] # 5 (3 look real)
-# "chr14_105458006_C_A" 
-# "chr3_58819009_G_A" # mapping issues   
-# "chr3_62055057_C_G"   
-# "chr3_62055077_G_C" 
-# "chr7_40558111_A_C" # insertions 
+# Mutations present in ALL tumour samples and all / some normal PD62341 samples 
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 6 & sum_normal_PD63383 == 0] # 1
+# "chr14_105458006_C_A" our favourite one!
 
-twins_filtered_mtr[sum_tumour >= 6 & sum_normal_PD62341 >= 1 & sum_normal_PD63383 == 1] # 108
-# may allow one to be present in PD63383 bc of contamination 
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 5 & sum_normal_PD63383 == 0] # 0
+
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 4 & sum_normal_PD63383 == 0] # 2
+# "chr3_62055057_C_G" aa and h (possibly contamination), n and q (heart and pancreas)
+# "chr3_62055077_G_C" aa and h (possibly contamination), n and q (heart and pancreas)
+
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 3 & sum_normal_PD63383 == 0] # 0
+
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 2 & sum_normal_PD63383 == 0] # 1
+# chr6_95827754_C_A not the best mapping quality but fine, aa and h (possibly contamination) 
+
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 1 & sum_normal_PD63383 == 0] # 4
+# "chr16_32621521_C_A" # mapping quality not excellent
+# "chr17_78256883_C_T" # looks okay
+# "chr22_17774668_G_A" # looks okay 
+# "chr22_30553442_G_T" # looks okay
+
+# Mutations present in 9 tumour samples and all / some PD62341 normal samples 
+twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 6 & sum_normal_PD63383 == 0] # 0
+twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 5 & sum_normal_PD63383 == 0] # 0
+twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 4 & sum_normal_PD63383 == 0] # 0
+twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 3 & sum_normal_PD63383 == 0] # 1
+# chr7_139659050_G_A looks okay
+# also there is a very cool mutation on the other chromosome (in all samples?) chr7_139659034_T_G
+# missing in ak, which is technically tumour (primary)
+
+twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 2 & sum_normal_PD63383 == 0] # 3
+# chr18_71485446_G_A # looks okay and on the segment lost in the other chromosome 
+# chr21_45729938_T_A # looks okay
+# chr2_119170376_C_T # poor quality (strand bias)
+# all missing in ak 
+
+twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 1 & sum_normal_PD63383 == 0] # 4
+# mostly in h so all of these are likely contamination
+# chr12_61020950_C_A # looks okay
+# chr19_3961910_G_A # looks okay
+# chr7_120677593_C_T # looks okay
+# chr8_46678612_T_C # looks okay
+# chrX_46375010_C_T # looks okay
+# chrX_56448796_C_A # looks okay
+# all missing in ak 
+
+# Allow presence in 1 normal sample from PD63383 (because of contamination)
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 6 & sum_normal_PD63383 == 1] # 0
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 5 & sum_normal_PD63383 == 1] # 3
+# chr16_5479739_C_T # looks real (absent from PD62341v, present in PD63383bb)
+# chr2_95662131_G_A # looks semi-okay (double check) (absent from PD62341v, present in PD63383bb)
+# chr3_50106043_C_T # looks okay (absent from PD62341v, present in PD63383bb)
+
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 4 & sum_normal_PD63383 == 1] # 0
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 3 & sum_normal_PD63383 == 1] # 1
+# chr5_44907911_G_A # looks okay (present in PD62341q, aa, h and PD63383bb)
+
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 2 & sum_normal_PD63383 == 1] # 9
+# always PD62341aa, PD62341h and PD63383bb so very likely contamination 
+# "chr10_100754461_C_T" # looks okay
+# "chr11_134158143_C_T" # looks okay
+# "chr14_104500332_C_T" # looks okay
+# "chr15_23462705_C_A" # mis-mapping 
+# "chr17_40061856_G_C" # looks okay 
+# "chr4_130207996_C_T" # looks okay 
+# "chr4_147908994_T_C" # looks okay 
+# "chr4_178731458_A_G" # looks okay
+# "chrX_66719643_C_G" # looks okay
+
+twins_filtered_mtr[sum_tumour == 10 & sum_normal_PD62341 == 1 & sum_normal_PD63383 == 1] # 10
+# always PD62341aa or PD62341h and PD63383bb so very likely contamination 
+# "chr13_60216504_A_C" 
+# "chr15_48353502_C_A" 
+# "chr15_56691722_C_T" 
+# "chr16_4003400_G_A" 
+# "chr1_69984580_G_A" # looks like it's been deleted in tumour samples 
+# "chr2_133311125_G_T" 
+# "chr5_136349883_C_T" 
+# "chr5_37790015_G_A" 
+# "chr9_11364991_T_A"  
+# "chrX_68803487_C_T"
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+# ANALYSIS OF THE SHARED MUTATIONS BETWEEN TUMOUR AND PD62341 NORMAL
 
 # note that I am allowing presence in 1 sample from PD63383 because there could have been contamination
 twins_filtered_mtr[sum_tumour >= 6 & sum_normal_PD62341 >= 4 & sum_normal_PD63383 <= 1] # 17 
@@ -665,6 +882,462 @@ twins_filtered_mtr[sum_normal_PD62341 <= 1 & sum_normal_PD63383 >= 4, mut_ID]
 # "chrX_115066661_C_T" # looks real 
 
 ######################################################################################################
+######################################################################################################
+######################################################################################################
+# Mutations that define each twin 
+
+######################################################################################################
+
+# private to PD63383
+twins_filtered_mtr[sum_normal_PD62341 == 0 & sum_normal_PD63383 == 6] # 0
+twins_filtered_mtr[sum_normal_PD62341 == 1 & sum_normal_PD63383 == 6] # 3
+# all present in PD62341v (spleen?), all at VAF ~0.1?
+# chr11_34011887_C_T looks okay (vaf ~0.25 in PD63383)
+# chr4_75704880_G_A looks okay (vaf ~0.25 in PD63383)
+# chr6_165179306_G_A looks okay (vaf ~0.25 in PD63383)
+
+twins_filtered_mtr[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 6]
+# chr13_80917269_T_G # poor mapping 
+# chr1_77763_G_A # poor mapping 
+# chr3_105182212_T_C # poor mapping 
+# chr3_165901319_C_A # poor mapping 
+# chr6_55120674_A_G # not sure 
+
+twins_filtered_mtr[sum_normal_PD62341 == 0 & sum_normal_PD63383 == 5]
+# chr13_50815806_A_G # looks okay (3 reads in PD63383u but VAF 0.15)
+
+twins_filtered_mtr[sum_normal_PD62341 == 1 & sum_normal_PD63383 == 5]
+# 1 in aa and the others in PD62341v, missing in PD63383u / PD63383ae / PD63383ak (dist)
+# interestingly the 3 other mutations are absent from tumour samples: another evidence this is really PD62341 cells 
+# these ones could be really cool to look at, talk to Henry about those!
+# chr13_18341947_A_G # mis-mapping 
+# chr17_18844573_T_C # mis-mapping 
+# chr1_16849834_G_T # poor mapping 
+# chr1_35202938_A_G # indels 
+# chr4_74625500_G_T # oh that looks great! 
+# chr7_73831920_C_T # looks okay
+
+twins_filtered_mtr[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 5]
+# "chr13_45665901_G_A" # poor mapping  
+# "chr14_103083068_T_C" # double check 
+# "chr15_101386102_C_T" # deletions
+# "chr15_22477455_A_T" # poor mapping
+# "chr15_82429313_C_A" # poor mapping  
+# "chr17_36270996_T_A" # poor mapping 
+# "chr1_120463162_T_C" # poor mapping 
+# "chr1_185892098_T_C" # poor mapping
+# "chr1_223890733_G_A" # poor mapping 
+# "chr1_84230759_C_T" # poor mapping  
+# "chr2_24681471_A_G" # poor mapping  
+# "chr2_5987933_C_T" # poor mapping 
+# "chr2_72019504_G_A" # poor mapping 
+# "chr3_195504100_C_T" # poor mapping  
+# "chr5_69908084_C_T" # poor mapping  
+# "chr7_125275065_A_C" # poor mapping
+# "chr7_146018850_C_T" # poor mapping 
+# "chr7_30415341_A_G" # poor mapping  
+# "chr8_98742634_G_C" # poor mapping  
+# "chr9_133191234_T_C" # poor mapping
+# "chr9_94544944_G_C" # poor mapping  
+# "chrX_135194514_G_C" # poor mapping / deletions
+
+######################################################################################################
+
+# private to PD62341 
+twins_filtered_mtr[sum_normal_PD62341 == 6 & sum_normal_PD63383 == 0] # 1
+# chr14_105458006_C_A favourite one 
+# chr3_58819009_G_A poor mapping 
+
+twins_filtered_mtr[sum_normal_PD62341 == 6 & sum_normal_PD63383 == 1] # 0
+twins_filtered_mtr[sum_normal_PD62341 == 6 & sum_normal_PD63383 == 2] # 6
+# chr13_19104709_A_G # poor mapping 
+# chr15_49480646_T_A # poor mapping 
+# chr17_33422229_C_A # looks good! 
+# chr2_218846190_G_C # poor mapping
+# chr3_195492439_C_T # poor mapping 
+# chr9_40726116_G_A # poor mapping 
+
+twins_filtered_mtr[sum_normal_PD62341 == 5 & sum_normal_PD63383 == 0] # 2
+# chr12_51026540_G_C # deletions
+# chr2_124594744_C_T # poor mapping 
+
+twins_filtered_mtr[sum_normal_PD62341 == 5 & sum_normal_PD63383 == 1] # 7
+# always missing in PD62341v and tend to be present in PD63383bb (contamination from the tumour?)
+# chr16_5479739_C_T # looks real
+# chr17_18402034_C_A # poor mapping
+# chr19_468950_G_A # looks messy - double check with Henry
+# chr1_148178303_A_G # poor mapping 
+# chr2_113577037_G_A # poor mapping 
+# chr2_95662131_G_A # looks okay?, double check
+# chr3_50106043_C_T # looks okay?, double check 
+
+twins_filtered_mtr[sum_normal_PD62341 == 5 & sum_normal_PD63383 == 2] # 30
+# "chr10_46118239_C_A" # poor mapping 
+# "chr13_38383597_T_C" # looks kind of okay?
+# "chr15_32446399_C_T" # poor mapping 
+# "chr15_32446476_T_C" # poor mapping 
+# "chr16_16235743_A_G" # poor mapping 
+# "chr16_16237911_T_G" # poor mapping 
+# "chr17_220430_C_T" # poor mapping    
+# "chr1_143878377_T_C" # poor mapping 
+# "chr1_144415293_C_T" # poor mapping 
+# "chr1_25421823_C_T" # not convinced
+# "chr1_47108559_G_A" # poor mapping  
+# "chr22_10683960_T_A" # poor mapping 
+# "chr22_22278002_C_G" # poor mapping 
+# "chr2_111602759_A_G" # poor mapping 
+# "chr2_19307044_C_A" # poor mapping 
+# "chr2_231848552_A_G" # poor mapping
+# "chr2_68517910_T_A" # poor mapping 
+# "chr2_72068448_A_G" # poor mapping 
+# "chr3_195991332_T_C" # poor mapping
+# "chr5_125420017_A_T" # poor mapping
+# "chr5_152309464_C_T" # poor mapping
+# "chr5_167859432_G_A" # poor mapping
+# "chr5_55443234_C_T" # poor mapping 
+# "chr7_125701070_T_C" # looks somewhat plausible 
+# "chr7_77001001_G_T" # poor mapping 
+# "chr9_39073134_A_G" # poor mapping  
+# "chr9_39815614_A_G" # poor mapping
+# "chrX_122845887_T_C" # poor mapping
+# "chrX_76327335_T_C" # poor mapping
+
+######################################################################################################
+######################################################################################################
+# Can I make some nice plots with these 
+muts_PD62341 = c("chr14_105458006_C_A", "chr17_33422229_C_A", "chr16_5479739_C_T",
+                 "chr2_95662131_G_A", "chr3_50106043_C_T", "chr19_468950_G_A",
+                 "chr13_38383597_T_C", "chr7_125701070_T_C") # note the last 2 ones I am not super convinced by 
+mut_PD63383 = c("chr11_34011887_C_T", "chr4_75704880_G_A", "chr6_165179306_G_A",
+                "chr13_50815806_A_G", "chr4_74625500_G_T", "chr7_73831920_C_T")
+mut_early = c(mut_PD62341, mut_PD63383)
+
+mut_PD62341_dt = twins_vaf[mut_ID %in% muts_PD62341, 1:23]
+mut_PD62341_melt = melt(mut_PD62341_dt, id.vars = 'mut_ID')
+mut_PD62341_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
+mut_PD62341_melt[, status := as.factor(fcase( 
+  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_tumour, 'tumour'
+))]
+mut_PD62341_melt[, twin := as.factor(fcase( 
+  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_PD63383, 'PD63383'
+))]
+mut_PD62341_melt[, sample_type := as.factor(paste(status, twin, sep = '_'))]
+mut_PD62341_melt[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                       'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                       'chr2_95662131_G_A', 'chr7_125701070_T_C',
+                                       'chr13_38383597_T_C', 'chr19_468950_G_A'))]
+
+# plot option 1: we can make VAF plots for different samples
+for (sample_name in mut_PD62341_melt[,sample] %>% unlist() %>% unique()){
+  ggplot(mut_PD62341_melt[sample==sample_name], aes(x=mut_ID, y=value))+
+    geom_line(group = 1)+
+    geom_point(size=1.5)+
+    geom_area(aes(fill = mut_ID))+
+    scale_fill_manual(values = col_normal_PD62341)+
+    theme_bw(base_size = 10)+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+    labs(x = 'Mutation', y = 'VAF')+
+    ggtitle(glue('VAF distribution in sample {sample_name}'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ylim(c(0, 0.7))
+  ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut8_{sample_name}.pdf'), width=9, height=7)
+  }
+
+# can we aggregate samples by sample type and plot the mean VAF (+ standard deviation)
+# we should use a different color for each category 
+mut_PD62341_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD62341_melt, FUN=mean))
+mut_PD62341_agg[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                       'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                       'chr2_95662131_G_A', 'chr7_125701070_T_C',
+                                       'chr13_38383597_T_C', 'chr19_468950_G_A'))]
+
+ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
+          geom_line(group = 1)+
+          geom_point(size=1.5)+
+          geom_area(aes(fill = mut_ID))+
+          scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+          theme_bw(base_size = 12)+
+          theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+          labs(x = 'Mutation', y = 'VAF')+
+          facet_wrap(~sample_type)+
+          theme(legend.position = "none")+
+          ggtitle(glue('VAF distribution for twin-specific mutations'))+
+          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+          ylim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut8_aggregated.pdf'), width=9, height=7)
+
+# what if I do this without 
+samples_contaminated = c('PD62341v', 'PD62341aa', 'PD62341h', 'PD63383bb')
+mut_PD62341_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD62341_melt[!sample %in% samples_contaminated], FUN=mean))
+mut_PD62341_agg[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                       'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                       'chr2_95662131_G_A', 'chr7_125701070_T_C',
+                                       'chr13_38383597_T_C', 'chr19_468950_G_A'))]
+
+ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
+  geom_line(group = 1)+
+  geom_point(size=1.5)+
+  geom_area(aes(fill = mut_ID))+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'Mutation', y = 'VAF')+
+  facet_wrap(~sample_type, ncol = 1)+
+  theme(legend.position = "none")+
+  ggtitle(glue('VAF distribution for twin-specific mutations\n(excluded contaminated samples)'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut8_aggregated_rmcontamination.pdf'), width=5, height=8)
+
+ggplot(mut_PD62341_agg, aes(x=value, y=mut_ID, col = sample_type))+
+  geom_point(size=3)+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD62341 mutations\n(excluded contaminated samples)'))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut8_aggregated_rmcontamination_reorderxy.pdf'), width=6.5, height=8)
+
+# PD63383 
+muts_PD63383 = c("chr11_34011887_C_T", "chr4_75704880_G_A", "chr6_165179306_G_A",
+                "chr13_50815806_A_G", "chr4_74625500_G_T", "chr7_73831920_C_T")
+
+
+mut_PD63383_dt = twins_vaf[mut_ID %in% muts_PD63383, 1:23]
+mut_PD63383_melt = melt(mut_PD63383_dt, id.vars = 'mut_ID')
+mut_PD63383_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
+mut_PD63383_melt[, status := as.factor(fcase( 
+  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_tumour, 'tumour'))]
+mut_PD63383_melt[, twin := as.factor(fcase( 
+  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_PD63383, 'PD63383'
+))]
+mut_PD63383_melt[, sample_type := as.factor(paste(status, twin, sep = '_'))]
+mut_PD63383_melt[, mut_ID := factor(mut_ID, levels = 
+                                      c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                        'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                        'chr2_95662131_G_A', 'chr7_125701070_T_C',
+                                        'chr13_38383597_T_C', 'chr19_468950_G_A'))]
+
+# plot option 1: we can make VAF plots for different samples
+for (sample_name in mut_PD63383_melt[,sample] %>% unlist() %>% unique()){
+  ggplot(mut_PD63383_melt[sample==sample_name], aes(x=mut_ID, y=value))+
+    geom_line(group = 1)+
+    geom_point(size=1.5)+
+    geom_area(aes(fill = mut_ID))+
+    scale_fill_manual(values = col_normal_PD63383)+
+    theme_bw(base_size = 10)+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+    labs(x = 'Mutation', y = 'VAF')+
+    ggtitle(glue('VAF distribution in sample {sample_name}'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ylim(c(0, 0.7))
+  ggsave(glue('Results/20241024_p3_vaf_dist_PD63383_mut8_{sample_name}.pdf'), width=9, height=7)
+}
+
+# can we aggregate samples by sample type and plot the mean VAF (+ standard deviation)
+# we should use a different color for each category 
+mut_PD63383_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD63383_melt, FUN=mean))
+mut_PD63383_agg[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr11_34011887_C_T', 'chr4_75704880_G_A', 
+                                       'chr4_74625500_G_T',  'chr6_165179306_G_A',
+                                       'chr13_50815806_A_G', 'chr7_73831920_C_T'))]
+mut_PD63383_agg[, sample_type := factor(sample_type, levels = 
+                                     c('normal_PD63383', 'normal_PD62341',
+                                       'tumour_PD63383', 'tumour_PD62341'))]
+
+ggplot(mut_PD63383_agg, aes(x=mut_ID, y=value, col = sample_type))+
+  geom_line(group = 1)+
+  geom_point(size=1.5)+
+  geom_area(aes(fill = mut_ID))+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'Mutation', y = 'VAF')+
+  facet_wrap(~sample_type)+
+  theme(legend.position = "none")+
+  ggtitle(glue('VAF distribution for PD63383 specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD63383_mut6_aggregated.pdf'), width=9, height=7)
+
+# what if I do this without 
+samples_contaminated = c('PD62341v', 'PD62341aa', 'PD62341h', 'PD63383bb')
+mut_PD63383_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD63383_melt[!sample %in% samples_contaminated], FUN=mean))
+mut_PD63383_agg[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr11_34011887_C_T', 'chr4_75704880_G_A', 
+                                       'chr4_74625500_G_T',  'chr6_165179306_G_A',
+                                       'chr13_50815806_A_G', 'chr7_73831920_C_T'))]
+mut_PD63383_agg[, sample_type := factor(sample_type, levels = 
+                                          c('normal_PD63383', 'normal_PD62341',
+                                            'tumour_PD63383', 'tumour_PD62341'))]
+
+ggplot(mut_PD63383_agg, aes(x=mut_ID, y=value, col = sample_type))+
+  geom_line(group = 1)+
+  geom_point(size=1.5)+
+  geom_area(aes(fill = mut_ID))+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'Mutation', y = 'VAF')+
+  facet_wrap(~sample_type, ncol = 1)+
+  theme(legend.position = "none")+
+  ggtitle(glue('VAF distribution for PD63383 specific mutations\n(excluded contaminated samples)'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD63383_mut6_aggregated_rmcontamination.pdf'), width=5, height=8)
+
+ggplot(mut_PD63383_agg, aes(x=value, y=mut_ID, col = sample_type))+
+  geom_point(size=3)+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD63383 mutations\n(excluded contaminated samples)'))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD63383_mut8_aggregated_rmcontamination_reorderxy.pdf'), width=6.5, height=8)
+
+# okay so these mutations are certainly real, now it would be good to get a distribution of those for each
+mut_PD63383_melt[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr11_34011887_C_T', 'chr4_75704880_G_A', 
+                                       'chr4_74625500_G_T',  'chr6_165179306_G_A',
+                                       'chr13_50815806_A_G', 'chr7_73831920_C_T'))]
+mut_PD63383_melt[, sample_type := factor(sample_type, levels = 
+                                          c('normal_PD63383', 'normal_PD62341',
+                                            'tumour_PD63383', 'tumour_PD62341'))]
+
+ggplot(mut_PD63383_melt, aes(x=mut_ID, y=value, col = sample_type))+
+  geom_point(size=2)+
+  scale_color_manual(values = c(col_normal_PD63383, col_normal_PD62341, col_tumour_PD63383, col_tumour_PD62341))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'Mutation', y = 'VAF')+
+  ggtitle(glue('VAF distribution of PD63383-restricted mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.4))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD63383_mut6_dist_in_samples.pdf'), width=9, height=7)
+
+# Mutation selection part 2
+# PD62341 
+# I would say with the three last mutations (chr7, chr13, chr19)
+# it doesn't look like they are specific to PD62341
+# they are at reasonable VAF in both twins - what does this tell us?
+# let's do this again for the 5 mutations we are confident about
+muts_PD62341 = c("chr14_105458006_C_A", "chr17_33422229_C_A", "chr16_5479739_C_T",
+                 "chr2_95662131_G_A", "chr3_50106043_C_T") # note the last 2 ones I am not super convinced by 
+
+mut_PD62341_dt = twins_vaf[mut_ID %in% muts_PD62341, 1:23]
+mut_PD62341_melt = melt(mut_PD62341_dt, id.vars = 'mut_ID')
+mut_PD62341_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
+mut_PD62341_melt[, status := as.factor(fcase( 
+  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_tumour, 'tumour'
+))]
+mut_PD62341_melt[, twin := as.factor(fcase( 
+  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_PD63383, 'PD63383'
+))]
+mut_PD62341_melt[, sample_type := as.factor(paste(status, twin, sep = '_'))]
+mut_PD62341_melt[, mut_ID := factor(mut_ID, levels = 
+                                      c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                        'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                        'chr2_95662131_G_A'))]
+
+# plot option 1: we can make VAF plots for different samples
+for (sample_name in mut_PD62341_melt[,sample] %>% unlist() %>% unique()){
+  ggplot(mut_PD62341_melt[sample==sample_name], aes(x=mut_ID, y=value))+
+    geom_line(group = 1)+
+    geom_point(size=1.5)+
+    geom_area(aes(fill = mut_ID))+
+    scale_fill_manual(values = col_normal_PD62341)+
+    theme_bw(base_size = 10)+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+    labs(x = 'Mutation', y = 'VAF')+
+    ggtitle(glue('VAF distribution in sample {sample_name}'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ylim(c(0, 0.7))
+  ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_{sample_name}.pdf'), width=9, height=7)
+}
+
+# can we aggregate samples by sample type and plot the mean VAF (+ standard deviation)
+# we should use a different color for each category 
+mut_PD62341_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD62341_melt, FUN=mean))
+mut_PD62341_agg[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                       'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                       'chr2_95662131_G_A'))]
+
+ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
+  geom_line(group = 1)+
+  geom_point(size=1.5)+
+  geom_area(aes(fill = mut_ID))+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'Mutation', y = 'VAF')+
+  facet_wrap(~sample_type)+
+  theme(legend.position = "none")+
+  ggtitle(glue('VAF distribution for twin-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_aggregated.pdf'), width=9, height=7)
+
+# what if I do this without 
+samples_contaminated = c('PD62341v', 'PD62341aa', 'PD62341h', 'PD63383bb')
+mut_PD62341_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD62341_melt[!sample %in% samples_contaminated], FUN=mean))
+mut_PD62341_agg[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                       'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                       'chr2_95662131_G_A'))]
+
+ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
+  geom_line(group = 1)+
+  geom_point(size=1.5)+
+  geom_area(aes(fill = mut_ID))+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'Mutation', y = 'VAF')+
+  facet_wrap(~sample_type, ncol = 1)+
+  theme(legend.position = "none")+
+  ggtitle(glue('VAF distribution for twin-specific mutations\n(excluded contaminated samples)'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_aggregated_rmcontamination.pdf'), width=5, height=8)
+
+ggplot(mut_PD62341_agg, aes(x=value, y=mut_ID, col = sample_type))+
+  geom_point(size=3)+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD62341 mutations\n(excluded contaminated samples)'))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_aggregated_rmcontamination_reorderxy.pdf'), width=6.5, height=8)
+
+mut_PD62341_melt = data.table(aggregate(value~mut_ID+sample_type, mut_PD62341_melt[!sample %in% samples_contaminated], FUN=mean))
+mut_PD62341_melt[, mut_ID := factor(mut_ID, levels = 
+                                     c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
+                                       'chr14_105458006_C_A',  'chr3_50106043_C_T',
+                                       'chr2_95662131_G_A'))]
+ggplot(mut_PD62341_melt, aes(x=mut_ID, y=value, col = sample_type))+
+  geom_point(size=2)+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'Mutation', y = 'VAF')+
+  ggtitle(glue('VAF distribution of PD62341-restricted mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_dist_in_samples.pdf'), width=9, height=7)
+
+
+
+######################################################################################################
 # TRACKING TUMOUR EVOLUTION
 # look at mutations which are present in a subset of tumour samples
 twins_filtered_mtr[sum_normal == 0 & sum_tumour >= 2, mut_ID] #  mutations are only informative if shared 
@@ -941,7 +1614,7 @@ twins_dt_germlinePD62341[sum_mtr_PD62341 == 3 & sum_mtr_PD63383 == 0]
 ######################################################################################################
 # Mutations private to PD63383
 
-twins_dt_germlinePD63383 = twins_dt_filters[f7_likelyGermline_PD62341==0 & f7_likelyGermline_PD63383==1] # 765
+twins_dt_germlinePD63383 = twins_dt_filters[f6_likelyGermline_PD62341==0 & f6_likelyGermline_PD63383==1] # 765
 twins_dt_germlinePD63383 = twins_dt_germlinePD63383[, c('mut_ID', samples_normal_mtr, samples_normal_vaf, samples_normal_dep), with=F]
 
 twins_dt_germlinePD63383[,mean_vaf_PD62341 := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_normal_PD62341_vaf]
@@ -1090,12 +1763,43 @@ twins_vaf[mut_ID =='chr14_105458006_C_A']
 # my exact binomial classified it as likely germline in PD62341 so maybe this is also a filter to look at 
 
 
-
-
 ######################################################################################################
 ######################################################################################################
 
 # OTHER MUTATIONS (OLD FILTERING)
+
+# these I think would be tumour-specific 
+# "chr10_51734221_A_T"  
+# "chr12_106354695_C_T" 
+# "chr12_112652964_C_T" 
+# "chr12_61020950_C_A" 
+# "chr12_84029949_C_A"  
+# "chr14_104122986_G_T" 
+# "chr14_45928734_G_A" # mapping quality issues 
+# "chr14_45928737_G_T" # mapping quality issues 
+# "chr15_94939486_G_A"  
+# "chr16_32621521_C_A" # mapping quality not excellent
+# "chr17_78256883_C_T"  
+# "chr19_3961910_G_A"  
+# "chr22_17774668_G_A"  
+# "chr22_30553442_G_T"  
+# "chr2_199565129_G_A"  
+# "chr2_57814739_A_C" # fair share of insertions 
+# "chr6_58221412_T_C" # mapping issues   
+# "chr6_77631804_C_A"   
+# "chr7_115240063_T_C"  
+# "chr7_120677593_C_T" 
+# "chr7_152562130_G_A"  
+# "chr8_46678612_T_C"   
+# "chr8_87226547_A_G" # mapping issues   
+# "chrX_115495236_T_C" 
+# "chrX_46375010_C_T"   
+# "chrX_56448796_C_A" 
+
+# NOTE there is a mutation X_56448822_T_C which looks real and must have arisen earlier
+# present in all samples and not just the tumour + C_A is in some reads with T_C but not all
+
+
 # Checking some mutations on JBrowse:
 # "chr10_100754461_C_T" - looks great 
 # "chr13_100405282_G_T"- looks great 
