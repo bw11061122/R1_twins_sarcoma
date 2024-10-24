@@ -347,18 +347,6 @@ paste('Number of likely germline mutations (both twins):', dim(twins_normal[f6_l
 # Lowering the thresholds may result in higher sensitivity at the cost of introducing more false positive mutation calls. 
 # The estimation of ρ can be done on all candidate mutations, but since this step is relatively time consuming, it is often constrained to shared variant calls after applying the previously mentioned germline filter.
 
-# FUNCTIONS FROM: https://github.com/TimCoorens/PanBody_Phylogenies/blob/main/Filtering/beta_binom_filter.R
-estimateRho_gridml = function(NV_vec, NR_vec) {
-  
-  # Function to estimate maximum likelihood value of rho for beta-binomial
-  rhovec = 10^seq(-6,-0.05,by=0.05) # rho will be bounded within 1e-6 and 0.89 # initialise 120 values
-  mu=sum(NV_vec)/sum(NR_vec) # this is the probability of success 
-  ll = sapply(rhovec, function(rhoj) sum(dbetabinom(x=NV_vec, size=NR_vec, rho=rhoj, prob=mu, log=T)))
-  # to each element of the rhovec, apply the function of summing dbetabinom distribution
-  return(rhovec[ll==max(ll)][1])
-  
-}
-
 twins_normal_filtered = twins_normal[f6_likelyGermline_bothTwins==0]
 paste('Number of mutations which are likely not germline:', dim(twins_normal_filtered)[1])
 
@@ -377,7 +365,13 @@ for (i in 1:dim(twins_normal_filtered)[1]){
   
 }
 
+# merge rhos with the data table 
+twins_normal_filtered = cbind(twins_normal_filtered, data.table(rhos))
 
+# identify mutations where the value is <= 0.05, which you will want to remove 
+# Sequoia recommends 0.1, but I think for these purposes this could be too stringent (there are some real mutations with rho ~ 0.7)
+muts_likely_artefact = twins_normal_filtered[rhos < 0.05, mut_ID] %>% unlist()
+paste('Number of likely artefactual mutations:', length(muts_likely_artefact)) # 11,021 
 
 ######################################################################################################
 # FILTERING BASED ON DISTANCE TO INDELS (DATA FROM PINDEL)
@@ -509,7 +503,7 @@ twins_dt_merge = merge(twins_dt_merge, strand_filters, by = 'mut_ID')
 twins_dt_filters = merge(twins_dt_merge, mdr_filters, by = 'mut_ID')
 
 # add filter from beta-binomial (rho)
-twins_dt_filters[, f9_betaBinomial := as.numeric(mut_ID %in% muts_exclude_beta_binomial)]
+twins_dt_filters[, f9_betaBinomial := as.numeric(mut_ID %in% muts_likely_artefact)]
 
 ######################################################################################################
 # CHECK NR OF MUTATIONS EXCLUDED IN EACH FILTER
@@ -536,22 +530,26 @@ dim(twins_dt_filters[f7_FailedIndelNearby10==1])[1] # 8,506 # not much of a diff
 dim(twins_dt_filters[f8_strandBias==1])[1] # 11,467
 dim(twins_dt_filters[f8_MDR3all==1])[1] # 23,710
 dim(twins_dt_filters[f8_MDR3min10==1])[1] # 14,763
+dim(twins_dt_filters[f9_betaBinomial==1])[1] # 11,021
 
 ######################################################################################################
 # CHECK NR OF MUTATIONS THAT PASS ALL FILTERS
 
 columns_all_filters = c('f1_PASS', 'f2_mappedY', 'f3_lowDepth', 'f3_lowDepth_normal', 'f3_highDepth', 'f3_highDepth_normal', 'f3_noReadsMapped', 
                        'f4_mtr4_presentInAll', 'f4_mtr4_presentInNone', 'f4_mtr4_presentInOne', 'f4_mtr4_absentInOne',
-                       'f5_maxVAF01', 'f5_VAFna', 'f6_likelyGermline_PD62341', 'f6_likelyGermline_PD63383', 'f6_likelyGermline_bothTwins', 'f7_FailedIndelNearby10', 'f8_strandBias', 'f8_MDR3all', 'f8_MDR3min10')
+                       'f5_maxVAF01', 'f5_VAFna', 'f6_likelyGermline_PD62341', 'f6_likelyGermline_PD63383', 'f6_likelyGermline_bothTwins', 
+                       'f7_FailedIndelNearby10', 'f8_strandBias', 'f8_MDR3all', 'f8_MDR3min10', 'f9_betaBinomial')
 
 twins_dt_filters[, sum_all_filters := rowSums(.SD), .SDcols = columns_all_filters] 
-paste('Number of mutations that pass all filters:', dim(twins_dt_filters[sum_all_filters==0])[1]) 
+paste('Number of mutations that pass all filters:', dim(twins_dt_filters[sum_all_filters==0])[1]) # 0  
 # Not all filters should be required and we don't want to remove specific classes like mutations germline in one twin only 
 
 columns_req_filters = c('f2_mappedY', 'f3_lowDepth', 'f3_highDepth', 'f3_noReadsMapped',
-                        'f4_mtr4_presentInAll', 'f4_mtr4_presentInNone', 'f4_mtr4_presentInOne', 'f5_maxVAF01', 'f5_VAFna','f6_likelyGermline_bothTwins', 'f7_FailedIndelNearby10')
+                        'f4_mtr4_presentInAll', 'f4_mtr4_presentInNone', 'f4_mtr4_presentInOne', 'f5_maxVAF01', 'f5_VAFna',
+                        'f6_likelyGermline_bothTwins', 'f7_FailedIndelNearby10', 'f9_betaBinomial')
 twins_dt_filters[, sum_req_filters := rowSums(.SD), .SDcols = columns_req_filters] 
 paste('Number of mutations that pass required filters:', dim(twins_dt_filters[sum_req_filters==0])[1]) # 1,966  
+# the beta binomial thing brings this down to 164 so this is quite problematic 
 
 cols_info = c('VariantID', 'Chrom', 'Pos', 'Ref', 'Alt', 'Qual', 'Filter', 'Gene', 'Transcript', 'RNA', 'CDS',
               'Protein', 'Effect')
