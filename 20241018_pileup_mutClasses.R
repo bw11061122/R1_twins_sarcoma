@@ -1167,7 +1167,7 @@ ggplot(mut_PD63383_agg, aes(x=mut_ID, y=value, col = sample_type))+
   ylim(c(0, 0.7))
 ggsave(glue('Results/20241024_p3_vaf_dist_PD63383_mut6_aggregated.pdf'), width=9, height=7)
 
-# what if I do this without 
+# what if I do this without contaminating samples
 samples_contaminated = c('PD62341v', 'PD62341aa', 'PD62341h', 'PD63383bb')
 mut_PD63383_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD63383_melt[!sample %in% samples_contaminated], FUN=mean))
 mut_PD63383_agg[, mut_ID := factor(mut_ID, levels = 
@@ -1324,6 +1324,7 @@ mut_PD62341_melt[, mut_ID := factor(mut_ID, levels =
                                      c('chr16_5479739_C_T', 'chr17_33422229_C_A', 
                                        'chr14_105458006_C_A',  'chr3_50106043_C_T',
                                        'chr2_95662131_G_A'))]
+
 ggplot(mut_PD62341_melt, aes(x=mut_ID, y=value, col = sample_type))+
   geom_point(size=2)+
   scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
@@ -1335,7 +1336,15 @@ ggplot(mut_PD62341_melt, aes(x=mut_ID, y=value, col = sample_type))+
   ylim(c(0, 0.7))
 ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_dist_in_samples.pdf'), width=9, height=7)
 
-
+ggplot(mut_PD62341_melt, aes(x=value, y=mut_ID, col = sample_type))+
+  geom_point(size=2)+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution of PD62341-restricted mutations'))+
+  xlim(c(0, 0.7))
+ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_dist_in_samples_reorderxy.pdf'), width=9, height=7)
 
 ######################################################################################################
 # TRACKING TUMOUR EVOLUTION
