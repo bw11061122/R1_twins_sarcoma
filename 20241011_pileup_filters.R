@@ -332,6 +332,10 @@ paste('Number of likely germline mutations (PD62341):', dim(twins_normal[f6_like
 paste('Number of likely germline mutations (PD63383):', dim(twins_normal[f6_likelyGermline_PD63383==1])[1]) # 352,881
 paste('Number of likely germline mutations (both twins):', dim(twins_normal[f6_likelyGermline_bothTwins==1])[1]) # 350,300
 
+# write IDs of likely germline mutations to csv
+germline_mutations = twins_normal[f6_likelyGermline_bothTwins==1, mut_ID] %>% unlist()
+write.table(germline_mutations, 'Data/mutations_likely_germline_20241026.txt', quote = FALSE, col.names = F, row.names = F)
+
 ######################################################################################################
 # FILTERING WITH SHEARWATER FILTER: EXCLUDE MUTATIONS CLASSIFIED AS GERMLINE
 # This filter is run after excluding likely germline mutations to reduce computational demands 
