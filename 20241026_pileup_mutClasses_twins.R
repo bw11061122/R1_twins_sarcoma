@@ -577,14 +577,17 @@ pdf('Results/20241028_p5_pca2.pdf')
 PCA_figure <- fviz_pca_ind(res.pca,
                               geom = 'point',
                               legend.title = "Sample",
-                              pointsize = 2, pointshape = 21, 
+                              pointsize = 4, pointshape = 21, 
                               mean.point = FALSE,
                               fill.ind = as.factor(mut_mat[, sample_type]),
                               habillage = as.factor(mut_mat[, sample_type]),
                               title="PCA: 418 filtered mutations",
                               xlim = c(-30, 30),
                               ylim = c(-30, 30),
-                              palette = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))
+                              palette = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme(text = element_text(size = 15),
+        axis.title = element_text(size = 15),
+        axis.text = element_text(size = 15))
 PCA_figure
 dev.off()
 

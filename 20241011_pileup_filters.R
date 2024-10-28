@@ -615,27 +615,7 @@ twins_filtered_mtr[, sum_normal_PD63383 := rowSums(.SD>=4), .SDcols = samples_no
 mut_included = twins_filtered[, mut_ID] %>% unlist()
 
 ######################################################################################################
-# POINT TO CHECK BEFORE YOU FILTER EVERYTHING OUT
-
-# Are there mutations classified as germline NOT present in all samples
-twins_dt_filters[f5_likelyGermline_bothTwins==1 & f3_mtr4_presentInAll == 0] # 1
-# chr10_101084438_A_C deletions, not real 
-
-# Are there mutations present in all samples NOT classified as germline
-twins_dt_filters[f5_likelyGermline_bothTwins==0 & f3_mtr4_presentInAll == 1]
-# chr10_104859936_T_C # poor mapping, not real 
-
-######################################################################################################
-# SAVE FILTERED MUTATIONS TO A TXT FILE
-paste('Number of mutations that passed required filters:', length(mut_included)) # 418
-write.table(mut_included, 'Data/mutations_include_20241028_3.txt', quote = FALSE, col.names = F, row.names = F)
-
-######################################################################################################
-######################################################################################################
-######################################################################################################
-######################################################################################################
-# ALL DONE 
-
+# Plot distribution of mutational classes on full and filtered dataset
 muts_dt = twins_dt_filters[, c('mut_ID', 'Ref', 'Alt', 'sum_req_filters'), with=FALSE]
 muts_dt[, status := as.factor(fcase(
   sum_req_filters == 0, 'passed',
@@ -643,12 +623,12 @@ muts_dt[, status := as.factor(fcase(
 ))]
 muts_dt[, mut_type := paste(Ref, Alt, sep='>')]
 muts_dt[, mut_type := as.factor(fcase(
-          mut_type == 'A>T', 'T>A',
-          mut_type == 'A>C', 'T>G',
-          mut_type == 'G>C', 'C>G',
-          mut_type == 'G>T', 'C>A',
-          mut_type == 'A>G', 'T>C',
-          mut_type == 'G>A', 'C>T'))]
+  mut_type == 'A>T', 'T>A',
+  mut_type == 'A>C', 'T>G',
+  mut_type == 'G>C', 'C>G',
+  mut_type == 'G>T', 'C>A',
+  mut_type == 'A>G', 'T>C',
+  mut_type == 'G>A', 'C>T'))]
 
 mut_counts = data.table(sort(table(muts_dt[,mut_type])), decreasing=TRUE)
 mut_counts[,V1:=as.factor(V1)]
@@ -677,5 +657,54 @@ ggplot(data=mut_counts_qc, aes(x=fct_inorder(V1), y=freq_norm, fill=QC)) +
   theme_bw(base_size = 12)+
   labs(x = 'Mutation type', y = 'Fraction of all mutations in the category', title = 'Mutation types in all samples')
 ggsave('Results/20241028_p5_mut_filters_types.pdf', width = 6, height = 4.5)
+
+# compare removing germline mutations (many likely will be real)
+muts_dt = twins_dt_filters[f5_likelyGermline_bothTwins==0, c('mut_ID', 'Ref', 'Alt', 'sum_req_filters'), with=FALSE]
+muts_dt[, status := as.factor(fcase(
+  sum_req_filters == 0, 'passed',
+  sum_req_filters > 0, 'failed'
+))]
+muts_dt[, mut_type := paste(Ref, Alt, sep='>')]
+muts_dt[, mut_type := as.factor(fcase(
+  mut_type == 'A>T', 'T>A',
+  mut_type == 'A>C', 'T>G',
+  mut_type == 'G>C', 'C>G',
+  mut_type == 'G>T', 'C>A',
+  mut_type == 'A>G', 'T>C',
+  mut_type == 'G>A', 'C>T'))]
+
+mut_counts = data.table(sort(table(muts_dt[,mut_type])), decreasing=TRUE)
+mut_counts[,V1:=as.factor(V1)]
+
+# plot distribution of mutations of failed and passed mutations
+mut_counts_passed = data.table(sort(table(muts_dt[status == 'passed',mut_type])))
+mut_counts_failed = data.table(sort(table(muts_dt[status == 'failed',mut_type])))
+
+mut_counts_passed[, freq_norm := N/ length(mut_included)]
+mut_counts_failed[, freq_norm := N/ (dim(muts_dt)[1] - length(mut_included))]
+
+mut_counts_passed[, QC := 'passed']
+mut_counts_failed[, QC := 'failed']
+mut_counts_qc = data.table(rbind(mut_counts_passed, mut_counts_failed))
+mut_counts_qc[, V1 := as.factor(V1)]
+
+ggplot(data=mut_counts_qc, aes(x=fct_inorder(V1), y=freq_norm, fill=QC)) +
+  geom_bar(stat='identity', position = 'dodge')+
+  scale_fill_manual(values = c('darkblue','lightblue'))+
+  theme_bw(base_size = 12)+
+  labs(x = 'Mutation type', y = 'Fraction of all mutations in the category', title = 'Mutation types in all samples\nexcluded putative germline mutations')
+ggsave('Results/20241028_p5_mut_filters_types_germline_excluded.pdf', width = 6, height = 4.5)
+
+######################################################################################################
+# SAVE FILTERED MUTATIONS TO A TXT FILE
+paste('Number of mutations that passed required filters:', length(mut_included)) # 418
+write.table(mut_included, 'Data/mutations_include_20241028_3.txt', quote = FALSE, col.names = F, row.names = F)
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+# ALL DONE 
+
 
 

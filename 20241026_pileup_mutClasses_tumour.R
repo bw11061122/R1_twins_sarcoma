@@ -1334,6 +1334,142 @@ ggplot(mut_PD62341_melt, aes(x=value, y=mut_ID, col = sample_type))+
   xlim(c(0, 0.7))
 ggsave(glue('Results/20241024_p3_vaf_dist_PD62341_mut5_dist_in_samples_reorderxy.pdf'), width=9, height=7)
 
+
+###################################################################################################################################
+# Heatmap of all retained mutations (418)
+mat_mtr = as.matrix(twins_filtered_mtr[, c(samples_mtr), with=FALSE])
+rownames(mat_mtr) = twins_filtered_mtr[,1] %>% unlist()  
+colnames(mat_mtr) = tstrsplit(colnames(mat_mtr), '_MTR', fixed=TRUE, keep=1) %>% unlist()
+
+col_order = c('PD63383aq', 'PD63383ap', 'PD62341ae', 'PD62341ag', 'PD62341aj', 'PD62341am', 'PD62341ap', 'PD62341b', 'PD62341u', 'PD62341ak',
+  'PD62341h', 'PD62341q', 'PD62341n', 'PD62341aa', 'PD62341ad', 'PD62341v', 'PD63383t', 'PD63383u', 'PD63383w', 'PD63383ae', 'PD63383ak', 'PD63383bb')
+mat_mtr = mat_mtr[, col_order]
+
+# annotation of column names
+col_annotation = data.frame(Status = c(rep('tumour', 10), rep('normal', 12)),
+                            Twin = c(rep('PD63383', 2), rep('PD62341', 14), rep('PD63383', 6)))
+rownames(col_annotation) = colnames(mat_mtr)
+annotation_colors = list(
+  Status = c(normal=col_normal, tumour=col_tumour), 
+  Twin = c(PD62341=col_PD62341, PD63383=col_PD63383))
+
+pdf('Results/20241028_p2_heatmap_status_418mut_mtr.pdf')
+pheatmap(mat_mtr,
+         cellwidth=10, cellheight=0.5,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="418 mutations", 
+         legend = T,
+         cluster_rows=F, cluster_cols = F, 
+         show_rownames = F, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+pdf('Results/20241028_p2_heatmap_status_418mut_mtr_clustered.pdf')
+pheatmap(mat_mtr,
+         cellwidth=10, cellheight=0.5,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="418 mutations", 
+         legend = T,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         treeheight_row = 0,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+# now show by presence / absence (MTR >= 4)
+twins_mtr_binary = data.table(twins_filtered_mtr[, c(samples_mtr), with=FALSE])
+
+for (j in names(twins_mtr_binary)){
+  rows_to_0 = which(twins_mtr_binary[[j]] < 4)
+  set(twins_mtr_binary, rows_to_0, j, 0)
+  rows_to_1 = which(twins_mtr_binary[[j]] >= 4)
+  set(twins_mtr_binary, rows_to_1, j, 1)
+}
+
+mat_mtr_binary = as.matrix(twins_mtr_binary)
+colnames(mat_mtr_binary) = tstrsplit(colnames(mat_mtr_binary), '_MTR', fixed=TRUE, keep=1) %>% unlist()
+
+pdf('Results/20241028_p2_heatmap_status_418mut_mtr_clustered_binary.pdf')
+pheatmap(mat_mtr_binary,
+         cellwidth=10, cellheight=0.5,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="418 mutations MTR", 
+         legend = F,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         treeheight_row = 0,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+# the same for VAF
+mat_vaf = as.matrix(twins_filtered_vaf[, c(samples_vaf), with=FALSE])
+rownames(mat_vaf) = twins_filtered_vaf[,1] %>% unlist()  
+colnames(mat_vaf) = tstrsplit(colnames(mat_vaf), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+col_order = c('PD63383aq', 'PD63383ap', 'PD62341ae', 'PD62341ag', 'PD62341aj', 'PD62341am', 'PD62341ap', 'PD62341b', 'PD62341u', 'PD62341ak',
+              'PD62341h', 'PD62341q', 'PD62341n', 'PD62341aa', 'PD62341ad', 'PD62341v', 'PD63383t', 'PD63383u', 'PD63383w', 'PD63383ae', 'PD63383ak', 'PD63383bb')
+mat_vaf = mat_vaf[, col_order]
+
+# annotation of column names
+col_annotation = data.frame(Status = c(rep('tumour', 10), rep('normal', 12)))
+rownames(col_annotation) = colnames(mat_vaf)
+annotation_colors = list(
+  Status = c(normal=col_normal, tumour=col_tumour))
+
+pdf('Results/20241028_p2_heatmap_status_418mut_vaf.pdf')
+pheatmap(mat_vaf,
+         cellwidth=10, cellheight=0.5,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="418 mutations", 
+         legend = T,
+         cluster_rows=F, cluster_cols = F, 
+         show_rownames = F, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+pdf('Results/20241028_p2_heatmap_status_418mut_vaf_clustered.pdf')
+pheatmap(mat_vaf,
+         cellwidth=10, cellheight=0.5,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="418 mutations", 
+         legend = T,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         treeheight_row = 0,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+# converted to binary (presence / absence by VAF 0.1)
+twins_vaf_binary = data.table(twins_filtered_vaf[, c(samples_vaf), with=FALSE])
+
+for (j in names(twins_vaf_binary)){
+  rows_to_0 = which(twins_vaf_binary[[j]] < 0.1)
+  set(twins_vaf_binary, rows_to_0, j, 0)
+  rows_to_1 = which(twins_vaf_binary[[j]] >= 0.1)
+  set(twins_vaf_binary, rows_to_1, j, 1)
+}
+
+mat_vaf_binary = as.matrix(twins_vaf_binary)
+colnames(mat_vaf_binary) = tstrsplit(colnames(mat_vaf_binary), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+pdf('Results/20241028_p2_heatmap_status_418mut_vaf_clustered_binary.pdf')
+pheatmap(mat_vaf_binary,
+         cellwidth=10, cellheight=0.5,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="418 mutations: VAF", 
+         legend = F,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         treeheight_row = 0,
+         fontsize=11, cexCol=2) 
+dev.off()
+
 ###################################################################################################################################
 # Screen for possible drivers 
 
