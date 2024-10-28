@@ -558,7 +558,7 @@ library("FactoMineR") ## PCA
 library("factoextra") ## PCA 
 
 twins_filtered_vaf_mat = twins_filtered_vaf[, c(1:23), with=FALSE]
-mut_mat = twins_filtered_vaf_mat = twins_filtered_vaf[, c(1:23), with=FALSE]
+mut_mat = data.table(t(twins_filtered_vaf_mat[, c(2:23)]))
 mut_mat[, sample_name := colnames(twins_filtered_vaf_mat[,2:23])]
 mut_mat[, sample := tstrsplit(sample_name, '_', fixed=TRUE, keep = 1)]
 mut_mat[, status := as.factor(fcase( 
@@ -571,8 +571,9 @@ mut_mat[, twin := as.factor(fcase(
 ))]
 mut_mat[, sample_type := as.factor(paste(status, twin, sep = '_'))]
 
-res.pca <- PCA(mut_mat[,1:2577],  graph = FALSE) # PCA on JUST numerical
+res.pca <- PCA(mut_mat[,1:418],  graph = FALSE) # PCA on JUST numerical
 var <- get_pca_var(res.pca)
+pdf('Results/20241028_p5_pca2.pdf')
 PCA_figure <- fviz_pca_ind(res.pca,
                               geom = 'point',
                               legend.title = "Sample",
@@ -580,15 +581,11 @@ PCA_figure <- fviz_pca_ind(res.pca,
                               mean.point = FALSE,
                               fill.ind = as.factor(mut_mat[, sample_type]),
                               habillage = as.factor(mut_mat[, sample_type]),
-                              title="PCA: 2,557 filtered mutations",
+                              title="PCA: 418 filtered mutations",
+                              xlim = c(-30, 30),
+                              ylim = c(-30, 30),
                               palette = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))
 PCA_figure
-
-PCA_MEI_fam <- fviz_pca_ind(res.pca.MEI,
-                            label = "none", # hide individual labels
-                            habillage = as.factor(vcf_full$fam), # color by location
-                            title="PCA - TE insertions"
-                            # addEllipses = TRUE # Concentration ellipses
-)
+dev.off()
 
 

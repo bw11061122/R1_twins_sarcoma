@@ -279,6 +279,10 @@ for (max in max_all){
   
 }
 
+# I think based on this let's filter out mutations with 
+# 1 median depth in normal cells < 15
+# 2 median depth in normal cells > 60 (this is quite rare anyway)
+
 ######################################################################################################
 # Filters with arbitrary thresholds 2: beta-binomial (rho - overdispersion parameter)
 
@@ -324,6 +328,13 @@ for (t in thresholds){
   print(paste('Well mapped mutations excluded:', sum(well_mapped_muts %in% muts_betabinomial) / length(well_mapped_muts)))
   
 }
+
+
+muts_betabinomial = twins_normal_filtered[rhos < 0.001, mut_ID] %>% unlist()
+to_vec(for (mut in well_mapped_muts) if (mut %in% muts_betabinomial) mut)
+# some of these are mutations exclusive to PD63383 tumour
+# I think we need to be mindful of these and make sure we are not removing those 
+# maybe require this threshold unless sum_PD63383_tumour == 2 (as this is one case where this could be an issue)
 
 ######################################################################################################
 # Filters with arbitrary thresholds 3: ratio of reads in low- vs high-quality pileup 
@@ -371,6 +382,8 @@ for (ratio in ratios){
   
 }
 
-######################################################################################################
-# Filters with arbitrary thresholds 4: strand bias in mapped reads 
-
+muts_ratio07 = muts_hl[ratio_mtr < 0.7, mut_ID] %>% unlist()
+to_vec(for (mut in well_mapped_muts) if (mut %in% muts_ratio07) mut)
+# does Jbrowse show you the poorly mapped reads? because this looks really clean actually 
+# either way, it does look like distribution wise this mutation is not very helpful 
+# therefore, I think this threshold (maybe 0.6 to be sure) is okay
