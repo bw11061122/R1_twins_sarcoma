@@ -549,6 +549,46 @@ dev.off()
 ######################################################################################################
 # Can I do a PCA on filtered mutations and see if samples separate?
 
+library(gridExtra)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(ggrepel)
+library("FactoMineR") ## PCA
+library("factoextra") ## PCA 
 
+twins_filtered_vaf_mat = twins_filtered_vaf[, c(1:23), with=FALSE]
+mut_mat = twins_filtered_vaf_mat = twins_filtered_vaf[, c(1:23), with=FALSE]
+mut_mat[, sample_name := colnames(twins_filtered_vaf_mat[,2:23])]
+mut_mat[, sample := tstrsplit(sample_name, '_', fixed=TRUE, keep = 1)]
+mut_mat[, status := as.factor(fcase( 
+  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_tumour, 'tumour'
+))]
+mut_mat[, twin := as.factor(fcase( 
+  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_PD63383, 'PD63383'
+))]
+mut_mat[, sample_type := as.factor(paste(status, twin, sep = '_'))]
+
+res.pca <- PCA(mut_mat[,1:2577],  graph = FALSE) # PCA on JUST numerical
+var <- get_pca_var(res.pca)
+PCA_figure <- fviz_pca_ind(res.pca,
+                              geom = 'point',
+                              legend.title = "Sample",
+                              pointsize = 2, pointshape = 21, 
+                              mean.point = FALSE,
+                              fill.ind = as.factor(mut_mat[, sample_type]),
+                              habillage = as.factor(mut_mat[, sample_type]),
+                              title="PCA: 2,557 filtered mutations",
+                              palette = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))
+PCA_figure
+
+PCA_MEI_fam <- fviz_pca_ind(res.pca.MEI,
+                            label = "none", # hide individual labels
+                            habillage = as.factor(vcf_full$fam), # color by location
+                            title="PCA - TE insertions"
+                            # addEllipses = TRUE # Concentration ellipses
+)
 
 
