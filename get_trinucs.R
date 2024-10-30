@@ -1,6 +1,8 @@
+# NOTE: script received from Henry Lee-Six (email 29/10/2024)
+
 library(Biostrings)
 library(GenomicRanges)
-library(BSgenome.Hsapiens.UCSC.hg19)
+library(BSgenome.Hsapiens.UCSC.hg38)
 
 # calculate the trinucleotide context
 # look at the sigs of muts called in both tumours vs private. 

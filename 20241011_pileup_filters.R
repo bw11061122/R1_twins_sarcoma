@@ -55,6 +55,7 @@ library(glue)
 library(comprehenr) # list comprehension in R 
 library(stringr)
 library(VGAM)
+library(grid)
 
 ###################################################################################################################################
 # Read the merged dataframe 
@@ -312,27 +313,16 @@ twins_mtr_vaf = twins_dt[, c('mut_ID', samples_mtr, samples_vaf), with=FALSE]
 # for each sample, check if the sample has MTR >= 4 and VAF >= 0.1
 # 0 if both are fulfilled, 1 if either is not 
 
-scores_mut = c()
-for (i in 1:nrow(twins_mtr_vaf)){
-  for(sample in samples_names){
-    scores = c()
-    sample_mtr = paste0(sample, '_MTR')
-    sample_vaf = paste0(sample, '_VAF')
-    mtr = twins_mtr_vaf[i, sample_mtr, with=FALSE]
-    vaf = twins_mtr_vaf[i, sample_mtr, with=FALSE]
-    if (mtr >= 4 & vaf >= 0.1){
-      score = 0
-    }
-    else{
-      score = 1
-    }
-    scores = c(scores, score)
-  }
-  scores_mut = c(scores_mut, min(scores))
+for(sample in samples_names){
+    twins_sample = twins_mtr_vaf[, c('mut_ID', glue('{sample}_MTR'), glue('{sample}_VAF'))]
+    setnames(twins_sample, c(glue('{sample}_MTR'), glue('{sample}_VAF')), c('mtr', 'vaf'))
+    twins_sample[, glue('f5_{sample}') :=  1 - as.numeric(mtr >= 4) * as.numeric(vaf >= 0.1)]
+    twins_mtr_vaf = merge(twins_mtr_vaf, twins_sample[, c('mut_ID', glue('f5_{sample}')), with = FALSE], by = 'mut_ID')
 }
 
-twins_mtr_vaf = data.table(cbind(twins_mtr_vaf, scores_mut))
-twins_mtr_vaf[, f5_mtrAndVaf := as.numeric(scores_mut)]
+f5_samples = paste0('f5_', samples_names)
+twins_mtr_vaf[, f5_sum := rowSums(.SD == 0), .SDcols = f5_samples]
+twins_mtr_vaf[, f5_mtrAndVaf := as.numeric(f5_sum == 0)] # 0 if VAF > 0.1 and MTR > 4 in at least one sample
 
 ######################################################################################################
 # EXCLUDE LIKELY GERMLINE MUTATIONS BASED ON EXACT BINOMIAL
@@ -366,7 +356,7 @@ paste('Number of likely germline mutations (PD63383):', dim(twins_normal[f6_like
 paste('Number of likely germline mutations (both twins):', dim(twins_normal[f6_likelyGermline_bothTwins==1])[1]) # 350,300
 
 # write IDs of likely germline mutations to csv
-germline_mutations = twins_normal[f5_likelyGermline_bothTwins==1, mut_ID] %>% unlist()
+germline_mutations = twins_normal[f6_likelyGermline_bothTwins==1, mut_ID] %>% unlist()
 write.table(germline_mutations, 'Data/mutations_likely_germline_20241026.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
@@ -412,9 +402,9 @@ twins_dt[, f7_FailedIndelNearby30 := as.numeric(mut_ID %in% mut_indels)]
 paste('Number of mutations near poor-quality indels:', dim(twins_dt[f7_FailedIndelNearby30==1])[1]) # 13,524
 
 ######################################################################################################
-# FILTERING BASED ON STRAND BIAS (IN ALL READS)
-# Subset strand information (only for normal samples: ploidy changes can affect biases)
+# FILTERING BASED ON STRAND BIAS (IN VARIANT READS)
 
+# Subset strand information (only for normal samples: ploidy changes can affect biases)
 forward_cols = grep("_FAZ|_FCZ|_FTZ|_FGZ", names(twins_dt), value = TRUE) 
 forward_cols = grep('PD6', forward_cols, value=TRUE) # I don't want PD38is_wgs
 forward_cols = grep("PD62341v|PD62341q|PD62341aa|PD62341ad|PD63383w|PD63383t|PD63383u|PD63383ae|PD63383ak|PD63383bb|PD62341h|PD62341n", forward_cols, value=TRUE) # only select normal samples
@@ -424,6 +414,41 @@ twins_strands = twins_dt[,c('mut_ID', 'Ref', 'Alt', forward_cols, reverse_cols),
 twins_strands[, (forward_cols) := lapply(.SD, as.numeric), .SDcols = forward_cols]
 twins_strands[, (reverse_cols) := lapply(.SD, as.numeric), .SDcols = reverse_cols]
 
+# for each mutation, select relevant forward and reverse reads (corresponding to the Alt variant)
+twins_strands = twins_dt[,c('mut_ID', 'Ref', 'Alt', forward_cols, reverse_cols), with=FALSE]
+twins_strands[, (forward_cols) := lapply(.SD, as.numeric), .SDcols = forward_cols]
+twins_strands[, (reverse_cols) := lapply(.SD, as.numeric), .SDcols = reverse_cols]
+
+twins_strands[, forward_mut := sapply(1:.N, function(row) {
+  alt = Alt[row]
+  cols_to_sum = names(twins_strands)[grepl(paste0('F', alt, 'Z'), names(twins_strands))]
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
+})]
+
+twins_strands[, reverse_mut := sapply(1:.N, function(row) {
+  alt = Alt[row]
+  cols_to_sum = names(twins_strands)[grepl(paste0('R', alt, 'Z'), names(twins_strands))]
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
+})]
+
+# aggregate across all samples 
+twins_strands[, sum_all_mut := forward_mut + reverse_mut]
+
+# Filter out mutations where sum of forward + reverse = 0
+twins_strands = twins_strands[sum_all_mut!=0] 
+twins_strands[, p_val_mut := mapply(bin_test, forward_mut, sum_all_mut)]
+
+# correct for multiple testing (Bonferroni correction for nr of tests)
+twins_strands[, significance_mut := as.factor(fcase( 
+  p_val_mut < 0.05/dim(twins_strands)[1], 'significant', # differs from 0.5 so biased and maybe we don't want it
+  p_val_mut >= 0.05/dim(twins_strands)[1], 'not_significant'
+))]
+
+# Add column as a filter 
+twins_strands[, f7_strandBiasMutant := as.numeric(significance_mut == 'significant')] 
+paste('Number of mutations which show strand bias (across mutant reads):', dim(twins_strands[f7_strandBiasMutant==1])[1]) # 5,667
+
+# strand bias in normal reads 
 twins_strands[,sum_FAZ := rowSums(.SD), .SDcols = patterns("_FAZ", cols = names(twins_strands))]
 twins_strands[,sum_FTZ := rowSums(.SD), .SDcols = patterns("_FTZ", cols = names(twins_strands))]
 twins_strands[,sum_FCZ := rowSums(.SD), .SDcols = patterns("_FCZ", cols = names(twins_strands))]
@@ -437,10 +462,6 @@ twins_strands[,sum_RGZ := rowSums(.SD), .SDcols = patterns("_RGZ", cols = names(
 twins_strands[,sum_forward := sum_FAZ + sum_FCZ + sum_FTZ + sum_FGZ]
 twins_strands[,sum_reverse := sum_RAZ + sum_RCZ + sum_RTZ + sum_RGZ]
 twins_strands[,sum_all := sum_forward + sum_reverse]
-twins_strands[,ratio_forward_reverse := sum_forward / sum_reverse]
-
-twins_strands[,chr := tstrsplit(mut_ID, '_', fixed=TRUE, keep=1)]
-twins_strands[,chr := as.factor(chr)]
 
 # Filter out mutations where sum of forward + reverse = 0
 twins_strands = twins_strands[sum_all!=0] 
@@ -454,32 +475,8 @@ twins_strands[, significance := as.factor(fcase(
 ))]
 
 # Add column as a filter 
-twins_strands[, f7_strandBias := as.numeric(significance == 'significant')] 
-paste('Number of mutations which show strand bias (across all reads):', dim(twins_strands[f7_strandBias==1])[1]) # 10,102
-
-######################################################################################################
-# FILTERING BASED ON STRAND BIAS (IN VARIANT READS)
-
-# for each mutation, select relevant forward and reverse reads (corresponding to the Alt variant)
-twins_strands[, forward_mut := rowSums(.SD), .SDcols = patterns("_FAZ", cols = names(twins_strands))]
-twins_strands[, reverse_mut := rowSums(.SD), .SDcols = patterns("_RAZ", cols = names(twins_strands))]
-
-# aggregate across all samples 
-twins_strands[, sum_all_mut := sum_forward_mut + sum_reverse_mut]
-
-# Filter out mutations where sum of forward + reverse = 0
-twins_strands = twins_strands[sum_all_mut!=0] 
-twins_strands[, p_val_mut := mapply(bin_test, sum_forward_mut, sum_all_mut)]
-
-# correct for multiple testing (Bonferroni correction for nr of tests)
-twins_strands[, significance_mut := as.factor(fcase( 
-  p_val_mut < 0.05/dim(twins_strands)[1], 'significant', # differs from 0.5 so biased and maybe we don't want it
-  p_val_mut >= 0.05/dim(twins_strands)[1], 'not_significant'
-))]
-
-# Add column as a filter 
-twins_strands[, f7_strandBiasMutant := as.numeric(significance_mut == 'significant')] 
-paste('Number of mutations which show strand bias (across mutant reads):', dim(twins_strands[f7_strandBiasMutant==1])[1]) # 10,102
+twins_strands[, f8_strandBias := as.numeric(significance == 'significant')] 
+paste('Number of mutations which show strand bias (across all reads):', dim(twins_strands[f8_strandBias==1])[1]) # 11,360
 
 ######################################################################################################
 # FILTERING BASED ON RATIO OF READS MAPPED IN HQ AND LQ PILEUP 
@@ -516,11 +513,22 @@ muts_hl[, ratio_dep := sum_dep_hq / sum_dep_lq]
 muts_hl[, ratio_vaf := (sum_mtr_hq / sum_dep_hq) / (sum_mtr_lq / sum_dep_lq)]
 
 # mutations to exclude based on HQ / LQ ratio
-muts_ratio = muts_hl[ratio_mtr < 0.6, mut_ID] %>% unlist() 
-paste('Number of mutations with a low HQ / LQ ratio:', length(muts_ratio)) # 7,871
+muts_exclude_ratio = muts_hl[ratio_mtr < 0.6, mut_ID] %>% unlist() 
+paste('Number of mutations with a low HQ / LQ ratio:', length(muts_exclude_ratio)) # 10,201
 
 # identify mutations where reads are only present in the low-quality pileup 
+numeric_columns = intersect(names(twins_mtr_hq)[sapply(twins_mtr_hq, is.numeric)], 
+                            names(twins_mtr_lq)[sapply(twins_mtr_lq, is.numeric)])
 
+lq_minus_hq = twins_mtr_lq[, ..numeric_columns] - twins_mtr_hq[, ..numeric_columns]
+lq_minus_hq = cbind(twins_mtr_lq[, mut_ID], lq_minus_hq, twins_mtr_lq[, sum_mtr_mapped], twins_mtr_hq[, sum_mtr_mapped])
+
+setnames(lq_minus_hq, c('V1', 'V3', 'V4'), c('mut_ID', 'sum_mtr_lq', 'sum_mtr_hq'))
+
+# we perhaps wants to exclude mutations where the difference between low quality and high quality > 4 and high quality < 4
+# I am actually not 100% sure what exact mutations it would make most sense to exclude?
+
+muts_exclude_lqpresent
 
 ######################################################################################################
 # CREATE A DATAFRAME WHICH HAS ALL FILTERS TOGETHER
@@ -541,7 +549,8 @@ twins_dt_merge = merge(twins_dt_merge, germline_filters, by = 'mut_ID')
 twins_dt_filters = merge(twins_dt_merge, strand_filters, by = 'mut_ID')
 
 # add filter from beta-binomial (rho)
-twins_dt_filters[, f9_lowQual := as.numeric(mut_ID %in% muts_ratio)]
+twins_dt_filters[, f9_lowQualRatio := as.numeric(mut_ID %in% muts_exclude_ratio)]
+twins_dt_filters[, f9_lowQualPresent := as.numeric(mut_ID %in% muts_exclude_lqpresent)]
 
 ######################################################################################################
 # CHECK NR OF MUTATIONS EXCLUDED IN EACH FILTER
@@ -558,20 +567,22 @@ dim(twins_dt_filters[f3_mtr4_presentInNone==1])[1] # 4,789
 dim(twins_dt_filters[f3_mtr4_presentInOne==1])[1] # 1,698
 dim(twins_dt_filters[f4_maxVAF01==1])[1] # 1,274
 dim(twins_dt_filters[f4_VAFna==1])[1] # 241
-dim(twins_dt_filters[f6_likelyGermline_PD62341==1])[1] # 352,685
-dim(twins_dt_filters[f6_likelyGermline_PD63383==1])[1] # 352,881
-dim(twins_dt_filters[f6_likelyGermline_bothTwins==1])[1] # 350,300
-dim(twins_dt_filters[f7_FailedIndelNearby30==1])[1] # 13,479
-dim(twins_dt_filters[f8_strandBias==1])[1] # 10,102
-dim(twins_dt_filters[f8_strandBiasMut==1])[1]
-dim(twins_dt_filters[f9_lowQual==1])[1] # 9,702
+dim(twins_dt_filters[f5_likelyGermline_PD62341==1])[1] # 352,685
+dim(twins_dt_filters[f5_likelyGermline_PD63383==1])[1] # 352,881
+dim(twins_dt_filters[f5_likelyGermline_bothTwins==1])[1] # 350,300
+dim(twins_dt_filters[f6_FailedIndelNearby30==1])[1] # 13,479
+dim(twins_dt_filters[f7_strandBias==1])[1] # 10,102
+dim(twins_dt_filters[f7_strandBiasMut==1])[1]
+dim(twins_dt_filters[f8_lowQualRatio==1])[1] # 9,702
+dim(twins_dt_filters[f8_lowQualPresent==1])[1] # 9,702
 
 ######################################################################################################
 # CHECK NR OF MUTATIONS THAT PASS ALL FILTERS
 columns_req_filters = c('f1_mappedY', 'f2_lowDepthNormal', 'f2_highDepthNormal', 'f2_noReadsMapped',
                         'f3_mtr4_presentInAll', 'f3_mtr4_presentInNone', 'f3_mtr4_presentInOne', 
                         'f4_maxVAF01', 'f4_VAFna', 'f5_mtrAndVaf',
-                        'f6_likelyGermline_bothTwins', 'f7_FailedIndelNearby30', 'f8_strandBiasMut', 'f9_lowQual')
+                        'f6_likelyGermline_bothTwins', 'f7_FailedIndelNearby30', 
+                        'f8_strandBiasMut', 'f9_lowQualRatio', 'f9_lowQualPresent')
 twins_dt_filters[, sum_req_filters := rowSums(.SD), .SDcols = columns_req_filters] 
 paste('Number of mutations that pass required filters:', dim(twins_dt_filters[sum_req_filters==0])[1]) # 418  
 
@@ -674,8 +685,124 @@ ggsave('Results/20241028_p5_mut_filters_types_germline_excluded.pdf', width = 6,
 ######################################################################################################
 # Plot distribution of mutational classes in different trinucleotide contexts after applying specific filters 
 
+# define the function to get the tri-nucleotide context
+get_trinucs <- function(mybed, genome) {
+  
+  mybed$order <- 1:nrow(mybed) # order that rows are supplied in 
+  
+  gr <- GRanges(seqnames = mybed$Chrom, IRanges(start = mybed$Pos, width=1), ref=mybed$Ref, alt=mybed$Alt, order=mybed$order)
+  # create a GRanges object with coordinates for the mutation
+  
+  if (all(substr(seqlevels(gr), 1, 3) != "chr")) {
+    gr <- renameSeqlevels(gr, paste0("chr", seqlevels(gr)))
+  }
+  
+  seqinfo(gr) <- seqinfo(genome)[seqlevels(gr)]
+  gr <- sort(gr)
+  bases <- c("A", "C", "G", "T")
+  trinuc_levels <- paste0(rep(bases, each = 16), rep(rep(bases, each = 4), 4), rep(bases, 16))
+  
+  get_trinuc <- function(seqname) {
+    pos <- start(gr[seqnames(gr) == seqname])
+    view <- Views(genome[[seqname]], start = pos - 1, end = pos + 1)
+    ans <- factor(as.character(view), levels = trinuc_levels, labels = 1:64)
+    return(as.numeric(ans))
+  }
+  
+  trinuc <- sapply(seqlevels(gr), get_trinuc)
+  gr$trinuc <- factor(unlist(trinuc, use.names = FALSE), levels = 1:64, labels = trinuc_levels)
+  remove(trinuc)
+  gr$REF <- gr$ref
+  gr$ALT <- gr$alt
+  gr$context <- gr$trinuc
+  torc <- which(gr$ref %in% c("A", "G"))
+  gr$REF[torc] <- as.character(reverseComplement(DNAStringSet(gr$REF[torc])))
+  gr$ALT[torc] <- as.character(reverseComplement(DNAStringSet(gr$ALT[torc])))
+  gr$context[torc] <- as.character(reverseComplement(DNAStringSet(gr$context[torc])))
+  gr$class <- paste(gr$REF, gr$ALT, "in", gr$context, sep = ".")
+  class_levels <- paste(rep(c("C", "T"), each = 48), rep(c("A", "G", "T", "A", "C", "G"), each = 16), "in", paste0(rep(rep(bases, each = 4), 6), rep(c("C", "T"), each = 48), rep(bases, 24)), sep = ".")
+  print(class_levels)
+  gr$class <- factor(gr$class, levels = class_levels)
+  
+  # match them up with one another using the original order that I put in - I think that they may have been reshuffled.
+  grdf <- as.data.frame(gr)
+  grdf <- grdf[with(grdf, order(order)),]
+  return(grdf$class)
+} 
+
+# Plot the distribution of mutation types on the unfiltered dataset (362, 814 mutations)
+mybed0 = twins_dt[,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins0 = get_trinucs(mybed0, BSgenome.Hsapiens.UCSC.hg38)
+twins_dt$trins0=trins0
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts = data.table(table(twins_dt[, trins0]))
+setnames(mut_sign_counts, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'All mutations (362,814)')+
+  theme_minimal(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241030_p1_mut_trins_allmuts.pdf', width = 10, height = 5.5)
 
 
+# Create a series of plots that show what happens when you progressively apply different filters
+filters = c('f1_mappedY', 'f2_highDepthNormal', 'f2_lowDepthNormal', 'f2_noReadsMapped',
+            'f3_mtr4_presentInAll', 'f3_mtr4_presentInNone', 'f3_mtr4_presentInOne',
+            'f4_maxVAF01', 'f4_VAFna', 'f5_likelyGermline_bothTwins', 'f6_FailedIndelNearby30',
+            'f7_strandBiasMut', 'f8_lowQualRatio', 'f8_lowQualPresent')
+for (f in filters){
+  
+  twins_dt_f = twins_dt[f!=1]
+  mut_nr = dim(twins_dt_f)[1]
+  mybed = twins_dt[f!=1,c('Chrom', 'Pos', 'Ref', 'Alt')]
+  trins = get_trinucs(mybed, BSgenome.Hsapiens.UCSC.hg38)
+  twins_dt_f$trins=trins
+  
+  # plot the distribution of different mutations across different contexts 
+  mut_sign_counts = data.table(table(twins_dt_f[, trins]))
+  setnames(mut_sign_counts, c('V1', 'N'), c('trins', 'count'))
+  mut_sign_counts[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+  mut_sign_counts[, mut_class := gsub("\\.", ">", mut_class)]
+  mut_sign_counts[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+  
+  # aggregate by mutation class and context 
+  ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
+    geom_bar(stat = 'identity')+
+    scale_fill_manual(values = colors_sign)+
+    facet_grid(~mut_class, scales = "free_x")+
+    guides(fill="none")+ # remove legend
+    labs(x = 'Context', y = 'Count', title = glue('Filtering: {f}, n = {mut_nr}'))+
+    theme_minimal(base_size = 15) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank())+
+    theme( strip.background = element_blank())+ 
+    theme(panel.spacing = unit(0, "lines"))+
+    theme(strip.text.x = element_text(size = 13))+
+    geom_hline(yintercept = 0, colour="black", size = 0.1)
+  ggsave(glue('Results/20241030_p1_mut_trins_allmuts_{f}.pdf'), width = 10, height = 5.5)
+  
+  
+  
+}
 
 ######################################################################################################
 # SAVE FILTERED MUTATIONS TO A TXT FILE
