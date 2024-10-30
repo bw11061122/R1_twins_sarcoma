@@ -167,6 +167,17 @@ colSums(twins_dep[,2:23] >= 10) # mapped with enough coverage
 colSums(twins_mtr[,2:23] >= 4) # mutation identified as present
 
 ##########################################################################################################
+# For each sample, plot the histogram of VAF, MTR and DEP 
+for (sample in samples_names){
+  
+  
+  
+  
+}
+
+
+
+##########################################################################################################
 # CHECKS: PLOTS OF COVERAGE AND NR OF MUTATIONS BN SAMPLES AND ACROSS CHROMOSOMES
 
 # plot median coverage vs number of mutations mapped (MTR >= 4)

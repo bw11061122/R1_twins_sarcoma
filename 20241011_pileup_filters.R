@@ -175,24 +175,7 @@ paste('Number of unique mutations identified across samples (check):', length(tw
 sapply(twins_dt, class) # all fine 
 
 ######################################################################################################
-######################################################################################################
-# REQUIRED FILTERS 
-
-# Issues with tree building 
-# Mapping to chromosome Y
-# Mutations with MTR < 4 in all samples 
-# Mutations with MTR >= 4 in all samples
-# Mutations with MTR >= 4 in one sample 
-# Mutations with VAF < 0.1 in all samples 
-# Mutations classified as germline in both twins 
-
-# Filters related to quality 
-# Mutations with coverage issues (median < 15 or > 60)
-# HQ to LQ mapped reads (0.6?)
-# Mutations nearby an indel
-
-######################################################################################################
-# 2 FILTERING OUT READS MAPPING TO CHROMOSOME Y: EXCLUDE MUTATIONS MAPPED TO Y
+# 1 FILTERING OUT READS MAPPING TO CHROMOSOME Y: EXCLUDE MUTATIONS MAPPED TO Y
 
 twins_dt[, f1_mappedY := as.numeric(Chrom=='chrY')]
 paste('Number of mutations mapped to chromosome Y:', dim(twins_dt[f1_mappedY==1])[1]) # 277
@@ -242,7 +225,7 @@ twins_vaf[,min_vaf_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = s
 twins_vaf[,max_vaf_normal := apply(.SD, 1, max), .SDcols = samples_normal_vaf]
 
 ######################################################################################################
-# FILTERING BASED ON COVERAGE (total number of reads covering a base)
+# 2 FILTERING BASED ON COVERAGE (total number of reads covering a base)
 
 # Filter out mutations which have consistently low or high coverage
 # Based on the histogram (20241011_pileup_qcplots.R), the appropriate boundaries are perhaps 20 and 50
@@ -302,11 +285,13 @@ muts_mapped_mtr = twins_mtr[f3_mtr4_presentInNone==0, mut_ID] %>% unlist()
 twins_vaf[, f4_maxVAF01 := as.numeric(max_vaf < 0.1)] 
 paste("Number of mutations which don't reach VAF 0.1 in any sample:", dim(twins_vaf[f4_maxVAF01==1])[1]) # 1,479
 
-# mutations with VAF = NA (these happen is MTR = 0)
+# mutations with VAF = NA (these happen if MTR = 0)
 twins_vaf[, f4_VAFna := as.numeric(is.na(mean_vaf))] 
-paste("Number of mutations with median VAF == NA (sth weird going on):", dim(twins_vaf[f4_VAFna==1])[1]) # 446
+paste("Number of mutations with median VAF == NA:", dim(twins_vaf[f4_VAFna==1])[1]) # 446
 
 ######################################################################################################
+# FILTERING BASED ON GOOD MAPPING IN AT LEAST 1 SAMPLE
+
 # Require correct mapping (MTR >= 4 and VAF >= 0.1) in THE SAME sample - i.e., require a sample where everything is correct
 twins_mtr_vaf = twins_dt[, c('mut_ID', samples_mtr, samples_vaf), with=FALSE]
 
@@ -323,6 +308,7 @@ for(sample in samples_names){
 f5_samples = paste0('f5_', samples_names)
 twins_mtr_vaf[, f5_sum := rowSums(.SD == 0), .SDcols = f5_samples]
 twins_mtr_vaf[, f5_mtrAndVaf := as.numeric(f5_sum == 0)] # 0 if VAF > 0.1 and MTR > 4 in at least one sample
+paste("Number of mutations which are NOT well mapped by both MTR and VAF in at least 1 sample:", dim(twins_mtr_vaf[f5_mtrAndVaf==1])[1]) # 5,501
 
 ######################################################################################################
 # EXCLUDE LIKELY GERMLINE MUTATIONS BASED ON EXACT BINOMIAL
@@ -445,8 +431,8 @@ twins_strands[, significance_mut := as.factor(fcase(
 ))]
 
 # Add column as a filter 
-twins_strands[, f7_strandBiasMutant := as.numeric(significance_mut == 'significant')] 
-paste('Number of mutations which show strand bias (across mutant reads):', dim(twins_strands[f7_strandBiasMutant==1])[1]) # 5,667
+twins_strands[, f8_strandBiasMut := as.numeric(significance_mut == 'significant')] 
+paste('Number of mutations which show strand bias (across mutant reads):', dim(twins_strands[f8_strandBiasMut==1])[1]) # 5,667
 
 # strand bias in normal reads 
 twins_strands[,sum_FAZ := rowSums(.SD), .SDcols = patterns("_FAZ", cols = names(twins_strands))]
@@ -522,13 +508,25 @@ numeric_columns = intersect(names(twins_mtr_hq)[sapply(twins_mtr_hq, is.numeric)
 
 lq_minus_hq = twins_mtr_lq[, ..numeric_columns] - twins_mtr_hq[, ..numeric_columns]
 lq_minus_hq = cbind(twins_mtr_lq[, mut_ID], lq_minus_hq, twins_mtr_lq[, sum_mtr_mapped], twins_mtr_hq[, sum_mtr_mapped])
-
 setnames(lq_minus_hq, c('V1', 'V3', 'V4'), c('mut_ID', 'sum_mtr_lq', 'sum_mtr_hq'))
+setnames(lq_minus_hq, c(samples_mtr), c(paste0(samples_mtr, '_diff')))
 
-# we perhaps wants to exclude mutations where the difference between low quality and high quality > 4 and high quality < 4
-# I am actually not 100% sure what exact mutations it would make most sense to exclude?
+# add count in high quality pileup
+lq_minus_hq = cbind(lq_minus_hq, twins_mtr_hq[, 2:23, with=FALSE])
 
-muts_exclude_lqpresent
+# identify samples where the MTR (HQ) is <= 2 and MTR (LQ) >= 4
+for (sample in samples_names){
+  lq_minus_hq_sample = lq_minus_hq[, c('mut_ID', glue('{sample}_MTR'), glue('{sample}_MTR_diff'))]
+  setnames(lq_minus_hq_sample, c(glue('{sample}_MTR'), glue('{sample}_MTR_diff')), c('mtr', 'diff'))
+  lq_minus_hq_sample[, glue('f9_{sample}') :=  as.numeric(mtr <= 2) * as.numeric(diff >= 4)]
+  lq_minus_hq = merge(lq_minus_hq, lq_minus_hq_sample[, c('mut_ID', glue('f9_{sample}')), with = FALSE], by = 'mut_ID')
+}
+
+f9_samples = paste0('f9_', samples_names)
+lq_minus_hq[, f9_sum := rowSums(.SD >= 1), .SDcols = f9_samples]
+lq_minus_hq[, f9_lowQualPresent := as.numeric(f9_sum >= 1)] # assign 1 if in >= 1 sample presence / absence differs b/n LQ and HQ
+muts_exclude_lqpresent = lq_minus_hq[f9_lowQualPresent==1, mut_ID] %>% unlist()
+paste("Number of mutations with variable 1/0 by HQ/LQ in >= 1 samples:", length(muts_exclude_lqpresent)) # 8,851
 
 ######################################################################################################
 # CREATE A DATAFRAME WHICH HAS ALL FILTERS TOGETHER
@@ -537,14 +535,14 @@ muts_exclude_lqpresent
 dep_filters = twins_dep[, c('mut_ID', "f2_highDepthNormal", 'f2_lowDepthNormal', 'f2_noReadsMapped'), with = FALSE]
 mtr_filters = twins_mtr[, c('mut_ID', 'f3_mtr4_presentInAll', 'f3_mtr4_presentInNone', 'f3_mtr4_presentInOne'), with = FALSE]
 vaf_filters = twins_vaf[, c('mut_ID', "f4_maxVAF01", "f4_VAFna") , with = FALSE]
-vaf_mtr_filters = twins_vaf_mtr[, c('mut_ID', 'f5_mtrAndVaf'), with=FALSE]
+mtr_vaf_filters = twins_mtr_vaf[, c('mut_ID', 'f5_mtrAndVaf'), with=FALSE]
 germline_filters = twins_normal[, c('mut_ID', "f6_likelyGermline_PD62341", "f6_likelyGermline_PD63383", "f6_likelyGermline_bothTwins"), with = FALSE]
-strand_filters = twins_strands[, c('mut_ID', 'f8_strandBias', 'f8_strandBiasMus'), with = FALSE]
+strand_filters = twins_strands[, c('mut_ID', 'f8_strandBias', 'f8_strandBiasMut'), with = FALSE]
 
 twins_dt_merge = merge(twins_dt, dep_filters, by = 'mut_ID')
 twins_dt_merge = merge(twins_dt_merge, mtr_filters, by = 'mut_ID')
 twins_dt_merge = merge(twins_dt_merge, vaf_filters, by = 'mut_ID')
-twins_dt_merge = merge(twins_dt_merge, vaf_mtr_filters, by = 'mut_ID')
+twins_dt_merge = merge(twins_dt_merge, mtr_vaf_filters, by = 'mut_ID')
 twins_dt_merge = merge(twins_dt_merge, germline_filters, by = 'mut_ID')
 twins_dt_filters = merge(twins_dt_merge, strand_filters, by = 'mut_ID')
 
@@ -555,36 +553,36 @@ twins_dt_filters[, f9_lowQualPresent := as.numeric(mut_ID %in% muts_exclude_lqpr
 ######################################################################################################
 # CHECK NR OF MUTATIONS EXCLUDED IN EACH FILTER
 
-paste('Number of all mutations examined:', dim(twins_dt_filters)[1]) # 362,287
+paste('Number of all mutations examined:', dim(twins_dt_filters)[1]) # 361,699
 # Note that some mutations have been excluded due to depth = 0 for all or some samples 
 
-dim(twins_dt_filters[f1_mappedY==1])[1] # 149
-dim(twins_dt_filters[f2_lowDepthNormal==1])[1] # 8,922
+dim(twins_dt_filters[f1_mappedY==1])[1] # 147
+dim(twins_dt_filters[f2_lowDepthNormal==1])[1] # 8,635
 dim(twins_dt_filters[f2_highDepthNormal==1])[1] # 500
-dim(twins_dt_filters[f2_noReadsMapped==1])[1] # 2,193
+dim(twins_dt_filters[f2_noReadsMapped==1])[1] # 2,060
 dim(twins_dt_filters[f3_mtr4_presentInAll==1])[1] # 322,563
-dim(twins_dt_filters[f3_mtr4_presentInNone==1])[1] # 4,789
-dim(twins_dt_filters[f3_mtr4_presentInOne==1])[1] # 1,698
-dim(twins_dt_filters[f4_maxVAF01==1])[1] # 1,274
-dim(twins_dt_filters[f4_VAFna==1])[1] # 241
-dim(twins_dt_filters[f5_likelyGermline_PD62341==1])[1] # 352,685
-dim(twins_dt_filters[f5_likelyGermline_PD63383==1])[1] # 352,881
-dim(twins_dt_filters[f5_likelyGermline_bothTwins==1])[1] # 350,300
-dim(twins_dt_filters[f6_FailedIndelNearby30==1])[1] # 13,479
-dim(twins_dt_filters[f7_strandBias==1])[1] # 10,102
-dim(twins_dt_filters[f7_strandBiasMut==1])[1]
-dim(twins_dt_filters[f8_lowQualRatio==1])[1] # 9,702
-dim(twins_dt_filters[f8_lowQualPresent==1])[1] # 9,702
+dim(twins_dt_filters[f3_mtr4_presentInNone==1])[1] # 4,324
+dim(twins_dt_filters[f3_mtr4_presentInOne==1])[1] # 1,583
+dim(twins_dt_filters[f4_maxVAF01==1])[1] # 1,912
+dim(twins_dt_filters[f4_VAFna==1])[1] # 0 # that's good we're getting rid of these
+dim(twins_dt_filters[f6_likelyGermline_PD62341==1])[1] # 352,521
+dim(twins_dt_filters[f6_likelyGermline_PD63383==1])[1] # 352,719
+dim(twins_dt_filters[f6_likelyGermline_bothTwins==1])[1] # 350,192
+dim(twins_dt_filters[f7_FailedIndelNearby30==1])[1] # 13,426
+dim(twins_dt_filters[f8_strandBias==1])[1] # 11,360
+dim(twins_dt_filters[f8_strandBiasMut==1])[1] # 5,677
+dim(twins_dt_filters[f9_lowQualRatio==1])[1] # 9,243
+dim(twins_dt_filters[f9_lowQualPresent==1])[1] # 8,154
 
 ######################################################################################################
-# CHECK NR OF MUTATIONS THAT PASS ALL FILTERS
+# Specify required filters 
 columns_req_filters = c('f1_mappedY', 'f2_lowDepthNormal', 'f2_highDepthNormal', 'f2_noReadsMapped',
                         'f3_mtr4_presentInAll', 'f3_mtr4_presentInNone', 'f3_mtr4_presentInOne', 
                         'f4_maxVAF01', 'f4_VAFna', 'f5_mtrAndVaf',
                         'f6_likelyGermline_bothTwins', 'f7_FailedIndelNearby30', 
                         'f8_strandBiasMut', 'f9_lowQualRatio', 'f9_lowQualPresent')
 twins_dt_filters[, sum_req_filters := rowSums(.SD), .SDcols = columns_req_filters] 
-paste('Number of mutations that pass required filters:', dim(twins_dt_filters[sum_req_filters==0])[1]) # 418  
+paste('Number of mutations that pass required filters:', dim(twins_dt_filters[sum_req_filters==0])[1]) # 591  
 
 cols_info = c('VariantID', 'Chrom', 'Pos', 'Ref', 'Alt', 'Qual', 'Filter', 'Gene', 'Transcript', 'RNA', 'CDS',
               'Protein', 'Effect')
@@ -643,10 +641,10 @@ ggplot(data=mut_counts_qc, aes(x=fct_inorder(V1), y=freq_norm, fill=QC)) +
   scale_fill_manual(values = c('darkblue','lightblue'))+
   theme_bw(base_size = 12)+
   labs(x = 'Mutation type', y = 'Fraction of all mutations in the category', title = 'Mutation types in all samples')
-ggsave('Results/20241028_p5_mut_filters_types.pdf', width = 6, height = 4.5)
+ggsave('Results/20241030_p1_mut_filters_types.pdf', width = 6, height = 4.5)
 
 # compare removing germline mutations (many likely will be real)
-muts_dt = twins_dt_filters[f5_likelyGermline_bothTwins==0, c('mut_ID', 'Ref', 'Alt', 'sum_req_filters'), with=FALSE]
+muts_dt = twins_dt_filters[f6_likelyGermline_bothTwins==0, c('mut_ID', 'Ref', 'Alt', 'sum_req_filters'), with=FALSE]
 muts_dt[, status := as.factor(fcase(
   sum_req_filters == 0, 'passed',
   sum_req_filters > 0, 'failed'
@@ -680,7 +678,7 @@ ggplot(data=mut_counts_qc, aes(x=fct_inorder(V1), y=freq_norm, fill=QC)) +
   scale_fill_manual(values = c('darkblue','lightblue'))+
   theme_bw(base_size = 12)+
   labs(x = 'Mutation type', y = 'Fraction of all mutations in the category', title = 'Mutation types in all samples\nexcluded putative germline mutations')
-ggsave('Results/20241028_p5_mut_filters_types_germline_excluded.pdf', width = 6, height = 4.5)
+ggsave('Results/20241030_p1_mut_filters_types_germline_excluded.pdf', width = 6, height = 4.5)
 
 ######################################################################################################
 # Plot distribution of mutational classes in different trinucleotide contexts after applying specific filters 
@@ -721,7 +719,6 @@ get_trinucs <- function(mybed, genome) {
   gr$context[torc] <- as.character(reverseComplement(DNAStringSet(gr$context[torc])))
   gr$class <- paste(gr$REF, gr$ALT, "in", gr$context, sep = ".")
   class_levels <- paste(rep(c("C", "T"), each = 48), rep(c("A", "G", "T", "A", "C", "G"), each = 16), "in", paste0(rep(rep(bases, each = 4), 6), rep(c("C", "T"), each = 48), rep(bases, 24)), sep = ".")
-  print(class_levels)
   gr$class <- factor(gr$class, levels = class_levels)
   
   # match them up with one another using the original order that I put in - I think that they may have been reshuffled.
@@ -730,7 +727,7 @@ get_trinucs <- function(mybed, genome) {
   return(grdf$class)
 } 
 
-# Plot the distribution of mutation types on the unfiltered dataset (362, 814 mutations)
+# Plot the distribution of mutation types on the unfiltered dataset (362,814 mutations)
 mybed0 = twins_dt[,c('Chrom', 'Pos', 'Ref', 'Alt')]
 trins0 = get_trinucs(mybed0, BSgenome.Hsapiens.UCSC.hg38)
 twins_dt$trins0=trins0
@@ -763,15 +760,13 @@ ggsave('Results/20241030_p1_mut_trins_allmuts.pdf', width = 10, height = 5.5)
 
 
 # Create a series of plots that show what happens when you progressively apply different filters
-filters = c('f1_mappedY', 'f2_highDepthNormal', 'f2_lowDepthNormal', 'f2_noReadsMapped',
-            'f3_mtr4_presentInAll', 'f3_mtr4_presentInNone', 'f3_mtr4_presentInOne',
-            'f4_maxVAF01', 'f4_VAFna', 'f5_likelyGermline_bothTwins', 'f6_FailedIndelNearby30',
-            'f7_strandBiasMut', 'f8_lowQualRatio', 'f8_lowQualPresent')
+filters  = grep('^f', names(twins_dt_filters), value = TRUE) # extract filter columns
+
 for (f in filters){
   
-  twins_dt_f = twins_dt[f!=1]
+  twins_dt_f = twins_dt_filters[get(f)!=1]
   mut_nr = dim(twins_dt_f)[1]
-  mybed = twins_dt[f!=1,c('Chrom', 'Pos', 'Ref', 'Alt')]
+  mybed = twins_dt_filters[get(f)!=1,c('Chrom', 'Pos', 'Ref', 'Alt')]
   trins = get_trinucs(mybed, BSgenome.Hsapiens.UCSC.hg38)
   twins_dt_f$trins=trins
   
@@ -799,15 +794,12 @@ for (f in filters){
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
   ggsave(glue('Results/20241030_p1_mut_trins_allmuts_{f}.pdf'), width = 10, height = 5.5)
-  
-  
-  
 }
 
 ######################################################################################################
 # SAVE FILTERED MUTATIONS TO A TXT FILE
-paste('Number of mutations that passed required filters:', length(mut_included)) # 418
-write.table(mut_included, 'Data/mutations_include_20241028_3.txt', quote = FALSE, col.names = F, row.names = F)
+paste('Number of mutations that passed required filters:', length(mut_included)) # 591
+write.table(mut_included, 'Data/mutations_include_20241030_591.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
 ######################################################################################################
