@@ -23,6 +23,7 @@ library(beeswarm)
 library(viridis)
 library(grid)
 library(pheatmap)
+library(ggrepel)
 
 ###################################################################################################################################
 # INPUT FILES 
@@ -339,7 +340,7 @@ twins_filtered_mtr[sum_normal_PD62341 == 5 & sum_normal_PD63383 == 2] # 1
 # chr1_25421823_C_T # rather poorly mapped (double check but v not convinced)
 
 twins_filtered_mtr[sum_normal_PD62341 == 4 & sum_normal_PD63383 == 0] # 3
-# chr20_54999342_C_A # looks okay
+# chr20_54999342_C_A # looks okay (but not sure it's specific enough?)
 # chr3_62055057_C_G # looks good 
 # chr3_62055077_G_C # looks good 
 twins_filtered_mtr[sum_normal_PD62341 == 4 & sum_normal_PD63383 == 1] # 3
@@ -384,7 +385,7 @@ twins_filtered_vaf[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 4] # 1
 # Plots (including only high-quality mutations with support from MTR + VAF)
 muts_PD62341 = c("chr14_105458006_C_A",  'chr15_49480646_T_A', "chr17_33422229_C_A", 
                  "chr16_5479739_C_T", "chr2_95662131_G_A", "chr3_50106043_C_T",
-                 "chr3_62055057_C_G", "chr3_62055077_G_C", "chr20_44114996_C_T", 'chr20_54999342_C_A') 
+                 "chr3_62055057_C_G", "chr3_62055077_G_C", "chr20_44114996_C_T") 
 muts_PD63383 = c("chr11_34011887_C_T", "chr4_75704880_G_A", "chr6_165179306_G_A",
                  "chr13_50815806_A_G", "chr4_74625500_G_T", "chr7_73831920_C_T",
                  "chr3_77633967_C_T", "chrX_115066661_C_T")
@@ -407,7 +408,7 @@ mut_PD62341_melt[, mut_ID := factor(mut_ID, levels =
                                        'chr17_33422229_C_A','chr14_105458006_C_A',  
                                        'chr3_50106043_C_T', 'chr2_95662131_G_A',
                                        "chr3_62055057_C_G", "chr3_62055077_G_C", 
-                                       'chr20_54999342_C_A', "chr20_44114996_C_T"))]
+                                       "chr20_44114996_C_T"))]
 
 # plot option 1: we can make VAF plots for different samples
 for (sample_name in mut_PD62341_melt[,sample] %>% unlist() %>% unique()){
@@ -422,8 +423,87 @@ for (sample_name in mut_PD62341_melt[,sample] %>% unlist() %>% unique()){
     ggtitle(glue('VAF distribution in sample {sample_name}'))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
     ylim(c(0, 0.7))
-  ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut10_{sample_name}.pdf'), width=9, height=7)
+  ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_{sample_name}.pdf'), width=9, height=7)
 }
+
+# show distribution of VAFs for each mutation in each sample 
+ggplot(mut_PD62341_melt, aes(x=value, y=mut_ID, color=sample_type))+
+  geom_point(size=2.5)+
+  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 14)+
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD62341-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  xlim(c(0, 0.7))+
+  geom_vline(xintercept = 0.5, color='black', size = 0.7)+
+  geom_vline(xintercept = 0.25, color='black', size = 0.7)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_samples_xy.pdf'), width=9, height=7)
+
+# identify spleen samples 
+mut_PD62341_melt[, sample_type2 := as.factor(fcase(
+  sample == 'PD62341v', 'normal_PD62341_spleen',
+  sample == 'PD63383w', 'normal_PD63383_spleen',
+  !sample %in% c('PD62341v', 'PD63383w'), paste(status, twin, sep = '_')
+))]
+
+mut_PD62341_melt[, sample_type3 := as.factor(fcase(
+  sample == 'PD62341v', 'normal_PD62341_spleen',
+  sample == 'PD63383w', 'normal_PD63383_spleen',
+  sample == 'PD63383bb', 'normal_PD63383_skin',
+  !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(status, twin, sep = '_')
+))]
+
+ggplot(mut_PD62341_melt, aes(x=value, y=mut_ID, color=sample_type2))+
+  geom_point(size=2.5)+
+  scale_color_manual(values = c(col_normal_PD62341, 'orange', col_normal_PD63383, 'darkgreen', col_tumour_PD62341, col_tumour_PD63383))+
+  theme_bw(base_size = 14)+
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD62341-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  xlim(c(0, 0.7))+
+  geom_vline(xintercept = 0.5, color='black', size = 0.7)+
+  geom_vline(xintercept = 0.25, color='black', size = 0.7)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_samples_xy_labelspleen.pdf'), width=9, height=7)
+
+ggplot(mut_PD62341_melt[status=='normal'], aes(x=value, y=mut_ID, color=sample_type2))+
+  geom_point(size=2.5)+
+  scale_color_manual(values = c(col_normal_PD62341, '#C42F0F', col_normal_PD63383, '#F99A49'))+
+  theme_bw(base_size = 14)+
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD62341-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  xlim(c(0, 0.7))+
+  geom_vline(xintercept = 0.5, color='black', size = 0.7)+
+  geom_vline(xintercept = 0.25, color='black', size = 0.7)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_samples_xy_normal_labelspleen.pdf'), width=9, height=7)
+
+ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2))+
+  geom_point(size=2.5, position = position_jitterdodge(0.4))+
+  scale_color_manual(values = c(col_normal_PD62341, '#C42F0F', col_normal_PD63383, '#F99A49'))+
+  theme_bw(base_size = 14)+
+  labs(x = 'Mutation', y = 'VAF')+
+  ggtitle(glue('VAF distribution for PD62341-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))+
+  geom_hline(yintercept = 0.5, color='black', size = 0.3)+
+  geom_hline(yintercept = 0.25, color='black', size = 0.3)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_samples_normal_labelspleen.pdf'), width=9, height=7)
+
+ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type3))+
+  geom_point(size=2.5, position = position_jitterdodge(0.4))+
+  scale_color_manual(values = c(col_normal_PD62341, '#C42F0F', col_normal_PD63383, '#A149F9', '#F99A49'))+
+  theme_bw(base_size = 14)+
+  labs(x = 'Mutation', y = 'VAF')+
+  ggtitle(glue('VAF distribution for PD62341-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))+
+  geom_hline(yintercept = 0.5, color='black', size = 0.3)+
+  geom_hline(yintercept = 0.25, color='black', size = 0.3)
+  #scale_y_continuous(breaks = NULL)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_samples_normal_label_spleen_skin.pdf'), width=9, height=7)
 
 # can we aggregate samples by sample type and plot the mean VAF (+ standard deviation)
 # we should use a different color for each category 
@@ -433,7 +513,7 @@ mut_PD62341_agg[, mut_ID := factor(mut_ID, levels =
                                        'chr17_33422229_C_A','chr14_105458006_C_A',  
                                        'chr3_50106043_C_T', 'chr2_95662131_G_A',
                                        "chr3_62055057_C_G", "chr3_62055077_G_C", 
-                                       'chr20_54999342_C_A', "chr20_44114996_C_T"))]
+                                       "chr20_44114996_C_T"))]
 
 ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
   geom_line(group = 1)+
@@ -448,9 +528,9 @@ ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
   ggtitle(glue('VAF distribution for twin-specific mutations'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut10_aggregated.pdf'), width=9, height=7)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_aggregated.pdf'), width=9, height=7)
 
-# what if I do this without 
+# what if I do this without contaminated samples 
 samples_contaminated = c('PD62341v', 'PD62341aa', 'PD62341h', 'PD63383bb')
 mut_PD62341_agg = data.table(aggregate(value~mut_ID+sample_type, mut_PD62341_melt[!sample %in% samples_contaminated], FUN=mean))
 mut_PD62341_agg[, mut_ID := factor(mut_ID, levels = 
@@ -458,7 +538,7 @@ mut_PD62341_agg[, mut_ID := factor(mut_ID, levels =
                                        'chr17_33422229_C_A','chr14_105458006_C_A',  
                                        'chr3_50106043_C_T', 'chr2_95662131_G_A',
                                        "chr3_62055057_C_G", "chr3_62055077_G_C", 
-                                       'chr20_54999342_C_A', "chr20_44114996_C_T"))]
+                                       "chr20_44114996_C_T"))]
 
 ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
   geom_line(group = 1)+
@@ -473,7 +553,7 @@ ggplot(mut_PD62341_agg, aes(x=mut_ID, y=value, col = sample_type))+
   ggtitle(glue('VAF distribution for twin-specific mutations\n(excluded contaminated samples)'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut10_aggregated_rmcontamination.pdf'), width=5, height=8)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_aggregated_rmcontamination.pdf'), width=5, height=8)
 
 ggplot(mut_PD62341_agg, aes(x=value, y=mut_ID, col = sample_type))+
   geom_point(size=3)+
@@ -482,12 +562,12 @@ ggplot(mut_PD62341_agg, aes(x=value, y=mut_ID, col = sample_type))+
   theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
   labs(x = 'VAF', y = 'Mutation')+
   ggtitle(glue('VAF distribution for PD62341 mutations\n(excluded contaminated samples)'))
-ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut10_aggregated_rmcontamination_reorderxy.pdf'), width=6.5, height=8)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD62341_mut9_aggregated_rmcontamination_reorderxy.pdf'), width=6.5, height=8)
 
 # PD63383 
 muts_PD63383 = c("chr11_34011887_C_T", "chr4_75704880_G_A", "chr6_165179306_G_A",
                  "chr13_50815806_A_G", "chr4_74625500_G_T", "chr7_73831920_C_T",
-                 "chr3_77633967_C_T", "chrX_115066661_C_T", 'chr2_95747706_T_C')
+                 "chr3_77633967_C_T", "chrX_115066661_C_T")
 
 mut_PD63383_dt = twins_vaf[mut_ID %in% muts_PD63383, 1:23]
 mut_PD63383_melt = melt(mut_PD63383_dt, id.vars = 'mut_ID')
@@ -536,7 +616,7 @@ ggplot(mut_PD63383_agg, aes(x=mut_ID, y=value, col = sample_type))+
   geom_line(group = 1)+
   geom_point(size=1.5)+
   geom_area(aes(fill = mut_ID))+
-  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  scale_color_manual(values = c(col_normal_PD63383, col_normal_PD62341, col_tumour_PD63383, col_tumour_PD62341))+
   theme_bw(base_size = 12)+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x = 'Mutation', y = 'VAF')+
@@ -562,7 +642,7 @@ ggplot(mut_PD63383_agg, aes(x=mut_ID, y=value, col = sample_type))+
   geom_line(group = 1)+
   geom_point(size=1.5)+
   geom_area(aes(fill = mut_ID))+
-  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  scale_color_manual(values = c(col_normal_PD63383, col_normal_PD62341, col_tumour_PD63383, col_tumour_PD62341))+
   theme_bw(base_size = 12)+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x = 'Mutation', y = 'VAF')+
@@ -575,14 +655,16 @@ ggsave(glue('Results/20241030_p3_vaf_dist_PD63383_mut8_aggregated_rmcontaminatio
 
 ggplot(mut_PD63383_agg, aes(x=value, y=mut_ID, col = sample_type))+
   geom_point(size=3)+
-  scale_color_manual(values = c(col_normal_PD62341, col_normal_PD63383, col_tumour_PD62341, col_tumour_PD63383))+
+  scale_color_manual(values = c(col_normal_PD63383, col_normal_PD62341, col_tumour_PD63383, col_tumour_PD62341))+
   theme_bw(base_size = 12)+
   theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
   labs(x = 'VAF', y = 'Mutation')+
-  ggtitle(glue('VAF distribution for PD63383 mutations\n(excluded contaminated samples)'))
+  ggtitle(glue('VAF distribution for PD63383 mutations\n(excluded contaminated samples)'))+
+  xlim(0, 0.4)+
+  geom_vline(xintercept = 0.25, color = 'black', size = 0.7)
 ggsave(glue('Results/20241030_p3_vaf_dist_PD63383_mut8_aggregated_rmcontamination_reorderxy.pdf'), width=6.5, height=8)
 
-# okay so these mutations are certainly real, now it would be good to get a distribution of those for each
+# plot a distribution of PD63383 mutations in each sample 
 mut_PD63383_melt[, mut_ID := factor(mut_ID, levels = 
                                      c("chr4_75704880_G_A", "chr11_34011887_C_T",  "chr6_165179306_G_A",
                                        "chr4_74625500_G_T", "chrX_115066661_C_T", "chr13_50815806_A_G", 
@@ -592,9 +674,9 @@ mut_PD63383_melt[, sample_type := factor(sample_type, levels =
                                              'tumour_PD63383', 'tumour_PD62341'))]
 
 ggplot(mut_PD63383_melt, aes(x=mut_ID, y=value, col = sample_type))+
-  geom_point(size=2)+
+  geom_point(size=2.5)+
   scale_color_manual(values = c(col_normal_PD63383, col_normal_PD62341, col_tumour_PD63383, col_tumour_PD62341))+
-  theme_bw(base_size = 12)+
+  theme_bw(base_size = 14)+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   labs(x = 'Mutation', y = 'VAF')+
   ggtitle(glue('VAF distribution of PD63383-restricted mutations'))+
@@ -602,6 +684,92 @@ ggplot(mut_PD63383_melt, aes(x=mut_ID, y=value, col = sample_type))+
   ylim(c(0, 0.4))
 ggsave(glue('Results/20241030_p3_vaf_dist_PD63383_mut8_dist_in_samples.pdf'), width=9, height=7)
 
+ggplot(mut_PD63383_melt, aes(x=value, y=mut_ID, col = sample_type))+
+  geom_point(size=1.5)+
+  scale_color_manual(values = c(col_normal_PD63383, col_normal_PD62341, col_tumour_PD63383, col_tumour_PD62341))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD63383 mutations\n(excluded contaminated samples)'))+
+  xlim(0, 0.4)+
+  geom_vline(xintercept = 0.25, color = 'black', size = 0.7)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD63383_mut8_reorderxy.pdf'), width=6.5, height=8)
+
+ggplot(mut_PD63383_melt[status=='normal'], aes(x=value, y=mut_ID, col = sample_type))+
+  geom_point(size=1.5)+
+  scale_color_manual(values = c(col_normal_PD63383, col_normal_PD62341, col_tumour_PD63383, col_tumour_PD62341))+
+  theme_bw(base_size = 12)+
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line( size=.1, color="black"))+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD63383 mutations\n(excluded contaminated samples)'))+
+  xlim(0, 0.4)+
+  geom_vline(xintercept = 0.25, color = 'black', size = 0.7)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD63383_mut8_reorderxy_normal.pdf'), width=6.5, height=8)
+
+###################################################################################################################################
+# Can we try to address the issue of possible twin-twin transfusion via the spleen?
+
+# if this occurs, the spleen in PD62341 should be more similar to PD63383 than other PD62341 tissues
+# at the same time, we expect spleen in PD63383 to be more similar to PD62341 than other PD63383 tissues 
+# NB this is complicated because the tumour (which arose in PD62341) contaminated the skin sample (PD63383bb)
+
+# check PD62341v and PD63383w in PD63383-specific mutations
+mut_PD63383_melt[, sample_type := as.factor(paste(
+  status, twin, sep = '_'))]
+
+mut_PD63383_melt[, sample_type2 := as.factor(fcase(
+  sample == 'PD62341v', 'normal_PD62341_spleen',
+  sample == 'PD63383w', 'normal_PD63383_spleen',
+  !sample %in% c('PD62341v', 'PD63383w'), paste(status, twin, sep = '_')
+))]
+
+mut_PD63383_melt[, sample_type3 := as.factor(fcase(
+  sample == 'PD62341v', 'normal_PD62341_spleen',
+  sample == 'PD63383w', 'normal_PD63383_spleen',
+  sample == 'PD63383bb', 'normal_PD63383_skin',
+  !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(status, twin, sep = '_')
+))]
+
+ggplot(mut_PD63383_melt[status=='normal'], aes(x=value, y=mut_ID, color=sample_type2))+
+  geom_point(size=2.5)+
+  scale_color_manual(values = c(col_normal_PD62341, '#C42F0F', col_normal_PD63383, '#F99A49'))+
+  theme_bw(base_size = 14)+
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(x = 'VAF', y = 'Mutation')+
+  ggtitle(glue('VAF distribution for PD63383-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  xlim(c(0, 0.4))+
+  geom_vline(xintercept = 0.25, color='black', size = 0.3)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD63383_mut8_samples_xy_normal_labelspleen.pdf'), width=9, height=7)
+# PD62341 spleen has more PD63383-specific mutations than other tissues
+# PD63383 spleen does not seem to be 'special' among PD63383 tissues (not more similar to PD62341, ie not lower VAF)
+
+ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2))+
+  geom_point(size=2.5, position = position_jitterdodge(0.4))+
+  scale_color_manual(values = c(col_normal_PD62341, '#C42F0F', col_normal_PD63383, '#F99A49'))+
+  theme_bw(base_size = 14)+
+  labs(x = 'Mutation', y = 'VAF')+
+  ggtitle(glue('VAF distribution for PD63383-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))+
+  geom_hline(yintercept = 0.5, color='black', size = 0.3)+
+  geom_hline(yintercept = 0.25, color='black', size = 0.3)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD63383_mut8_samples_normal_labelspleen.pdf'), width=9, height=7)
+
+ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type3))+
+  geom_point(size=2.5, position = position_jitterdodge(0.4))+
+  scale_color_manual(values = c(col_normal_PD62341, '#C42F0F', col_normal_PD63383, '#A149F9', '#F99A49'))+
+  theme_bw(base_size = 14)+
+  labs(x = 'Mutation', y = 'VAF')+
+  ggtitle(glue('VAF distribution for PD63383-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))+
+  geom_hline(yintercept = 0.5, color='black', size = 0.3)+
+  geom_hline(yintercept = 0.25, color='black', size = 0.3)
+#scale_y_continuous(breaks = NULL)
+ggsave(glue('Results/20241030_p3_vaf_dist_PD633831_mut8_samples_normal_label_spleen_skin.pdf'), width=9, height=7)
+
+# ok this is as a thing to think about but I don't know how to proceed on this
 
 ###################################################################################################################################
 # Rerun search for mutations excluding spleen samples due to the possibility of transfusion between twins 
@@ -655,7 +823,7 @@ twins_ns_vaf[, sum_PD62341 := rowSums(.SD>=0.1), .SDcols = samples_normal_ns_PD6
 twins_ns_vaf[, sum_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_normal_ns_PD63383_vaf]
 
 ###################################################################################################################################
-# Start looking for samples present in either of the twins only
+# Identify mutations present only in one twin 
 
 # specific to PD62341
 twins_ns_mtr[sum_PD62341 == 5 & sum_PD63383 == 0] 
@@ -706,7 +874,7 @@ twins_ns_mtr[sum_PD62341 == 0 & sum_PD63383 == 2]
 # chr7_110349267_G_A # double check
 
 ###################################################################################################################################
-# presence / absence in either of the twins by VAF
+# Presence / absence of mutations in either of the twins by VAF
 
 # specific to PD62341
 twins_ns_vaf[sum_PD62341 == 5 & sum_PD63383 == 0] 
@@ -764,10 +932,8 @@ twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 2]
 # chr7_150298369_A_T # poor mapping - actually that doesn't look too bad
 # chr8_83543_A_G # poor mapping 
 # chr13_18565005_G_A # poor mapping 
-# chr1_108488775_C_T # poor mapping 
 # chr2_113525233_T_C # poor mapping 
 # chr13_19104709_A_G # poor mapping 
 # chr15_49480646_T_A # poor mapping 
-# "chrX_49938335_T_A" # strand bias, should have been thrown out 
 
 
