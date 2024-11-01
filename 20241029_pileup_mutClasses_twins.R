@@ -37,7 +37,7 @@ twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
 muts = read.table('Data/mutations_include_20241030_413.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts)) # 255
+paste('Number of mutations that passed required filters:', length(muts)) # 413
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 # Add column to indicate chromosomes lost in the tumour

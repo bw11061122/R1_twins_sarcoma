@@ -35,7 +35,7 @@ twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
 muts = read.table('Data/mutations_include_20241030_413.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts)) # 255
+paste('Number of mutations that passed required filters:', length(muts)) # 413
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 # Add column to indicate chromosomes lost in the tumour
@@ -170,12 +170,10 @@ twins_filtered_vaf[, sum_normal_PD62341 := rowSums(.SD>=0.1), .SDcols = samples_
 twins_filtered_vaf[, sum_normal_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_normal_PD63383_vaf]
 
 ######################################################################################################
+# CONTAMINATION
 ######################################################################################################
-######################################################################################################
-# CONTAMINATION FUN
 
-######################################################################################################
-# Look at the distribution of VAF of mutations present in tumour samples 
+# Analyse the distribution of VAF of mutations present in tumour samples 
 
 twins_filtered_dt[, sum_tumour_mtr := rowSums(.SD >= 4), .SDcols = samples_tumour_mtr]
 twins_filtered_dt[, sum_tumour_vaf := rowSums(.SD >= 0.1), .SDcols = samples_tumour_vaf]
