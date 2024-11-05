@@ -886,19 +886,18 @@ twins_filtered_mtr[sum_normal == 0 & sum_tumour_PD63383 == 0 & sum_tumour_PD6234
 # chr3_189240074_C_A # looks okay
 # chr3_95470911_T_A # looks okay
 # chr5_58182780_T_A # looks okay
-# chr8_91252357_A_C
-# chrX_64561555_C_T
+# chr8_91252357_A_C # looks okay
+# chrX_64561555_C_T # looks okay
 # chrX_9804641_G_A # looks okay
 
 twins_filtered_mtr[sum_normal == 1 & sum_tumour_PD63383 == 0 & sum_tumour_PD62341 == 2] # 4
-# "chr11_18922568_G_T" # double check (repetitive region)
 # "chr17_1199637_C_G" # poor mapping 
 # "chr9_100061581_C_T" # maybe? weird region so may have thrown Illumina off (double check)
 # "chr9_67625770_G_A" # some mapping issues 
 
 twins_filtered_mtr[sum_normal == 2 & sum_tumour_PD63383 == 0 & sum_tumour_PD62341 == 2] # 2
-# "chr19_50615732_C_T" # double check
-# "chr9_39590690_G_A" # poor mapping 
+# chr10_49977949_A_G # poor mapping 
+# chr9_100061582_G_A # poor mapping (deletions)
 
 ######################################################################################################
 # Mutations shared between tumour and one twin 
@@ -996,6 +995,7 @@ twins_filtered_mtr[sum_normal == 0 & sum_tumour_PD63383 == 2 & sum_tumour_PD6234
 # "chr2_72939205_C_T" # looks okay 
 # "chr2_82147172_T_C" # looks okay 
 # "chr5_157248612_A_G" # looks okay
+# "chr5_28014472_C_T" # looks okay
 # "chr5_54017866_G_T" # looks okay
 # "chr7_13677323_A_G" # mapping not excellent, double check (I think it's fine but does map to quite a lot of random stuff)
 # "chrX_48453603_G_A" # looks okay
@@ -1046,6 +1046,7 @@ twins_filtered_vaf[sum_normal == 0 & sum_tumour_PD63383 == 2 & sum_tumour_PD6234
 # "chr1_51714096_G_C" # looks okay  
 # "chr2_72939205_C_T" # looks okay 
 # "chr2_82147172_T_C" # looks okay 
+# "chr5_28014472_C_T" # looks okay
 # "chr5_54017866_G_T" # looks okay
 # "chr7_13677323_A_G" # mapping not excellent, double check (I think it's fine but does map to quite a lot of random stuff)
 # "chrX_48453603_G_A" # looks okay
