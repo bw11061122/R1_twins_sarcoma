@@ -34,7 +34,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241030_413.txt') %>% unlist()
+muts = read.table('Data/mutations_include_20241104_338.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 413
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
@@ -169,17 +169,75 @@ twins_filtered_vaf[, sum_tumour_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_
 twins_filtered_vaf[, sum_normal_PD62341 := rowSums(.SD>=0.1), .SDcols = samples_normal_PD62341_vaf]
 twins_filtered_vaf[, sum_normal_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_normal_PD63383_vaf]
 
+# Aggregated VAF in tumour samples 
+twins_filtered_dt[, sum_tumour_mtr := rowSums(.SD >= 4), .SDcols = samples_tumour_mtr]
+twins_filtered_dt[, sum_tumour_vaf := rowSums(.SD >= 0.1), .SDcols = samples_tumour_vaf]
+twins_filtered_dt[, sum_normal_mtr := rowSums(.SD >= 4), .SDcols = samples_normal_mtr]
+twins_filtered_dt[, sum_normal_vaf := rowSums(.SD >= 0.1), .SDcols = samples_normal_vaf]
+
+twins_filtered_dt[, total_tumour_mtr := rowSums(.SD), .SDcols = samples_tumour_mtr]
+twins_filtered_dt[, total_tumour_PD62341_mtr := rowSums(.SD), .SDcols = samples_tumour_PD62341_mtr]
+twins_filtered_dt[, total_tumour_PD63383_mtr := rowSums(.SD), .SDcols = samples_tumour_PD63383_mtr]
+twins_filtered_dt[, total_normal_mtr := rowSums(.SD), .SDcols = samples_normal_mtr]
+twins_filtered_dt[, total_normal_PD62341_mtr := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
+twins_filtered_dt[, total_normal_PD63383_mtr := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
+
+twins_filtered_dt[, total_tumour_dep := rowSums(.SD), .SDcols = samples_tumour_dep]
+twins_filtered_dt[, total_tumour_PD62341_dep := rowSums(.SD), .SDcols = samples_tumour_PD62341_dep]
+twins_filtered_dt[, total_tumour_PD63383_dep := rowSums(.SD), .SDcols = samples_tumour_PD63383_dep]
+twins_filtered_dt[, total_normal_dep := rowSums(.SD), .SDcols = samples_normal_dep]
+twins_filtered_dt[, total_normal_PD62341_dep := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
+twins_filtered_dt[, total_normal_PD63383_dep := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
+
+twins_filtered_dt[, total_tumour_vaf := total_tumour_mtr / total_tumour_dep]
+twins_filtered_dt[, total_tumour_PD62341_vaf := total_tumour_PD62341_mtr / total_tumour_PD62341_dep]
+twins_filtered_dt[, total_tumour_PD63383_vaf := total_tumour_PD63383_mtr / total_tumour_PD63383_dep]
+twins_filtered_dt[, total_normal_vaf := total_normal_mtr / total_normal_dep]
+twins_filtered_dt[, total_normal_PD62341_vaf := total_normal_PD62341_mtr / total_normal_PD62341_dep]
+twins_filtered_dt[, total_normal_PD63383_vaf := total_normal_PD63383_mtr / total_normal_PD63383_dep]
+
 ######################################################################################################
 # CONTAMINATION
 ######################################################################################################
 
-# Analyse the distribution of VAF of mutations present in tumour samples 
+######################################################################################################
+# We need to have a better set of mutations 
 
-twins_filtered_dt[, sum_tumour_mtr := rowSums(.SD >= 4), .SDcols = samples_tumour_mtr]
-twins_filtered_dt[, sum_tumour_vaf := rowSums(.SD >= 0.1), .SDcols = samples_tumour_vaf]
+# 1 select mutations which are clonal in the tumour based on VAF NOT number of samples
+hist(twins_filtered_dt[, total_tumour_vaf], breaks=50, xlab = 'VAF (agg tumour)', xlim=c(0,1), main = 'VAF across the tumour (338)')
+abline(v = median(twins_filtered_dt[, total_tumour_vaf]), col = 'blue')
+abline(v = mean(twins_filtered_dt[, total_tumour_vaf]), col = 'red')
+
+# would it make sense to take the mutations above the median and below 0.6?
+hist(twins_filtered_dt[, total_tumour_vaf], breaks=50, xlab = 'VAF (agg tumour)', xlim=c(0,1), main = 'VAF across the tumour (338)')
+abline(v = 0.2, col = 'purple')
+abline(v = 0.4, col = 'purple')
+muts_likely_clonal_tumour = twins_filtered_dt[total_tumour_vaf > 0.2 & total_tumour_vaf < 0.4, mut_ID] %>% unlist()
+# 131
+
+# 2 exclude mutations which you have good reasons to believe are embryonic mosaic 
+
+
+# 3 plots of tumour VAF against normal VAF
+for (sample in samples_normal){
+  sample_name = paste0(sample, '_VAF')
+  vaf_tumour = twins_filtered_dt[,total_tumour_vaf]
+  vaf_normal = twins_filtered_dt[, ..sample_name] %>% unlist()
+  plot(vaf_tumour, vaf_normal, xlim = c(0, 1), ylim = c(0, 1), xlab = 'VAF (agg tumour)', ylab = glue('VAF in sample {sample}', main = 'All mutations'))
+}
+
+for (sample in samples_normal){
+  sample_name = paste0(sample, '_VAF')
+  vaf_tumour = twins_filtered_dt[mut_ID %in% muts_likely_clonal_tumour, total_tumour_vaf]
+  vaf_normal = twins_filtered_dt[mut_ID %in% muts_likely_clonal_tumour, ..sample_name] %>% unlist()
+  pdf(glue('Results/20241104_vaf_tumour_vs_normal_{sample}.pdf'))
+  plot(vaf_tumour, vaf_normal, xlim = c(0, 1), ylim = c(0, 1), 
+       xlab = 'VAF (agg tumour)', ylab = glue('VAF in sample {sample}', main = 'VAF 0.2-0.4 tumour agg (131)'))
+  dev.off()
+}
 
 twins_tumour_dt = twins_filtered_dt[sum_tumour_mtr>0 & sum_tumour_vaf>0]
-paste('Number of mutations present in the tumour:', dim(twins_tumour_dt)[1]) # 391
+paste('Number of mutations present in the tumour:', dim(twins_tumour_dt)[1]) # 403
 
 # subset MTR, DEP and VAF TUMOUR data
 twins_tumour_mtr = twins_tumour_dt[,c('mut_ID', samples_tumour_mtr, 'sum_tumour_mtr', 'sum_tumour_vaf'), with=FALSE]
@@ -214,57 +272,142 @@ twins_tumour_vaf[, sum_tumour_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_tu
 
 # Mutations present in at least 1 tumour sample
 pdf('Results/20241101_p1_hist_tumour_mtr.pdf')
-hist(twins_tumour_mtr[, 2:11, with=FALSE] %>% unlist(), breaks=100, xlab = 'Number of variant reads', main = 'Variant reads in tumour samples: 391 mutations')
+hist(twins_tumour_mtr[, 2:11, with=FALSE] %>% unlist(), breaks=100, xlab = 'Number of variant reads', main = 'Variant reads in tumour samples: 393 mutations')
 dev.off()
 
 pdf('Results/20241101_p1_hist_tumour_vaf.pdf')
-hist(twins_tumour_vaf[, 2:11, with=FALSE] %>% unlist(), breaks=100, xlab = 'Variant allele frequency', main = 'VAF in tumour samples: 391 mutations')
+hist(twins_tumour_vaf[, 2:11, with=FALSE] %>% unlist(), breaks=100, xlab = 'Variant allele frequency', main = 'VAF in tumour samples: 393 mutations')
 dev.off()
 
 pdf('Results/20241101_p1_hist_tumour_dep.pdf')
-hist(twins_tumour_dep[, 2:11, with=FALSE] %>% unlist(), breaks=100, xlab = 'Total number of reads', main = 'Coverage in tumour samples: 391 mutations')
+hist(twins_tumour_dep[, 2:11, with=FALSE] %>% unlist(), breaks=100, xlab = 'Total number of reads', main = 'Coverage in tumour samples: 393 mutations')
 dev.off()
 
 # plot mean VAF
 pdf('Results/20241030_p1_hist_tumour_vaf_mean.pdf')
-hist(twins_tumour_vaf[,mean_vaf] %>% unlist(), breaks=100, xlab = 'Mean variant allele frequency', main = 'Mean VAF in tumour samples: 391 mutations')
+hist(twins_tumour_vaf[,mean_vaf] %>% unlist(), breaks=100, xlab = 'Mean variant allele frequency', main = 'Mean VAF in tumour samples: 393 mutations')
 dev.off()
 
 pdf('Results/20241030_p1_hist_tumour_vaf_median.pdf')
-hist(twins_tumour_vaf[,median_vaf] %>% unlist(), breaks=100, xlab = 'Median variant allele frequency', main = 'Median VAF in tumour samples: 391 mutations')
+hist(twins_tumour_vaf[,median_vaf] %>% unlist(), breaks=100, xlab = 'Median variant allele frequency', main = 'Median VAF in tumour samples: 393 mutations')
 dev.off()
 
 # look only at mutations detected in all tumour samples
-twins_tumour_mtr_all = twins_tumour_mtr[sum_tumour_mtr==10 & sum_tumour_vaf==10] # 75 
-twins_tumour_vaf_all = twins_tumour_vaf[sum_tumour_mtr==10 & sum_tumour_vaf==10] # 75
+twins_tumour_mtr_all = twins_tumour_mtr[sum_tumour_mtr==10 & sum_tumour_vaf==10] # 76 
+twins_tumour_vaf_all = twins_tumour_vaf[sum_tumour_mtr==10 & sum_tumour_vaf==10] # 76
 
 pdf('Results/20241101_p1_hist_tumour_vaf_all.pdf')
 hist(twins_tumour_vaf_all[, 2:11, with=FALSE] %>% unlist(), breaks=100, 
-     xlab = 'Variant allele frequency', main = 'VAF in tumour samples: 75 mutations',
+     xlab = 'Variant allele frequency', main = 'VAF in tumour samples: 76 mutations',
      xlim = c(0, 1))
 abline(v = mean(twins_tumour_vaf_all[, 2:11, with=FALSE] %>% unlist()), col = 'red')
 abline(v = median(twins_tumour_vaf_all[, 2:11, with=FALSE] %>% unlist()), col = 'blue')
 dev.off()
 
 pdf('Results/20241101_p1_hist_tumour_mtr_mean_all.pdf')
-hist(twins_tumour_mtr_all[,mean_mtr] %>% unlist(), breaks=100, xlab = 'Number of variant reads', main = 'Mean MTR in tumour samples: 75 mutations (present in all samples)')
+hist(twins_tumour_mtr_all[,mean_mtr] %>% unlist(), breaks=100, xlab = 'Number of variant reads', main = 'Mean MTR in tumour samples: 76 mutations (present in all samples)')
 dev.off()
 
 pdf('Results/20241101_p1_hist_tumour_vaf_mean_all.pdf')
-hist(twins_tumour_vaf_all[,mean_vaf] %>% unlist(), breaks=100, xlab = 'Variant allele frequency', main = 'Mean VAF in tumour samples: 75 mutations (present in all samples)')
+hist(twins_tumour_vaf_all[,mean_vaf] %>% unlist(), breaks=100, xlab = 'Variant allele frequency', main = 'Mean VAF in tumour samples: 76 mutations (present in all samples)')
 dev.off()
 
 pdf('Results/20241101_p1_hist_tumour_vaf_median_all.pdf')
-hist(twins_tumour_vaf_all[,median_vaf] %>% unlist(), breaks=100, xlab = 'Variant allele frequency', main = 'Median VAF in tumour samples: 75 mutations (present in all samples)')
+hist(twins_tumour_vaf_all[,median_vaf] %>% unlist(), breaks=100, xlab = 'Variant allele frequency', main = 'Median VAF in tumour samples: 76 mutations (present in all samples)')
 dev.off()
 
-median(twins_tumour_vaf_all[,median_vaf] %>% unlist()) # 0.34885
-mean(twins_tumour_vaf_all[,median_vaf] %>% unlist()) # 0.3444
+median(twins_tumour_vaf_all[,median_vaf] %>% unlist()) # 0.34905
+mean(twins_tumour_vaf_all[,median_vaf] %>% unlist()) # 0.34892
+
+######################################################################################################
+# BETTER HISTOGRAMS 
+
+pdf('Results/20241104_p1_hist_vaf_dist_muts425_whole_tumour.pdf')
+hist(twins_filtered_dt[, whole_tumour_vaf], breaks=50, xlab = 'VAF', main = 'All mutations (425)', xlim = c(0,1))
+abline(v=median(twins_filtered_dt[, whole_tumour_vaf]), col='blue')
+abline(v=mean(twins_filtered_dt[, whole_tumour_vaf]), col='red')
+dev.off()
+
+pdf('Results/20241104_p1_hist_vaf_dist_muts403_whole_tumour.pdf')
+hist(twins_filtered_dt[sum_tumour_mtr>0 & sum_tumour_vaf>0, whole_tumour_vaf], breaks=50, xlab = 'VAF', xlim = c(0,1), main = 'Mutations mapped in min 1 tumour (403)')
+abline(v=median(twins_filtered_dt[sum_tumour_mtr>0 & sum_tumour_vaf>0, whole_tumour_vaf]), col='blue')
+abline(v=mean(twins_filtered_dt[sum_tumour_mtr>0 & sum_tumour_vaf>0, whole_tumour_vaf]), col='red')
+dev.off()
+
+pdf('Results/20241104_p1_hist_vaf_dist_muts76_whole_tumour.pdf')
+hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, whole_tumour_vaf], breaks=50, xlab = 'VAF', main = 'Mutations in all tumour samples (76)')
+abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, whole_tumour_vaf]), col='blue')
+abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, whole_tumour_vaf]), col='red')
+dev.off()
+
+pdf('Results/20241104_p1_hist_vaf_dist_muts76_whole_tumour_xlim.pdf')
+hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, whole_tumour_vaf], breaks=50, xlab = 'VAF', xlim = c(0, 1), main = 'Mutations in all tumour samples (76)')
+abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, whole_tumour_vaf]), col='blue')
+abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, whole_tumour_vaf]), col='red')
+dev.off()
+
+pdf('Results/20241104_p1_hist_vaf_dist_muts24_whole_tumour_xlim.pdf')
+hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, whole_tumour_vaf], 
+     xlab = 'VAF', xlim = c(0, 1), breaks=10,
+     main = 'Mutations in all tumour samples and max 3 normal (24)')
+abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, whole_tumour_vaf]), col='blue')
+abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, whole_tumour_vaf]), col='red')
+dev.off()
+
+pdf('Results/20241104_p1_hist_vaf_dist_muts24_whole_tumour.pdf')
+hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, whole_tumour_vaf], xlab = 'VAF', breaks=50, main = 'Mutations in all tumour samples and max 3 normal (24)')
+abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, whole_tumour_vaf]), col='blue')
+abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, whole_tumour_vaf]), col='red')
+dev.off()
+
+# I think this set of histograms would be good to generate for each sample separately as well
+for (sample in samples_names){
+  
+  vaf = paste0(sample, '_VAF')
+  
+  pdf(glue('Results/20241104_p1_hist_vaf_dist_muts425_{sample}.pdf'), width=10, heigh=6)
+  hist(twins_filtered_dt[, ..vaf] %>% unlist(), breaks=50, xlab = 'VAF', main = glue('All mutations (425), sample: {sample}'), xlim = c(0,1))
+  abline(v=median(twins_filtered_dt[, ..vaf] %>% unlist()), col='blue')
+  abline(v=mean(twins_filtered_dt[, ..vaf] %>% unlist()), col='red')
+  dev.off()
+  
+  pdf(glue('Results/20241104_p1_hist_vaf_dist_muts403_{sample}.pdf'), width=10, heigh=6)
+  hist(twins_filtered_dt[sum_tumour_mtr>0 & sum_tumour_vaf>0, ..vaf] %>% unlist(), breaks=50, xlab = 'VAF', xlim = c(0,1), main = glue('Mutations mapped in min 1 tumour (403), sample: {sample}'))
+  abline(v=median(twins_filtered_dt[sum_tumour_mtr>0 & sum_tumour_vaf>0, ..vaf] %>% unlist()), col='blue')
+  abline(v=mean(twins_filtered_dt[sum_tumour_mtr>0 & sum_tumour_vaf>0, ..vaf] %>% unlist()), col='red')
+  dev.off()
+  
+  pdf(glue('Results/20241104_p1_hist_vaf_dist_muts76_{sample}.pdf'), width=10, heigh=6)
+  hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, ..vaf] %>% unlist(), breaks=50, xlab = 'VAF', main = glue('Mutations in all tumour samples (76), sample: {sample}'))
+  abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, ..vaf] %>% unlist()), col='blue')
+  abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, ..vaf] %>% unlist()), col='red')
+  dev.off()
+  
+  pdf(glue('Results/20241104_p1_hist_vaf_dist_muts76_{sample}_xlim.pdf'), width=10, heigh=6)
+  hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, ..vaf] %>% unlist(), breaks=50, xlab = 'VAF', xlim = c(0, 1), main = glue('Mutations in all tumour samples (76), sample: {sample}'))
+  abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, ..vaf] %>% unlist()), col='blue')
+  abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10, ..vaf] %>% unlist()), col='red')
+  dev.off()
+  
+  pdf(glue('Results/20241104_p1_hist_vaf_dist_muts24_{sample}_xlim.pdf'), width=10, heigh=6)
+  hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, ..vaf] %>% unlist(), xlab = 'VAF', xlim = c(0, 1), breaks=10, main = glue('Mutations in all tumour samples and max 3 normal (24), sample: {sample}'))
+  abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, ..vaf] %>% unlist()), col='blue')
+  abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, ..vaf] %>% unlist()), col='red')
+  dev.off()
+  
+  pdf(glue('Results/20241104_p1_hist_vaf_dist_muts424_{sample}.pdf'), width=10, heigh=6)
+  hist(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, ..vaf] %>% unlist(), xlab = 'VAF', breaks=50, main = glue('Mutations in all tumour samples and max 3 normal (24), sample: {sample}'))
+  abline(v=median(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, ..vaf] %>% unlist()), col='blue')
+  abline(v=mean(twins_filtered_dt[sum_tumour_mtr==10 & sum_tumour_vaf==10 & sum_normal_vaf<=3, ..vaf] %>% unlist()), col='red')
+  dev.off()
+  
+}
 
 ######################################################################################################
 # Contamination option 1
 # Estimate contamination of tumour samples with normal using chr1 / chr18 normal reads
 # Note: it could be that the sample has several tumour clones, so everything is tumour but loss of chr1 / chr18 is subclonal
+# Is there any way I can know that tumour loss is clonal and occurred early?
 
 # identify mutations present at very high VAF in chr1 / chr18 in tumour samples (PD63383ap, PD63383aq)
 PD63383_tumour_chr1_18_apq = twins_filtered_vaf[PD63383ap_VAF > 0.7 | PD63383aq_VAF > 0.7]
@@ -272,6 +415,9 @@ PD63383_tumour_chr1_18_apq = twins_filtered_vaf[PD63383ap_VAF > 0.7 | PD63383aq_
 # chr18_71485446_G_A # looks okay
 # chr1_60839899_G_A # looks okay
 # chr1_69984580_G_A # looks okay
+# chr1_80734464_C_T # poor mapping 
+# chr8_123301519_G_C # should have been excluded
+# chr9_129402893_G_T # should have been excluded 
 
 muts_chr1_18_retained = c('chr18_71485446_G_A', 'chr1_60839899_G_A', 'chr1_69984580_G_A')
 PD63383_tumour_chr1_18_apq = PD63383_tumour_chr1_18_apq[mut_ID %in% muts_chr1_18_retained]
@@ -329,23 +475,23 @@ cells_est = cbind(cells_chr1_18_retained, cells_chr18_retained, cells_chr1_retai
 cells_est_dt = data.table(cells_est)
 cells_est_dt = data.table(cbind(rownames(cells_est), cells_est_dt))
 
-write.csv(cells_est_dt, 'Data/20241101_purity_estimates_chr1_18.csv')
+write.csv(cells_est_dt, 'Data/20241104_purity_estimates_chr1_18.csv')
 
 # alternatively, identify coordinates of the lost segments and search for mutations in these regions
 
 ######################################################################################################
 # Contamination option 2: Identify mutations shared by all tumour cells 
 
-twins_filtered_vaf[sum_tumour==10] # 120 mutations present in all tumour samples at VAF >= 10
+twins_filtered_vaf[sum_tumour==10] # 125 mutations present in all tumour samples at VAF >= 10
 muts_all_tumour_vaf = twins_filtered_vaf[sum_tumour==10, mut_ID] %>% unlist() 
-paste('Mutations present in all tumour samples (VAF):', length(muts_all_tumour_vaf))
+paste('Mutations present in all tumour samples (VAF):', length(muts_all_tumour_vaf)) # 125
 
-twins_filtered_mtr[sum_tumour==10] # 78 mutations present in all tumour samples at MTR >= 4
+twins_filtered_mtr[sum_tumour==10] # 79 mutations present in all tumour samples at MTR >= 4
 muts_all_tumour_mtr = twins_filtered_mtr[sum_tumour==10, mut_ID] %>% unlist()
 paste('Mutations present in all tumour samples (MTR):', length(muts_all_tumour_mtr))
 
 muts_all_tumour_vaf_mtr = Reduce(intersect, list(muts_all_tumour_vaf, muts_all_tumour_mtr))
-paste('Mutations present in all tumour samples (VAF + MTR):', length(muts_all_tumour_vaf_mtr))
+paste('Mutations present in all tumour samples (VAF + MTR):', length(muts_all_tumour_vaf_mtr)) # 76
 
 # Distribution of VAF of those mutations 
 hist(twins_filtered_vaf[mut_ID %in% muts_all_tumour_vaf, c(samples_tumour_vaf), with=FALSE] %>% unlist(), breaks=50)
@@ -356,9 +502,9 @@ hist(twins_filtered_vaf[mut_ID %in% muts_all_tumour_mtr, c(samples_tumour_vaf), 
 abline(v = median(twins_filtered_vaf[mut_ID %in% muts_all_tumour_mtr, c(samples_tumour_vaf), with=FALSE] %>% unlist()), col='blue')
 abline(v = mean(twins_filtered_vaf[mut_ID %in% muts_all_tumour_mtr, c(samples_tumour_vaf), with=FALSE] %>% unlist()), col='red')
 
-pdf('Results/20241101_p1_hist_vaf_75muts.pdf')
+pdf('Results/20241101_p1_hist_vaf_76muts.pdf')
 hist(twins_filtered_vaf[mut_ID %in% muts_all_tumour_vaf_mtr, c(samples_tumour_vaf), with=FALSE] %>% unlist(), 
-     breaks=50, xlab = 'VAF', main = 'Distribution of VAF (tumour samples)\n75 shared mutations',
+     breaks=50, xlab = 'VAF', main = 'Distribution of VAF (tumour samples)\n76 shared mutations',
      xlim = c(0, 1))
 abline(v = median(twins_filtered_vaf[mut_ID %in% muts_all_tumour_vaf_mtr, c(samples_tumour_vaf), with=FALSE] %>% unlist()), col='blue')
 abline(v = mean(twins_filtered_vaf[mut_ID %in% muts_all_tumour_vaf_mtr, c(samples_tumour_vaf), with=FALSE] %>% unlist()), col='red')
@@ -372,7 +518,7 @@ for (sample in samples_tumour){
   
   pdf(glue('Results/20241101_p1_hist_tumour_vaf_all_{sample}.pdf'), width=4.5, height=3.5)
   hist(sample_vaf_all, breaks=20, xlab = 'Variant allele frequency', 
-       main = glue('VAF in sample {sample}, 75 mutations'),
+       main = glue('VAF in sample {sample}, 76 mutations'),
        xlim = c(0, 1))
   abline(v=median(sample_vaf_all),col="blue")
   abline(v=mean(sample_vaf_all),col='red')
@@ -536,3 +682,8 @@ for (sample in samples_names){
   ggsave(glue('Results/20241101_p1_vaf_vs_cov_{sample}.pdf'), width=6, height=4.5)
 }
 # I think because of the number of mutations that we have (400 < ~70k) this is not informative
+
+
+
+
+

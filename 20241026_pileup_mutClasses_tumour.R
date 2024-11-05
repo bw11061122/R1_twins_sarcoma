@@ -36,7 +36,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241104_425.txt') %>% unlist()
+muts = read.table('Data/mutations_include_20241104_338.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 425
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
@@ -176,13 +176,11 @@ twins_filtered_vaf[, sum_normal_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_
 
 paste('Number of all mutations in the set:', dim(twins_filtered_vaf)[1])
 
-paste('Number of mutations in normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal>=1, mut_ID] %>% unlist())))) # 381 
-paste('Number of mutations in tumour samples:',  length(Reduce(intersect, list(twins_filtered_vaf[sum_tumour>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour>=1, mut_ID] %>% unlist())))) # 391
-
-paste('Number of mutations in all normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal==12, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal==12, mut_ID] %>% unlist())))) # 67
-paste('Number of mutations in all tumour samples:',  length(Reduce(intersect, list(twins_filtered_vaf[sum_tumour==10, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour==10, mut_ID] %>% unlist())))) # 75 
-
-paste('Number of mutations in max 3 normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal<4, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal<4, mut_ID] %>% unlist())))) # 151
+paste('Number of mutations in normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal>=1, mut_ID] %>% unlist())))) # 360 
+paste('Number of mutations in tumour samples:',  length(Reduce(intersect, list(twins_filtered_vaf[sum_tumour>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour>=1, mut_ID] %>% unlist())))) # 370
+paste('Number of mutations in all normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal==12, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal==12, mut_ID] %>% unlist())))) # 60
+paste('Number of mutations in all tumour samples:',  length(Reduce(intersect, list(twins_filtered_vaf[sum_tumour==10, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour==10, mut_ID] %>% unlist())))) # 54 
+paste('Number of mutations in max 3 normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal<4, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal<4, mut_ID] %>% unlist())))) # 153
 
 # Create lists of mutations 
 muts_all = twins_filtered_vaf[, mut_ID] %>% unlist()
@@ -459,276 +457,6 @@ for(sample1 in samples_tumour){
 }
 
 ######################################################################################################
-# CCF plots for different classes of mutations
-
-# all mutations in the set 
-sub_tumour_425 = twins_filtered_vaf[, c('mut_ID', c(samples_tumour_vaf)), with=FALSE]
-sub_tumour_425_melt = melt(sub_tumour_425, id.vars = 'mut_ID')
-sub_tumour_425_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
-sub_tumour_425_melt[, status := as.factor(fcase( 
-  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_tumour, 'tumour'))]
-sub_tumour_425_melt[, twin := as.factor(fcase( 
-  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_PD63383, 'PD63383'))]
-sub_tumour_425_melt = merge(sub_tumour_425_melt, purity_dt, by = 'sample')
-sub_tumour_425_melt[, ccf := 2 * (value / est_purity)]
-
-ccf_425_ap = sub_tumour_425_melt[sample=='PD63383ap', ccf] 
-ccf_425_aq = sub_tumour_425_melt[sample=='PD63383aq', ccf] 
-dt_425_apq = data.frame(cbind(ccf_425_ap, ccf_425_aq))
-
-ggplot(dt_425_apq, aes(x = ccf_425_ap, y = ccf_425_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD63383ap)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 tumour (425 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD63383ap_PD63383aq_425.pdf'))
-
-# PD62341 vs PD63383 tumour
-ccf_425_am = sub_tumour_425_melt[sample=='PD62341am', ccf] 
-ccf_425_aq = sub_tumour_425_melt[sample=='PD63383aq', ccf] 
-dt_425_amq = data.frame(cbind(ccf_425_am, ccf_425_aq))
-
-ggplot(dt_425_amq, aes(x = ccf_425_am, y = ccf_425_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD62341am)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 vs PD62341 (425 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD62341am_PD63383aq_425.pdf'))
-
-ccf_425_ag = sub_tumour_425_melt[sample=='PD62341ag', ccf] 
-ccf_425_aq = sub_tumour_425_melt[sample=='PD63383aq', ccf] 
-dt_425_agq = data.frame(cbind(ccf_425_ag, ccf_425_aq))
-
-ggplot(dt_425_agq, aes(x = ccf_425_ag, y = ccf_425_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD62341ag)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 vs PD62341 (425 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD62341ag_PD63383aq_425.pdf'))
-
-# mutations present in tumour samples
-purity_dt = data.table(data.frame(
-  sample = c("PD62341b", "PD62341u", "PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap", 'PD63383ap', 'PD63383aq'),
-  est_purity  = c(0.76, 0.47, 0.93, 0.5, 0.58, 0.49, 0.78, 0.87, 0.93, 0.91)))
-
-sub_tumour = twins_filtered_vaf[mut_ID %in% muts_tumour_all_only, c('mut_ID', c(samples_tumour_vaf)), with=FALSE]
-sub_tumour_melt = melt(sub_tumour, id.vars = 'mut_ID')
-sub_tumour_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
-sub_tumour_melt[, status := as.factor(fcase( 
-  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_tumour, 'tumour'
-))]
-sub_tumour_melt[, twin := as.factor(fcase( 
-  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_PD63383, 'PD63383'
-))]
-
-sub_tumour_melt = merge(sub_tumour_melt, purity_dt, by = 'sample')
-sub_tumour_melt[, ccf := 2 * (value / est_purity)]
-
-ccf_ap = sub_tumour_melt[sample=='PD63383ap', ccf] 
-ccf_aq = sub_tumour_melt[sample=='PD63383aq', ccf] 
-dt_apq = data.frame(cbind(ccf_ap, ccf_aq))
-
-ggplot(dt_apq, aes(x = ccf_ap, y = ccf_aq))+
-  geom_point(size=3.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD63383ap)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 tumour'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD63383ap_PD63383aq.pdf'))
-
-ccf_am = sub_tumour_melt[sample=='PD62341am', ccf] 
-ccf_aq = sub_tumour_melt[sample=='PD63383aq', ccf] 
-dt_amq = data.frame(cbind(ccf_am, ccf_aq))
-
-ggplot(dt_apq, aes(x = ccf_am, y = ccf_aq))+
-  geom_point(size=2.5, color = 'lightblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD62341am)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot: PD62341 vs PD63383 tumour'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD62341am_PD63383aq.pdf'))
-
-# mutations present in >= 1 tumour sample 
-sub_tumour_393 = twins_filtered_vaf[mut_ID %in% muts_min1_tumour, c('mut_ID', c(samples_tumour_vaf)), with=FALSE]
-sub_tumour_393_melt = melt(sub_tumour_393, id.vars = 'mut_ID')
-sub_tumour_393_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
-sub_tumour_393_melt[, status := as.factor(fcase( 
-  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_tumour, 'tumour'))]
-sub_tumour_393_melt[, twin := as.factor(fcase( 
-  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_PD63383, 'PD63383'))]
-sub_tumour_393_melt = merge(sub_tumour_393_melt, purity_dt, by = 'sample')
-sub_tumour_393_melt[, ccf := 2 * (value / est_purity)]
-
-ccf_393_ap = sub_tumour_393_melt[sample=='PD63383ap', ccf] 
-ccf_393_aq = sub_tumour_393_melt[sample=='PD63383aq', ccf] 
-dt_393_apq = data.frame(cbind(ccf_393_ap, ccf_393_aq))
-
-ggplot(dt_393_apq, aes(x = ccf_393_ap, y = ccf_393_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD63383ap)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 tumour (393 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD63383ap_PD63383aq_391.pdf'))
-
-# PD62341 vs PD63383 tumour
-ccf_393_am = sub_tumour_393_melt[sample=='PD62341am', ccf] 
-ccf_393_aq = sub_tumour_393_melt[sample=='PD63383aq', ccf] 
-dt_393_amq = data.frame(cbind(ccf_393_am, ccf_393_aq))
-
-ggplot(dt_393_amq, aes(x = ccf_393_am, y = ccf_393_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD62341am)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 vs PD62341 (393 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD62341am_PD63383aq_393.pdf'))
-
-ccf_393_ag = sub_tumour_393_melt[sample=='PD62341ag', ccf] 
-ccf_393_aq = sub_tumour_393_melt[sample=='PD63383aq', ccf] 
-dt_393_agq = data.frame(cbind(ccf_393_ag, ccf_393_aq))
-
-ggplot(dt_393_agq, aes(x = ccf_393_ag, y = ccf_393_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD62341ag)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 vs PD62341 (393 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD62341ag_PD63383aq_393.pdf'))
-
-# mutations absent from normal samples 
-sub_tumour_151 = twins_filtered_vaf[mut_ID %in% muts_tumour_only, c('mut_ID', c(samples_tumour_vaf)), with=FALSE]
-sub_tumour_151_melt = melt(sub_tumour_151, id.vars = 'mut_ID')
-sub_tumour_151_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
-sub_tumour_151_melt[, status := as.factor(fcase( 
-  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_tumour, 'tumour'))]
-sub_tumour_151_melt[, twin := as.factor(fcase( 
-  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_PD63383, 'PD63383'))]
-sub_tumour_151_melt = merge(sub_tumour_151_melt, purity_dt, by = 'sample')
-sub_tumour_151_melt[, ccf := 2 * (value / est_purity)]
-
-ccf_151_ap = sub_tumour_151_melt[sample=='PD63383ap', c('ccf', 'mut_ID'), with=F] 
-ccf_151_aq = sub_tumour_151_melt[sample=='PD63383aq', c('ccf', 'mut_ID'), with=F] 
-dt_151_apq = merge(ccf_151_ap, ccf_151_aq, by='mut_ID')
-
-ggplot(dt_151_apq, aes(x = ccf.x, y = ccf.y))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD63383ap)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 tumour (153 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD63383ap_PD63383aq_151.pdf'))
-
-# can we find something subclonal
-dt_151_apq[(ccf.x < 0.5 & ccf.x > 0.1) & (ccf.y < 0.5 & ccf.y > 0.1)] # 11 
-# chr10_49977949_A_G # mapping issues 
-# chr11_80115755_C_T # this looks okay and CCF ~0.4 - 0.5 # PD63383-specific 
-# chr13_18565005_G_A # mapping issues 
-# chr19_7878006_A_G # mapping issues 
-# chr1_145588334_T_C # mapping issues 
-# chr1_83136026_A_T # mapping issues 
-# chr2_113525233_T_C # mapping issues 
-# chr2_82147172_T_C # looks okay and also low CCF # PD63383-specific 
-# chr7_57104457_T_A # mapping issues 
-# chr9_100061581_C_T # bit weird
-# chr9_100061582_G_A # bit weird 
-
-# PD62341 vs PD63383 tumour
-ccf_151_am = sub_tumour_151_melt[sample=='PD62341am', ccf] 
-ccf_151_aq = sub_tumour_151_melt[sample=='PD63383aq', ccf] 
-dt_151_amq = data.frame(cbind(ccf_151_am, ccf_151_aq))
-
-ggplot(dt_151_amq, aes(x = ccf_151_am, y = ccf_151_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD62341am)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 vs PD62341 (151 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD62341am_PD63383aq_151.pdf'))
-
-ccf_151_ag = sub_tumour_151_melt[sample=='PD62341ag', ccf] 
-ccf_151_aq = sub_tumour_151_melt[sample=='PD63383aq', ccf] 
-dt_151_agq = data.frame(cbind(ccf_151_ag, ccf_151_aq))
-
-ggplot(dt_151_agq, aes(x = ccf_151_ag, y = ccf_151_aq))+
-  geom_point(size=2.5, color = 'darkblue')+
-  theme_bw(base_size = 14)+
-  labs(x = 'Clonal cell fraction (PD62341ag)', y = 'Clonal cell fraction (PD63383aq)')+
-  ggtitle(glue('CCF plot PD63383 vs PD62341 (153 mutations)'))+
-  xlim(c(0, 2))+
-  ylim(c(0, 2))+
-  geom_vline(xintercept = 1, color='black', size = 0.5)+
-  geom_hline(yintercept = 1, color='black', size = 0.5)
-ggsave(glue('Results/20241101_p2_ccf_PD62341ag_PD63383aq_151.pdf'))
-
-# are these mutations present mainly in contaminated normal samples?
-twins_filtered_vaf[mut_ID %in% muts_tumour_only]
-hist(twins_filtered_vaf[mut_ID %in% muts_tumour_only, sum_normal])
-dim(twins_filtered_vaf[mut_ID %in% muts_tumour_only & PD63383bb_VAF > 0.1])[1] # 85
-dim(twins_filtered_vaf[mut_ID %in% muts_tumour_only & PD62341aa_VAF > 0.1])[1] # 27
-dim(twins_filtered_vaf[mut_ID %in% muts_tumour_only & PD62341h_VAF > 0.1])[1] # 72
-
-# are these mutations real?
-dim(twins_filtered_vaf[mut_ID %in% muts_tumour_only & PD62341h_VAF < 0.1 & PD62341aa_VAF < 0.1 & PD63383bb_VAF < 0.1 & sum_normal > 0])[1] # 16
-# "chr10_119182885_G_C" # mapping issues 
-# "chr11_18922568_G_T"  # variable mapping, and on blat actually maps better to sth else 
-# "chr13_24392029_C_G"  # mapping issues 
-# "chr19_54746517_T_C"  # kind of okay
-# "chr19_7878006_A_G"   # clear mapping issues 
-# "chr1_103587565_A_C"  # looks okay
-# "chr1_145588334_T_C"  # some mapping issues (double check)
-# "chr1_83136026_A_T"  # also mapping issues 
-# "chr2_113525233_T_C" # mapping issues 
-# "chr4_15905566_C_T" # looks okay  
-# "chr6_159851462_T_C" # looks fine but there are some deletions so estimates may not be reliable
-# "chr7_149688370_C_T"  # looks okay but v low everywhere
-# "chr7_63778593_T_G"  # mapping issues  
-# "chr9_100061581_C_T" # there are some insertions so not sure - double check 
-# "chr9_100061582_G_A" # there are some insertions so not sure - double check
-# "chr9_67625770_G_A" # mapping issues   
-
-######################################################################################################
 ######################################################################################################
 # Inspect tumour-specific mutations 
 
@@ -774,9 +502,10 @@ twins_filtered_mtr[sum_tumour == 9 & sum_normal == 0] # 2
 # chr12_106354695_C_T # looks okay, missing in PD62341ak
 # chrX_115495236_T_C # looks okay to me (double check but I would believe it), missing in PD62341b
 
-twins_filtered_mtr[sum_tumour == 9 & sum_normal == 1] # 7
+twins_filtered_mtr[sum_tumour == 9 & sum_normal == 1] # 8
 # chr12_61020950_C_A # looks okay
 # chr14_104122986_G_T # looks okay (nb some mis-mapping)
+# chr19_3961910_G_A # looks okay
 # chr7_115240063_T_C # looks okay
 # chr7_120677593_C_T # looks okay
 # chr8_46678612_T_C # looks okay
@@ -863,6 +592,7 @@ twins_filtered_mtr[sum_tumour == 6 & sum_normal == 1] # 3
 # chr15_94939486_G_A # looks okay
 
 twins_filtered_mtr[sum_tumour == 6 & sum_normal == 2] # 1
+# chr15_30811818_A_G # not very convincing 
 # chr18_64267234_G_A # looks okay, inspect further - is this on the deleted copy?
 
 twins_filtered_mtr[sum_tumour == 5 & sum_normal == 0] # 3
@@ -1204,6 +934,7 @@ twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 2 & sum_normal_PD6338
 twins_filtered_mtr[sum_tumour == 9 & sum_normal_PD62341 == 1 & sum_normal_PD63383 == 0] # 5
 # mostly in h so all of these are likely contamination
 # chr12_61020950_C_A # looks okay
+# chr19_3961910_G_A # looks okay
 # chr7_120677593_C_T # looks okay
 # chr8_46678612_T_C # looks okay
 # chrX_46375010_C_T # looks okay
