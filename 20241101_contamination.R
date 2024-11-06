@@ -298,7 +298,20 @@ for (sample in samples_tumour){
 
 median_VAFs = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific_18, 2:23], median) 
 median_VAFs_dt = data.frame(median_VAFs)
-write.table(median_VAFs_dt, 'Data/20241105_estimates_tumour_cont_18muts.csv', sep = ',', quote=F, row.names=T)
+median_VAFs_dt = data.table(median_VAFs_dt %>% rownames_to_column('sample'))
+median_VAFs_dt[, status := factor(fcase(
+  sample %in% samples_normal_vaf, 'normal',
+  sample %in% samples_tumour_vaf, 'tumour'))]
+median_VAFs_dt[, tumour_cell_fraction := 2 * median_VAFs]
+median_VAFs_dt[, normal_cell_fraction := 1 - 2 * median_VAFs]
+median_VAFs_dt[, status := factor(fcase(
+  sample %in% samples_normal_vaf, 'normal',
+  sample %in% samples_tumour_vaf, 'tumour'))]
+median_VAFs_dt[, purity := factor(fcase(
+  status == 'normal', normal_cell_fraction,
+  status == 'tumour', tumour_cell_fraction))]
+
+write.table(median_VAFs_dt, 'Data/20241105_estimates_tumour_cont_18muts.csv', sep = ',', quote=F, row.names=F)
 
 ######################################################################################################
 # Way 2 of mutations (use the clean split in PD63383 samples)
@@ -333,7 +346,7 @@ for (sample in samples_normal){
     xlim(c(0, 1))+
     ylim(c(0, 1))+
     labs(x = 'VAF (total tumour)', y = glue('VAF in {sample}'), col = 'Mutation category')+
-    ggtitle(glue('Min 0.2 VAF, excluded PD62341 0.1 (70), {sample}'))
+    ggtitle(glue('Min 0.2 VAF (70), {sample}'))
   ggsave(glue('Results/20241105_vaf_tumour_vs_normal_{sample}_617_col_both_70.pdf'), width=6, height=4.5)
 }
 
@@ -342,7 +355,25 @@ muts_tumour_specific_70 = twins_filtered_dt[mut_ID %in% muts_likely_clonal_tumou
 
 median_VAFs_70 = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific_70, 2:23], median) 
 median_VAFs_dt_70 = data.frame(median_VAFs_70)
-write.table(median_VAFs_dt_70, 'Data/20241105_estimates_tumour_cont_70muts.csv', sep = ',', quote=F, row.names=T)
+median_VAFs_dt_70 = data.table(median_VAFs_dt_70 %>% rownames_to_column('sample'))
+median_VAFs_dt_70[, status := factor(fcase(
+  sample %in% samples_normal_vaf, 'normal',
+  sample %in% samples_tumour_vaf, 'tumour'))]
+median_VAFs_dt_70[, tumour_cell_fraction := 2 * median_VAFs_70]
+median_VAFs_dt_70[, normal_cell_fraction := 1 - 2 * median_VAFs_70]
+median_VAFs_dt_70[, status := factor(fcase(
+  sample %in% samples_normal_vaf, 'normal',
+  sample %in% samples_tumour_vaf, 'tumour'))]
+median_VAFs_dt_70[, purity := factor(fcase(
+  status == 'normal', normal_cell_fraction,
+  status == 'tumour', tumour_cell_fraction))]
+
+write.table(median_VAFs_dt_70, 'Data/20241105_estimates_tumour_cont_70muts.csv', sep = ',', quote=F, row.names=F)
+
+# checked on Jbrowse (up until chr20)
+# chr15_48353502_C_A issues 
+# chr18_71485446_G_A 1 chr copy only 
+# chr1_60839899_G_A 1 chr copy only 
 
 ######################################################################################################
 # Estimate contamination using the set of tumour-specific mutations

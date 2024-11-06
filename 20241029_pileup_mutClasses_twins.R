@@ -190,7 +190,7 @@ col_annotation = data.frame(Status = c(rep('tumour', 10), rep('normal', 12)), Tw
 rownames(col_annotation) = colnames(mat_mtr)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), Twin = c(PD62341=col_PD62341, PD63383=col_PD63383))
 
-pdf('Results/20241105_p2_heatmap_status_850mut_mtr.pdf')
+pdf('Results/20241105_p2_heatmap_status_850mut_mtr.pdf', height=8)
 pheatmap(mat_mtr,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
@@ -202,7 +202,7 @@ pheatmap(mat_mtr,
          fontsize=11, cexCol=2) 
 dev.off()
 
-pdf('Results/20241105_p2_heatmap_status_850mut_mtr_clustered.pdf')
+pdf('Results/20241105_p2_heatmap_status_850mut_mtr_clustered.pdf', height=8)
 pheatmap(mat_mtr,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
@@ -228,7 +228,7 @@ for (j in names(twins_mtr_binary)){
 mat_mtr_binary = as.matrix(twins_mtr_binary)
 colnames(mat_mtr_binary) = tstrsplit(colnames(mat_mtr_binary), '_MTR', fixed=TRUE, keep=1) %>% unlist()
 
-pdf('Results/20241105_p2_heatmap_status_850mut_mtr_clustered_binary.pdf')
+pdf('Results/20241105_p2_heatmap_status_850mut_mtr_clustered_binary.pdf', height=8)
 pheatmap(mat_mtr_binary,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
@@ -253,7 +253,7 @@ col_order = c('PD63383aq', 'PD63383ap', 'PD62341ae', 'PD62341ag', 'PD62341aj',
               'PD63383ak', 'PD63383bb')
 mat_vaf = mat_vaf[, col_order]
 
-pdf('Results/20241105_p2_heatmap_status_850mut_vaf.pdf')
+pdf('Results/20241105_p2_heatmap_status_850mut_vaf.pdf', height=8)
 pheatmap(mat_vaf,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
@@ -265,7 +265,7 @@ pheatmap(mat_vaf,
          fontsize=11, cexCol=2) 
 dev.off()
 
-pdf('Results/20241105_p2_heatmap_status_850mut_vaf_clustered.pdf')
+pdf('Results/20241105_p2_heatmap_status_850mut_vaf_clustered.pdf', height=8.5)
 pheatmap(mat_vaf,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
