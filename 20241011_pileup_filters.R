@@ -465,6 +465,7 @@ twins_strands[, significance := as.factor(fcase(
 twins_strands[, f8_strandBias := as.numeric(significance == 'significant')] 
 paste('Number of mutations which show strand bias (across all reads):', dim(twins_strands[f8_strandBias==1])[1]) # 19,481
 
+# Ideally, I would like a better test to compare bias in mutant vs all reads, but this will do for now 
 twins_strands[, f8_strandBiasMutOnly := as.numeric(f8_strandBias==0 & f8_strandBiasMut==1)] 
 paste('Number of mutations which show strand bias (mutant reads only):', dim(twins_strands[f8_strandBiasMutOnly==1])[1]) # 1,539
 
@@ -602,10 +603,10 @@ dim(twins_dt_filters[f9_lowQualGermline==1])[1] # 351,714
 columns_req_filters1 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
                         'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
                         'f4_mtr4_presentInOne', 'f6_mtrAndVaf',
-                        'f7_likelyGermline_bothTwins', 'f8_strandBiasMut', 'f9_lowQualRatio', 'f9_lowQualGermline')
+                        'f8_strandBiasMutOnly', 'f9_lowQualRatio', 'f9_lowQualGermline')
 twins_dt_filters[, sum_req_filters1 := rowSums(.SD), .SDcols = columns_req_filters1] 
 mut_included_1 = twins_dt_filters[sum_req_filters1==0, mut_ID] %>% unlist()
-paste('Number of mutations that pass required filters (1):', dim(twins_dt_filters[sum_req_filters1==0])[1]) # 771  
+paste('Number of mutations that pass required filters (1):', dim(twins_dt_filters[sum_req_filters1==0])[1]) # 1002  
 
 columns_req_filters2 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
                          'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
