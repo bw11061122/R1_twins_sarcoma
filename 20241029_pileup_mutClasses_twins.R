@@ -36,7 +36,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241106_904.txt') %>% unlist()
+muts = read.table('Data/mutations_include_20241106_380.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 413
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
@@ -190,24 +190,24 @@ col_annotation = data.frame(Status = c(rep('tumour', 10), rep('normal', 12)), Tw
 rownames(col_annotation) = colnames(mat_mtr)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), Twin = c(PD62341=col_PD62341, PD63383=col_PD63383))
 
-pdf('Results/20241106_p2_heatmap_status_904mut_mtr.pdf', height=8)
+pdf('Results/20241106_p2_heatmap_status_380mut_mtr.pdf', height=8)
 pheatmap(mat_mtr,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="904 mutations", 
+         main="380 mutations", 
          legend = T,
          cluster_rows=F, cluster_cols = F, 
          show_rownames = F, show_colnames = T,
          fontsize=11, cexCol=2) 
 dev.off()
 
-pdf('Results/20241106_p2_heatmap_status_904mut_mtr_clustered.pdf', height=8)
+pdf('Results/20241106_p2_heatmap_status_380mut_mtr_clustered.pdf', height=8)
 pheatmap(mat_mtr,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="904 mutations", 
+         main="380 mutations", 
          legend = T,
          cluster_rows = T, cluster_cols = T, 
          show_rownames = F, show_colnames = T,
@@ -228,12 +228,12 @@ for (j in names(twins_mtr_binary)){
 mat_mtr_binary = as.matrix(twins_mtr_binary)
 colnames(mat_mtr_binary) = tstrsplit(colnames(mat_mtr_binary), '_MTR', fixed=TRUE, keep=1) %>% unlist()
 
-pdf('Results/20241106_p2_heatmap_status_904mut_mtr_clustered_binary.pdf', height=8)
+pdf('Results/20241106_p2_heatmap_status_380mut_mtr_clustered_binary.pdf', height=8)
 pheatmap(mat_mtr_binary,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="904 mutations MTR", 
+         main="380 mutations MTR", 
          legend = F,
          cluster_rows = T, cluster_cols = T, 
          show_rownames = F, show_colnames = T,
@@ -253,24 +253,24 @@ col_order = c('PD63383aq', 'PD63383ap', 'PD62341ae', 'PD62341ag', 'PD62341aj',
               'PD63383ak', 'PD63383bb')
 mat_vaf = mat_vaf[, col_order]
 
-pdf('Results/20241106_p2_heatmap_status_904mut_vaf.pdf', height=8)
+pdf('Results/20241106_p2_heatmap_status_380mut_vaf.pdf', height=8)
 pheatmap(mat_vaf,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="904 mutations", 
+         main="380 mutations", 
          legend = T,
          cluster_rows=F, cluster_cols = F, 
          show_rownames = F, show_colnames = T,
          fontsize=11, cexCol=2) 
 dev.off()
 
-pdf('Results/20241106_p2_heatmap_status_904mut_vaf_clustered.pdf', height=8.5)
+pdf('Results/20241106_p2_heatmap_status_380mut_vaf_clustered.pdf', height=8.5)
 pheatmap(mat_vaf,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="904 mutations", 
+         main="380 mutations", 
          legend = T,
          cluster_rows = T, cluster_cols = T, 
          show_rownames = F, show_colnames = T,
@@ -278,12 +278,12 @@ pheatmap(mat_vaf,
          fontsize=11, cexCol=2) 
 dev.off()
 
-pdf('Results/20241106_p2_heatmap_status_904mut_vaf_clustered_rownames.pdf', height = 85)
+pdf('Results/20241106_p2_heatmap_status_380mut_vaf_clustered_rownames.pdf', height = 85)
 pheatmap(mat_vaf,
          cellwidth=10, cellheight=10,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="904 mutations", 
+         main="380 mutations", 
          legend = T,
          cluster_rows = T, cluster_cols = T, 
          show_rownames = T, show_colnames = T,
@@ -304,12 +304,12 @@ for (j in names(twins_vaf_binary)){
 mat_vaf_binary = as.matrix(twins_vaf_binary)
 colnames(mat_vaf_binary) = tstrsplit(colnames(mat_vaf_binary), '_VAF', fixed=TRUE, keep=1) %>% unlist()
 
-pdf('Results/20241106_p2_heatmap_status_904mut_vaf_clustered_binary.pdf')
+pdf('Results/20241106_p2_heatmap_status_380mut_vaf_clustered_binary.pdf')
 pheatmap(mat_vaf_binary,
          cellwidth=10, cellheight=0.5,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="904 mutations: VAF", 
+         main="380 mutations: VAF", 
          legend = F,
          cluster_rows = T, cluster_cols = T, 
          show_rownames = F, show_colnames = T,
@@ -347,9 +347,11 @@ twins_filtered_mtr[sum_normal_PD62341 == 4 & sum_normal_PD63383 == 1] # 5
 # chr20_44114996_C_T # looks okay
 # chr20_54999345_T_C # looks okay
 # chr5_70784531_C_A # horrible mapping 
+# chr5_71157247_C_T # looks okay
 # chrX_106521135_C_A # tricky - double check 
 twins_filtered_mtr[sum_normal_PD62341 == 4 & sum_normal_PD63383 == 2] # 1
 # chr9_23627511_T_G # looks okay
+# chr9_41957355_G_A # double check
 
 # private to PD63383
 twins_filtered_mtr[sum_normal_PD62341 == 0 & sum_normal_PD63383 == 6] # 0
@@ -365,6 +367,7 @@ twins_filtered_mtr[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 6] # 1
 twins_filtered_mtr[sum_normal_PD62341 == 0 & sum_normal_PD63383 == 5] # 1
 # chr13_50815806_A_G # looks okay (3 reads in PD63383u but VAF 0.15)
 twins_filtered_mtr[sum_normal_PD62341 == 1 & sum_normal_PD63383 == 5] # 3
+# chr1_16849834_G_T # rather poor mapping 
 # chr4_74625500_G_T # oh that looks great! 
 # chr7_73831920_C_T # looks okay
 twins_filtered_mtr[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 5] # 2
@@ -373,12 +376,15 @@ twins_filtered_mtr[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 5] # 2
 
 twins_filtered_mtr[sum_normal_PD62341 == 0 & sum_normal_PD63383 == 4] # 1
 # chr21_28681933_A_C # variable mapping (checked Blat)
-twins_filtered_mtr[sum_normal_PD62341 == 1 & sum_normal_PD63383 == 4] # 2
+twins_filtered_mtr[sum_normal_PD62341 == 1 & sum_normal_PD63383 == 4] # 5
+# chr1_1446554_A_G # accepbtal e 
 # chr21_40193588_G_A # looks good but doesn't seem to be real PD63383-specific 
 # chr3_77633967_C_T # looks okay (and present in v which kind of makes sense)
+# chr8_6300151_C_A # mapping issues 
 # chrX_115066661_C_T # looks okay
 twins_filtered_mtr[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 4] # 1
 # chr3_195014637_A_G does not look like a PD63383-specific mutation
+# chr5_688082_G_A # poor mapping 
 twins_filtered_vaf[sum_normal_PD62341 == 2 & sum_normal_PD63383 == 4] # 1
 # chr2_95747706_T_C looks fine but quite high PD62341
 
@@ -882,18 +888,18 @@ twins_ns_mtr[sum_PD62341 == 0 & sum_PD63383 == 2] # 5
 # Presence / absence of mutations in either of the twins by VAF
 
 # specific to PD62341
-twins_ns_vaf[sum_PD62341 == 5 & sum_PD63383 == 0] 
+twins_ns_vaf[sum_PD62341 == 5 & sum_PD63383 == 0] # 1
 # chr14_105458006_C_A
 
-twins_ns_vaf[sum_PD62341 == 4 & sum_PD63383 == 0] 
+twins_ns_vaf[sum_PD62341 == 4 & sum_PD63383 == 0] # 3
 # chr20_54999342_C_A # looks good 
 # chr3_62055057_C_G
 # chr3_62055077_G_C
 
-twins_ns_vaf[sum_PD62341 == 3 & sum_PD63383 == 0] 
+twins_ns_vaf[sum_PD62341 == 3 & sum_PD63383 == 0] # 1
 # chr8_46678612_T_C # fine but also present in the tumour!
 
-twins_ns_vaf[sum_PD62341 == 2 & sum_PD63383 == 0] 
+twins_ns_vaf[sum_PD62341 == 2 & sum_PD63383 == 0] # 6
 # chr10_100754461_C_T # looks okay
 # chr20_44114996_C_T # looks okay
 # chr21_45729938_T_A # looks okay
@@ -902,24 +908,24 @@ twins_ns_vaf[sum_PD62341 == 2 & sum_PD63383 == 0]
 # chr7_139659050_G_A # looks okay 
 
 # specific to PD63383
-twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 5] 
+twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 5] # 3
 # chr11_34011887_C_T # looks okay
 # chr13_50815806_A_G # looks okay
 # chr4_75704880_G_A # looks okay
 
-twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 4] 
+twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 4] # 5
 # chr21_40193588_G_A # looks okay
 # chr4_74625500_G_T # looks okay
 # chr6_165179306_G_A # looks okay
 # chr7_73831920_C_T # looks okay
 # chrX_115066661_C_T # looks okay
 
-twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 3] 
+twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 3] # 3
 # chr21_28681933_A_C # poor mapping 
 # chr3_77633967_C_T # looks okay
 # chr7_149688370_C_T # looks okay
 
-twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 2] 
+twins_ns_vaf[sum_PD62341 == 0 & sum_PD63383 == 2] # 4
 # chr19_7878006_A_G # why is this not thrown out?
 # chr1_103587565_A_C # looks okay
 # chr22_43290224_C_T # looks okay

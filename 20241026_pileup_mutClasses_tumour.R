@@ -36,7 +36,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241105_850.txt') %>% unlist()
+muts = read.table('Data/mutations_include_20241106_380.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 425
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
@@ -174,14 +174,6 @@ twins_filtered_vaf[, sum_normal_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_
 ######################################################################################################
 # Basic checks: number of mutations
 
-paste('Number of all mutations in the set:', dim(twins_filtered_vaf)[1])
-
-paste('Number of mutations in normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal>=1, mut_ID] %>% unlist())))) # 360 
-paste('Number of mutations in tumour samples:',  length(Reduce(intersect, list(twins_filtered_vaf[sum_tumour>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour>=1, mut_ID] %>% unlist())))) # 370
-paste('Number of mutations in all normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal==12, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal==12, mut_ID] %>% unlist())))) # 60
-paste('Number of mutations in all tumour samples:',  length(Reduce(intersect, list(twins_filtered_vaf[sum_tumour==10, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour==10, mut_ID] %>% unlist())))) # 54 
-paste('Number of mutations in max 3 normal samples:', length(Reduce(intersect, list(twins_filtered_vaf[sum_normal<4, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal<4, mut_ID] %>% unlist())))) # 153
-
 # Create lists of mutations 
 muts_all = twins_filtered_vaf[, mut_ID] %>% unlist()
 muts_normal = Reduce(intersect, list(twins_filtered_vaf[sum_normal>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal>=1, mut_ID] %>% unlist())) 
@@ -191,11 +183,11 @@ muts_tumour_all = Reduce(intersect, list(twins_filtered_vaf[sum_tumour==10, mut_
 muts_tumour_only = Reduce(intersect, list(twins_filtered_vaf[sum_normal<4, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal<4, mut_ID] %>% unlist()))
 muts_tumour_all_only = Reduce(intersect, list(muts_tumour_all, muts_tumour_only)) %>% unlist()
 
-paste('Number of muts present in min 1 normal sample:', length(muts_normal)) # 812
-paste('Number of muts present in min 1 tumour sample:', length(muts_tumour)) # 828
-paste('Number of muts present in all normal samples:', length(muts_normal_all)) # 491
-paste('Number of muts present in all tumour samples:', length(muts_tumour_all)) # 508
-paste('Number of muts present in only tumour samples:', length(muts_tumour_only)) # 154
+paste('Number of muts present in min 1 normal sample:', length(muts_normal)) # 341
+paste('Number of muts present in min 1 tumour sample:', length(muts_tumour)) # 359
+paste('Number of muts present in all normal samples:', length(muts_normal_all)) # 36
+paste('Number of muts present in all tumour samples:', length(muts_tumour_all)) # 47
+paste('Number of muts present in only tumour samples:', length(muts_tumour_only)) # 155
 paste('Number of muts present in all tumour samples and max 3 normal:', length(muts_tumour_all_only)) # 24
 
 ######################################################################################################
@@ -223,7 +215,7 @@ ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class
   ggtitle(glue('Coverage vs VAF across the tumour'))+
   geom_hline(yintercept = 0.35, col = 'black')+
   annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241105_cov_vs_vaf_mut_class.pdf'))
+ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_380.pdf'))
 
 # mutations with max coverage:
 # chr5_795141_C_T # questionable  
@@ -255,7 +247,7 @@ ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_type)
   ggtitle(glue('Coverage vs VAF across the tumour'))+
   geom_hline(yintercept = 0.35, col = 'black')+
   annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241105_cov_vs_vaf_mut_type.pdf'))
+ggsave(glue('Results/20241106_cov_vs_vaf_mut_type.pdf'))
 
 # color by chromosome 
 twins_tumour_agg[, Chrom := tstrsplit(mut_ID, '_', fixed=TRUE, keep=1)]
@@ -266,7 +258,7 @@ ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = Chrom))+
   ggtitle(glue('Coverage vs VAF across the tumour'))+
   geom_hline(yintercept = 0.35, col = 'black')+
   annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241105_cov_vs_vaf_chrom.pdf'))
+ggsave(glue('Results/20241106_cov_vs_vaf_chrom.pdf'))
 
 twins_tumour_agg[, loss := as.factor(fcase( 
   Chrom %in% c('chr1', 'chr18'), 'loss in tumour', # chr1 and chr18 segments lost in tumour samples
@@ -278,7 +270,7 @@ ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = loss))+
   ggtitle(glue('Coverage vs VAF across the tumour'))+
   geom_hline(yintercept = 0.35, col = 'black')+
   annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241105_cov_vs_vaf_loss.pdf'))
+ggsave(glue('Results/20241106_cov_vs_vaf_loss.pdf'))
 
 # add number of tumour samples the mutation is present in 
 twins_tumour_agg = merge(twins_tumour_agg, twins_filtered_vaf[, c('mut_ID', 'sum_tumour'), with=FALSE], by = 'mut_ID')
@@ -290,7 +282,7 @@ ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = sum_tumou
   ggtitle(glue('Coverage vs VAF across the tumour'))+
   geom_hline(yintercept = 0.35, col = 'black')+
   annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241105_cov_vs_vaf_sum_tumour.pdf'))
+ggsave(glue('Results/20241106_cov_vs_vaf_sum_tumour.pdf'))
 
 ######################################################################################################
 # Plot VAF and coverage across the genome 
@@ -309,7 +301,7 @@ ggplot(twins_tumour_agg, aes(x = pos, y = tumour_vaf, col=mut_class))+
   labs(x = 'Position', y = 'VAF (all tumour samples)', col='Mutation class')+
   ggtitle(glue('VAF across the genome'))+
   facet_grid(~Chrom_nr)+
-  theme_minimal(base_size = 15) +
+  theme_classic(base_size = 15) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   theme(axis.title.x=element_blank(),
       axis.text.x=element_blank(),
@@ -317,7 +309,7 @@ ggplot(twins_tumour_agg, aes(x = pos, y = tumour_vaf, col=mut_class))+
 #  theme( strip.background = element_blank())+ 
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))
-ggsave(glue('Results/20241105_vaf_across_the_genome.pdf'))
+ggsave(glue('Results/20241106_vaf_across_the_genome_380.pdf'))
 
 ######################################################################################################
 # Relationship between tumour clones (PJC 2015 Fig 1)
