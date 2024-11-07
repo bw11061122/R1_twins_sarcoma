@@ -34,7 +34,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241106_904.txt') %>% unlist()
+muts = read.table('Data/mutations_include_20241106_1002.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 413
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
@@ -213,20 +213,20 @@ twins_filtered_dt[, total_normal_PD63383clean_vaf := total_normal_PD63383clean_m
 # We need to have a better set of mutations 
 
 # 1 select mutations which are clonal in the tumour based on VAF NOT number of samples
-pdf('Results/20241106_p1_hist_904muts_mean_median.pdf')
-hist(twins_filtered_dt[, total_tumour_vaf], breaks=50, xlab = 'VAF (agg tumour)', xlim=c(0,1), main = 'VAF across the tumour (850)')
+pdf('Results/20241106_p1_hist_1002muts_mean_median.pdf')
+hist(twins_filtered_dt[, total_tumour_vaf], breaks=50, xlab = 'VAF (agg tumour)', xlim=c(0,1), main = 'VAF across the tumour (1002)')
 abline(v = median(twins_filtered_dt[, total_tumour_vaf]), col = 'blue')
 abline(v = mean(twins_filtered_dt[, total_tumour_vaf]), col = 'red')
 dev.off()
 
-# would it make sense to take the mutations above the median and below 0.6?
-pdf('Results/20241106_p1_hist_904muts.pdf')
-hist(twins_filtered_dt[, total_tumour_vaf], breaks=50, xlab = 'VAF (agg tumour)', xlim=c(0,1), main = 'VAF across the tumour (850)')
+# would it make sense to take the mutations above the median?
+pdf('Results/20241106_p1_hist_1002muts.pdf')
+hist(twins_filtered_dt[, total_tumour_vaf], breaks=50, xlab = 'VAF (agg tumour)', xlim=c(0,1), main = 'VAF across the tumour (1002)')
 abline(v = 0.2, col = 'purple')
 dev.off()
 
 muts_likely_clonal_tumour = twins_filtered_dt[total_tumour_vaf > 0.2, mut_ID] %>% unlist()
-length(muts_likely_clonal_tumour) # 710 
+length(muts_likely_clonal_tumour) # 765 
 
 # 2 plots of tumour VAF against normal VAF
 for (sample in samples_normal){
@@ -240,8 +240,8 @@ for (sample in samples_normal){
     xlim(c(0, 1))+
     ylim(c(0, 1))+
     labs(x = 'VAF (total tumour)', y = glue('VAF in {sample}'))+
-    ggtitle(glue('Min 0.2 VAF in tumour (710), {sample}'))
-  ggsave(glue('Results/20241106_vaf_tumour_vs_normal_{sample}_710.pdf'), width=6, height=4.5)
+    ggtitle(glue('Min 0.2 VAF in tumour (765), {sample}'))
+  ggsave(glue('Results/20241106_vaf_tumour_vs_normal_{sample}_765.pdf'), width=6, height=4.5)
 }
 
 ######################################################################################################
@@ -251,13 +251,13 @@ for (sample in samples_normal){
 twins_filtered_dt[, col_mut_PD63383 := fcase(
   total_normal_PD63383_vaf <= 0.05, 'tumour (not in PD63383)',
   total_normal_PD63383_vaf > 0.05, 'shared embryonic')]
-table(twins_filtered_dt[, col_mut_PD63383]) # 145 tumour
+table(twins_filtered_dt[, col_mut_PD63383]) # 148 tumour
 
 # select mutations < 0.05 in PD62341
 twins_filtered_dt[, col_mut_PD62341 := fcase(
   total_normal_PD62341_vaf <= 0.05, 'tumour (not in PD62341)',
   total_normal_PD62341_vaf > 0.05, 'shared embryonic')]
-table(twins_filtered_dt[, col_mut_PD62341]) # 96 tumour
+table(twins_filtered_dt[, col_mut_PD62341]) # 98 tumour
 
 twins_filtered_dt[, col_mut_both := fcase(
   (col_mut_PD63383 == 'tumour (not in PD63383)' & col_mut_PD62341 == 'tumour (not in PD62341)'), 'tumour-specific',
@@ -276,8 +276,8 @@ for (sample in samples_normal){
     xlim(c(0, 1))+
     ylim(c(0, 1))+
     labs(x = 'VAF (total tumour)', y = glue('VAF in {sample}'), col = 'Mutation category')+
-    ggtitle(glue('Min 0.2 VAF in tumour (710), {sample}'))
-  ggsave(glue('Results/20241106_vaf_tumour_vs_normal_{sample}_710_col_both.pdf'), width=6, height=4.5)
+    ggtitle(glue('Min 0.2 VAF in tumour (765), {sample}'))
+  ggsave(glue('Results/20241106_vaf_tumour_vs_normal_{sample}_765_col_both.pdf'), width=6, height=4.5)
 }
 
 # Estimate contamination using the set of tumour-specific mutations
@@ -307,10 +307,10 @@ median_VAFs_dt[, normal_cell_fraction := 1 - 2 * median_VAFs]
 median_VAFs_dt[, status := factor(fcase(
   sample %in% samples_normal_vaf, 'normal',
   sample %in% samples_tumour_vaf, 'tumour'))]
-median_VAFs_dt[, purity := factor(fcase(
+median_VAFs_dt[, purity := fcase(
   status == 'normal', normal_cell_fraction,
-  status == 'tumour', tumour_cell_fraction))]
-
+  status == 'tumour', tumour_cell_fraction)]
+median_VAFs_dt[, purity_est := round(purity, 1)]
 write.table(median_VAFs_dt, 'Data/20241106_estimates_tumour_cont_18muts.csv', sep = ',', quote=F, row.names=F)
 
 mean_VAFs = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific_18, 2:23], mean) 
@@ -324,10 +324,10 @@ mean_VAFs_dt[, normal_cell_fraction := 1 - 2 * mean_VAFs]
 mean_VAFs_dt[, status := factor(fcase(
   sample %in% samples_normal_vaf, 'normal',
   sample %in% samples_tumour_vaf, 'tumour'))]
-mean_VAFs_dt[, purity := factor(fcase(
+mean_VAFs_dt[, purity := fcase(
   status == 'normal', normal_cell_fraction,
-  status == 'tumour', tumour_cell_fraction))]
-
+  status == 'tumour', tumour_cell_fraction)]
+mean_VAFs_dt[, purity_est := round(purity, 1)]
 write.table(mean_VAFs_dt, 'Data/20241106_estimates_tumour_cont_18muts_mean.csv', sep = ',', quote=F, row.names=F)
 
 ######################################################################################################
@@ -338,19 +338,26 @@ write.table(mean_VAFs_dt, 'Data/20241106_estimates_tumour_cont_18muts_mean.csv',
 twins_filtered_dt[, col_mut_PD63383_2 := fcase(
   total_normal_PD63383clean_vaf == 0, 'tumour (not in PD63383)',
   total_normal_PD63383clean_vaf > 0, 'shared embryonic')]
-table(twins_filtered_dt[, col_mut_PD63383_2]) # 131 tumour
+table(twins_filtered_dt[, col_mut_PD63383_2]) # 132 tumour
 
 # select mutations < 0.1 in PD62341
 twins_filtered_dt[, col_mut_PD62341_2 := fcase(
   total_normal_PD62341_vaf < 0.1, 'tumour (not in PD62341)',
   total_normal_PD62341_vaf >= 0.1, 'shared embryonic')]
-table(twins_filtered_dt[, col_mut_PD62341_2]) # 174 tumour
+table(twins_filtered_dt[, col_mut_PD62341_2]) # 185 tumour
 
 twins_filtered_dt[, col_mut_both_2 := fcase(
   (col_mut_PD63383_2 == 'tumour (not in PD63383)' & col_mut_PD62341_2 == 'tumour (not in PD62341)'), 'tumour-specific',
   (col_mut_PD63383_2 != 'tumour (not in PD63383)' | col_mut_PD62341_2 != 'tumour (not in PD62341)'), 'shared embryonic')]
-table(twins_filtered_dt[, col_mut_both_2]) # 129 tumour
+table(twins_filtered_dt[, col_mut_both_2]) # 130 tumour
 
+# Estimate contamination using the set of tumour-specific mutations
+muts_tumour_specific = twins_filtered_dt[mut_ID %in% muts_likely_clonal_tumour & col_mut_both_2=='tumour-specific', mut_ID] %>% unlist()
+
+# Exclude mutations present on the retained copy on chr1 / chr18 in the tumour
+muts_tumour_specific = muts_tumour_specific[!muts_tumour_specific %in% c('chr1_60839899_G_A', 'chr18_71485446_G_A')] 
+
+# Plot distribution in each sample
 for (sample in samples_normal){
   sample_name = paste0(sample, '_VAF')
   vaf_tumour = twins_filtered_dt[mut_ID %in% muts_likely_clonal_tumour, c('total_tumour_vaf', 'col_mut_both_2')]
@@ -363,65 +370,54 @@ for (sample in samples_normal){
     xlim(c(0, 1))+
     ylim(c(0, 1))+
     labs(x = 'VAF (total tumour)', y = glue('VAF in {sample}'), col = 'Mutation category')+
-    ggtitle(glue('Min 0.2 VAF (69), {sample}'))
-  ggsave(glue('Results/20241106_vaf_tumour_vs_normal_{sample}_col_both_69.pdf'), width=6, height=4.5)
+    ggtitle(glue('Min 0.2 VAF (68), {sample}'))
+  ggsave(glue('Results/20241106_vaf_tumour_vs_normal_{sample}_col_both_68.pdf'), width=6, height=4.5)
 }
 
-# Estimate contamination using the set of tumour-specific mutations
-muts_tumour_specific_69 = twins_filtered_dt[mut_ID %in% muts_likely_clonal_tumour & col_mut_both_2=='tumour-specific', mut_ID] %>% unlist()
-
-median_VAFs_69 = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific_69, 2:23], median) 
-median_VAFs_dt_69 = data.frame(median_VAFs_69)
-median_VAFs_dt_69 = data.table(median_VAFs_dt_69 %>% rownames_to_column('sample'))
-median_VAFs_dt_69[, status := factor(fcase(
+# Contamination estimate data (using mean and median values)
+median_VAFs_68 = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific, 2:23], median) 
+median_VAFs_dt_68 = data.frame(median_VAFs_68)
+median_VAFs_dt_68 = data.table(median_VAFs_dt_68 %>% rownames_to_column('sample'))
+median_VAFs_dt_68[, status := factor(fcase(
   sample %in% samples_normal_vaf, 'normal',
   sample %in% samples_tumour_vaf, 'tumour'))]
-median_VAFs_dt_69[, tumour_cell_fraction := 2 * median_VAFs_69]
-median_VAFs_dt_69[, normal_cell_fraction := 1 - 2 * median_VAFs_69]
-median_VAFs_dt_69[, status := factor(fcase(
+median_VAFs_dt_68[, tumour_cell_fraction := 2 * median_VAFs_68]
+median_VAFs_dt_68[, normal_cell_fraction := 1 - 2 * median_VAFs_68]
+median_VAFs_dt_68[, status := factor(fcase(
   sample %in% samples_normal_vaf, 'normal',
   sample %in% samples_tumour_vaf, 'tumour'))]
-median_VAFs_dt_69[, purity := factor(fcase(
+median_VAFs_dt_68[, purity := fcase(
   status == 'normal', normal_cell_fraction,
-  status == 'tumour', tumour_cell_fraction))]
+  status == 'tumour', tumour_cell_fraction)]
+median_VAFs_dt_68[, purity_est := round(purity, 1)]
+write.table(median_VAFs_dt_68, 'Data/20241106_estimates_tumour_cont_68muts.csv', sep = ',', quote=F, row.names=F)
 
-write.table(median_VAFs_dt_69, 'Data/20241106_estimates_tumour_cont_69muts.csv', sep = ',', quote=F, row.names=F)
-
-mean_VAFs_69 = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific_69, 2:23], mean) 
-mean_VAFs_dt_69 = data.frame(mean_VAFs_69)
-mean_VAFs_dt_69 = data.table(mean_VAFs_dt_69 %>% rownames_to_column('sample'))
-mean_VAFs_dt_69[, status := factor(fcase(
+mean_VAFs_68 = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific, 2:23], mean) 
+mean_VAFs_dt_68 = data.frame(mean_VAFs_68)
+mean_VAFs_dt_68 = data.table(mean_VAFs_dt_68 %>% rownames_to_column('sample'))
+mean_VAFs_dt_68[, status := factor(fcase(
   sample %in% samples_normal_vaf, 'normal',
   sample %in% samples_tumour_vaf, 'tumour'))]
-mean_VAFs_dt_69[, tumour_cell_fraction := 2 * mean_VAFs_69]
-mean_VAFs_dt_69[, normal_cell_fraction := 1 - 2 * mean_VAFs_69]
-mean_VAFs_dt_69[, status := factor(fcase(
+mean_VAFs_dt_68[, tumour_cell_fraction := 2 * mean_VAFs_68]
+mean_VAFs_dt_68[, normal_cell_fraction := 1 - 2 * mean_VAFs_68]
+mean_VAFs_dt_68[, status := factor(fcase(
   sample %in% samples_normal_vaf, 'normal',
   sample %in% samples_tumour_vaf, 'tumour'))]
-mean_VAFs_dt_69[, purity := factor(fcase(
+mean_VAFs_dt_68[, purity := fcase(
   status == 'normal', normal_cell_fraction,
-  status == 'tumour', tumour_cell_fraction))]
-
-write.table(mean_VAFs_dt_69, 'Data/20241106_estimates_tumour_cont_69muts_mean.csv', sep = ',', quote=F, row.names=F)
-
-
-# checked on Jbrowse (up until chr20)
-# chr15_48353502_C_A issues 
-# chr18_71485446_G_A 1 chr copy only 
-# chr1_60839899_G_A 1 chr copy only 
-
-######################################################################################################
-# Estimate contamination using the set of tumour-specific mutations
+  status == 'tumour', tumour_cell_fraction)]
+mean_VAFs_dt_68[, purity_est := round(purity, 1)]
+write.table(mean_VAFs_dt_68, 'Data/20241106_estimates_tumour_cont_68muts_mean.csv', sep = ',', quote=F, row.names=F)
 
 # Plot 
 for (sample in samples_tumour){
   
   s_vaf = paste0(sample, '_VAF')
-  sample_vaf_all = twins_filtered_vaf[mut_ID %in% muts_tumour_specific2, ..s_vaf] %>% unlist()
+  sample_vaf_all = twins_filtered_vaf[mut_ID %in% muts_tumour_specific, ..s_vaf] %>% unlist()
   
-  pdf(glue('Results/20241106_p2_hist_tumour_vaf_all_{sample}_69muts.pdf'), width=4.5, height=3.5)
+  pdf(glue('Results/20241106_p2_hist_tumour_vaf_all_{sample}_68muts.pdf'), width=4.5, height=3.5)
   hist(sample_vaf_all, breaks=20, xlab = 'Variant allele frequency', 
-       main = glue('VAF in sample {sample}, 69 mutations'),
+       main = glue('VAF in sample {sample}, 68 mutations'),
        xlim = c(0, 1))
   abline(v=median(sample_vaf_all),col="blue")
   abline(v=mean(sample_vaf_all),col='red')
@@ -429,9 +425,10 @@ for (sample in samples_tumour){
   
 }
 
-median_VAFs = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific2, 2:23], median) 
-median_VAFs_dt = data.frame(median_VAFs)
-write.table(median_VAFs_dt, 'Data/20241106_estimates_tumour_cont_69muts.csv', sep = ',', quote=F, row.names=T)
+######################################################################################################
+######################################################################################################
+######################################################################################################
+# Alternative ways of estimating contamination 
 
 ######################################################################################################
 # Contamination option 1

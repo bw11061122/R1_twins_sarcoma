@@ -607,53 +607,7 @@ columns_req_filters1 = c('f1_mappedY', 'f2_FailedIndelNearby30',
 twins_dt_filters[, sum_req_filters1 := rowSums(.SD), .SDcols = columns_req_filters1] 
 mut_included_1 = twins_dt_filters[sum_req_filters1==0, mut_ID] %>% unlist()
 paste('Number of mutations that pass required filters (1):', dim(twins_dt_filters[sum_req_filters1==0])[1]) # 1002  
-
-columns_req_filters2 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
-                         'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
-                         'f4_mtr4_presentInOne', 'f6_mtrAndVaf',
-                         'f7_likelyGermline_bothTwins', 'f8_strandBiasMut', 'f9_lowQualRatio', 'f9_lowQualPresent')
-twins_dt_filters[, sum_req_filters2 := rowSums(.SD), .SDcols = columns_req_filters2] 
-mut_included_2 = twins_dt_filters[sum_req_filters2==0, mut_ID] %>% unlist()
-paste('Number of mutations that passed required filters (2):', length(mut_included_2)) # 312
-
-columns_req_filters3 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
-                         'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
-                         'f4_mtr4_presentInOne', 'f6_mtrAndVaf',
-                         'f8_strandBiasMut', 'f9_lowQualRatio', 'f9_lowQualGermline')
-twins_dt_filters[, sum_req_filters3 := rowSums(.SD), .SDcols = columns_req_filters3] 
-mut_included_3 = twins_dt_filters[sum_req_filters3==0, mut_ID] %>% unlist()
-paste('Number of mutations that passed required filters (3):', length(mut_included_3)) # 904
-
-columns_req_filters4 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
-                         'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
-                         'f4_mtr4_presentInOne', 'f6_mtrAndVaf',
-                          'f8_strandBiasMut', 'f9_lowQualRatio', 'f9_lowQualGermline', 'f9_lowQualPresent')
-twins_dt_filters[, sum_req_filters4 := rowSums(.SD), .SDcols = columns_req_filters4] 
-mut_included_4 = twins_dt_filters[sum_req_filters4==0, mut_ID] %>% unlist()
-paste('Number of mutations that passed required filters (4):', length(mut_included_4)) # 321
-
-columns_req_filters5 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
-                         'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
-                         'f4_mtr4_presentInOne', 'f6_mtrAndVaf',
-                         'f8_strandBiasMutOnly', 'f9_lowQualRatio', 'f9_lowQualGermline', 'f9_lowQualPresent')
-twins_dt_filters[, sum_req_filters5 := rowSums(.SD), .SDcols = columns_req_filters5] 
-mut_included_5 = twins_dt_filters[sum_req_filters5==0, mut_ID] %>% unlist()
-paste('Number of mutations that passed required filters (5):', length(mut_included_5)) # 380
-
-columns_req_filters6 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
-                         'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
-                         'f4_mtr4_presentInOne', 'f6_mtrAndVaf',
-                         'f8_strandBiasMutOnly', 'f9_lowQualRatio', 'f9_lowQualGermline')
-twins_dt_filters[, sum_req_filters6 := rowSums(.SD), .SDcols = columns_req_filters6] 
-mut_included_6 = twins_dt_filters[sum_req_filters6==0, mut_ID] %>% unlist()
-paste('Number of mutations that passed required filters (6):', length(mut_included_6)) # 1002
-
-write.table(mut_included_1, 'Data/mutations_include_20241106_771.txt', quote = FALSE, col.names = F, row.names = F)
-write.table(mut_included_2, 'Data/mutations_include_20241106_312.txt', quote = FALSE, col.names = F, row.names = F)
-write.table(mut_included_3, 'Data/mutations_include_20241106_904.txt', quote = FALSE, col.names = F, row.names = F)
-write.table(mut_included_4, 'Data/mutations_include_20241106_321.txt', quote = FALSE, col.names = F, row.names = F)
-write.table(mut_included_5, 'Data/mutations_include_20241106_380.txt', quote = FALSE, col.names = F, row.names = F)
-write.table(mut_included_6, 'Data/mutations_include_20241106_1002.txt', quote = FALSE, col.names = F, row.names = F)
+write.table(mut_included_1, 'Data/mutations_include_20241106_1002.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
 cols_info = c('VariantID', 'Chrom', 'Pos', 'Ref', 'Alt', 'Qual', 'Filter', 'Gene', 'Transcript', 'RNA', 'CDS',
