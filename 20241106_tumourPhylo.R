@@ -36,7 +36,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241106_1002.txt') %>% unlist()
+muts = read.table('Data/mutations_include_20241109_1002.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 1002
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
@@ -47,8 +47,7 @@ twins_filtered_dt[, loss := as.factor(fcase(
 ))]
 
 # Import dataframe with purity estimates
-purity_dt = data.table(read.csv('Data/20241106_estimates_tumour_cont_68muts.csv'))
-purity_dt
+purity_dt = data.table(read.csv('Data/20241109_estimates_tumour_cont_68muts.csv'))
 
 ###################################################################################################################################
 # PLOT SETTINGS
@@ -179,256 +178,28 @@ twins_filtered_vaf[, sum_normal_PD63383 := rowSums(.SD>=0.1), .SDcols = samples_
 # Basic checks: number of mutations
 
 # Create lists of mutations 
-muts_all = twins_filtered_vaf[, mut_ID] %>% unlist()
+muts = twins_filtered_vaf[, mut_ID] %>% unlist()
 muts_all = Reduce(intersect, list(twins_filtered_vaf[sum_normal==12 & sum_tumour==10, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal==12 & sum_tumour==10, mut_ID] %>% unlist())) 
 muts_normal = Reduce(intersect, list(twins_filtered_vaf[sum_normal>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal>=1, mut_ID] %>% unlist())) 
 muts_tumour = Reduce(intersect, list(twins_filtered_vaf[sum_tumour>=1, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour>=1, mut_ID] %>% unlist()))
 muts_normal_all = Reduce(intersect, list(twins_filtered_vaf[sum_normal==12, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal==12, mut_ID] %>% unlist()))
 muts_tumour_all = Reduce(intersect, list(twins_filtered_vaf[sum_tumour==10, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour==10, mut_ID] %>% unlist()))
-muts_tumour_only = Reduce(intersect, list(twins_filtered_vaf[sum_normal<4, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal<4, mut_ID] %>% unlist()))
+muts_tumour_only = Reduce(intersect, list(twins_filtered_vaf[sum_normal==0, mut_ID] %>% unlist(), twins_filtered_mtr[sum_normal==0, mut_ID] %>% unlist()))
 muts_tumour_all_only = Reduce(intersect, list(muts_tumour_all, muts_tumour_only)) %>% unlist()
-muts_normal_only = Reduce(intersect, list(twins_filtered_vaf[sum_tumour<2, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour<2, mut_ID] %>% unlist()))
+muts_normal_only = Reduce(intersect, list(twins_filtered_vaf[sum_tumour==0, mut_ID] %>% unlist(), twins_filtered_mtr[sum_tumour==0, mut_ID] %>% unlist()))
 muts_normal_all_only = Reduce(intersect, list(muts_normal_all, muts_normal_only)) %>% unlist()
+muts_normal_all_nt = setdiff(muts_normal_all, muts_all)
+muts_tumour_all_nt = setdiff(muts_tumour_all, muts_all)
 
-paste('Mutations present in all samples:', length(muts_normal)) # 575
+paste('Mutations present in all samples:', length(muts_all)) # 575
 paste('Number of muts present in min 1 normal sample:', length(muts_normal)) # 963
 paste('Number of muts present in min 1 tumour sample:', length(muts_tumour)) # 981
 paste('Number of muts present in all normal samples:', length(muts_normal_all)) # 632
 paste('Number of muts present in all tumour samples:', length(muts_tumour_all)) # 641
-paste('Number of muts present in only tumour samples:', length(muts_tumour_only)) # 155
-paste('Number of muts present in all tumour samples and max 3 normal:', length(muts_tumour_all_only)) # 24
-paste('Number of muts present in only normal samples:', length(muts_normal_only)) # 19
+paste('Number of muts present in only tumour samples:', length(muts_tumour_only)) # 31
+paste('Number of muts present in all tumour samples:', length(muts_tumour_all_only)) # 0
+paste('Number of muts present in only normal samples:', length(muts_normal_only)) # 16
 paste('Number of muts present in all normal samples and max 1 tumour:', length(muts_normal_all_only)) # 0 # makes sense since tumour is from normal
-
-######################################################################################################
-# Analysis of tumour evolution: coverage vs VAF plot
-
-twins_filtered_mtr[, sum_tumour_mtr := rowSums(.SD), .SDcols = samples_tumour_mtr]
-twins_filtered_dep[, sum_tumour_dep := rowSums(.SD), .SDcols = samples_tumour_dep]
-
-# Aggregate data for all tumour samples together 
-twins_tumour_agg = merge(twins_filtered_mtr[, c('mut_ID', 'sum_tumour_mtr'), with=FALSE], 
-                         twins_filtered_dep[, c('mut_ID', 'sum_tumour_dep'), with=FALSE])
-twins_tumour_agg[, tumour_vaf := sum_tumour_mtr / sum_tumour_dep]
-twins_tumour_agg[, mut_class := as.factor(fcase(
-  mut_ID %in% muts_all, 'all samples',
-  mut_ID %in% muts_normal_all, 'all normal samples',
-  mut_ID %in% muts_tumour_all_only, 'all tumour samples only',
-  mut_ID %in% muts_tumour_all, 'all tumour samples',
-  mut_ID %in% muts_tumour_only, 'only tumour samples',
-  mut_ID %in% muts_normal_only, 'only normal samples',
-  !mut_ID %in% c(muts_normal_all, muts_tumour_all, muts_all, muts_normal_only, muts_tumour_all_only, muts_tumour_only), 'other'))]
-
-# Plot coverage vs VAF 
-ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class))+
-  geom_point(size=2.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Mutation class')+
-  ggtitle(glue('Coverage vs VAF across the tumour'))+
-  geom_hline(yintercept = 0.35, col = 'black')+
-  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_1002.pdf'))
-
-ggplot(twins_tumour_agg[mut_class!='all samples'], aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class))+
-  geom_point(size=2.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Mutation class')+
-  ggtitle(glue('Coverage vs VAF across the tumour'))+
-  geom_hline(yintercept = 0.35, col = 'black')+
-  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_not_all_1002.pdf'))
-
-# color by type of mutation
-twins_tumour_agg[, c('Ref', 'Alt') := tstrsplit(mut_ID, '_', fixed=T, keep=3:4)]
-twins_tumour_agg[, mut_type := paste0(Ref, '>', Alt)]
-twins_tumour_agg[, mut_type := as.factor(fcase(
-  mut_type == 'A>T', 'T>A',
-  mut_type == 'A>C', 'T>G',
-  mut_type == 'G>C', 'C>G',
-  mut_type == 'G>T', 'C>A',
-  mut_type == 'A>G', 'T>C',
-  mut_type == 'G>A', 'C>T',
-  mut_type == 'C>A', 'C>A',
-  mut_type == 'C>G', 'C>G',
-  mut_type == 'C>T', 'C>T',
-  mut_type == 'T>A', 'T>A',
-  mut_type == 'T>C', 'T>C',
-  mut_type == 'T>G', 'T>G'))]
-ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_type))+
-  geom_point(size=2.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Chromosome')+
-  ggtitle(glue('Coverage vs VAF across the tumour'))+
-  geom_hline(yintercept = 0.35, col = 'black')+
-  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_type.pdf'))
-
-# color by chromosome 
-twins_tumour_agg[, Chrom := tstrsplit(mut_ID, '_', fixed=TRUE, keep=1)]
-ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = Chrom))+
-  geom_point(size=2.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Chromosome')+
-  ggtitle(glue('Coverage vs VAF across the tumour'))+
-  geom_hline(yintercept = 0.35, col = 'black')+
-  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241106_cov_vs_vaf_chrom.pdf'))
-
-twins_tumour_agg[, loss := as.factor(fcase( 
-  Chrom %in% c('chr1', 'chr18'), 'loss in tumour', # chr1 and chr18 segments lost in tumour samples
-  !Chrom %in% c('chr1', 'chr18'), 'normal ploidy'))]
-ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = loss))+
-  geom_point(size=2.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Chromosome')+
-  ggtitle(glue('Coverage vs VAF across the tumour'))+
-  geom_hline(yintercept = 0.35, col = 'black')+
-  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241106_cov_vs_vaf_loss.pdf'))
-
-# add number of tumour samples the mutation is present in 
-twins_tumour_agg = merge(twins_tumour_agg, twins_filtered_vaf[, c('mut_ID', 'sum_tumour'), with=FALSE], by = 'mut_ID')
-twins_tumour_agg[, sum_tumour := as.factor(sum_tumour)]
-ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = sum_tumour))+
-  geom_point(size=2.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = '# tumour samples\nmut detected in')+
-  ggtitle(glue('Coverage vs VAF across the tumour'))+
-  geom_hline(yintercept = 0.35, col = 'black')+
-  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241106_cov_vs_vaf_sum_tumour.pdf'))
-
-######################################################################################################
-# Plot VAF and coverage across the genome 
-twins_tumour_agg[, pos := tstrsplit(mut_ID, '_', fixed=T, keep=2)]
-twins_tumour_agg[, pos := as.numeric(pos)]
-twins_tumour_agg[, Chrom_nr := tstrsplit(Chrom, 'chr', fixed=T, keep=2)]
-twins_tumour_agg[, Chrom_nr := factor(Chrom_nr, levels = 
-                                        c('1', '2', '3', '4', '5',
-                                          '6', '7', '8', '9', '10',
-                                          '11', '12', '13', '14', '15',
-                                          '16', '17', '18', '19', '20',
-                                          '21', '22', 'X'))]
-
-ggplot(twins_tumour_agg, aes(x = pos, y = tumour_vaf, col=mut_class))+
-  geom_point(size=1.5)+
-  labs(x = 'Position', y = 'VAF (all tumour samples)', col='Mutation class')+
-  ggtitle(glue('VAF across the genome'))+
-  facet_grid(~Chrom_nr)+
-  theme_classic(base_size = 15) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())+
-  #  theme( strip.background = element_blank())+ 
-  theme(panel.spacing = unit(0, "lines"))+
-  theme(strip.text.x = element_text(size = 13))
-ggsave(glue('Results/20241106_vaf_across_the_genome_1002.pdf'))
-
-######################################################################################################
-# Get out mutations that are well mapped in all tumour samples 
-
-for(sample in samples_tumour){
-  tumour_sample = twins_filtered_dt[, c('mut_ID', glue('{sample}_MTR'), glue('{sample}_VAF'))]
-  setnames(tumour_sample, c(glue('{sample}_MTR'), glue('{sample}_VAF')), c('mtr', 'vaf'))
-  tumour_sample[, glue('mapped_{sample}') :=  as.numeric(mtr >= 4) * as.numeric(vaf >= 0.1)]
-  twins_filtered_dt = merge(twins_filtered_dt, tumour_sample[, c('mut_ID', glue('mapped_{sample}')), with = FALSE], by = 'mut_ID')
-}
-
-mapped_samples = paste0('mapped_', samples_tumour)
-twins_filtered_dt[, tumour_mapped_sum := rowSums(.SD == 1), .SDcols = mapped_samples]
-twins_filtered_dt[, tumour_mapped_all := as.numeric(tumour_mapped_sum == 10)] 
-
-# identify mutations that are well mapped in all tumour samples
-muts_well_mapped_tumour = twins_filtered_dt[tumour_mapped_all==1, mut_ID] %>% unlist() # 641
-
-# require min VAF 0.2 across the tumour 
-muts_mapped_tumour = twins_tumour_agg[tumour_vaf > 0.2 & mut_ID %in% muts_well_mapped_tumour, mut_ID] %>% unlist() # 630 
-paste('Number of mutations in the tumour:', length(muts_mapped_tumour)) # 630 
-
-# plot the distribution of VAF of those mutations across the tumour 
-pdf('Results/20241106_p3_hist_vaf_dist_630muts.pdf')
-hist(twins_tumour_agg[mut_ID %in% muts_mapped_tumour, tumour_vaf], breaks = 20,
-     xlab = 'VAF (total tumour)', main = '630 mutations', xlim = c(0, 1))
-dev.off()
-
-######################################################################################################
-# Patterns of sharing with normal samples 
-
-ggplot(twins_tumour_agg[mut_ID %in% muts_mapped_tumour], aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class))+
-  geom_point(size=2.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Mutation class')+
-  ggtitle(glue('Coverage vs VAF across the tumour: mutations mapped in all tumour samples'))+
-  geom_hline(yintercept = 0.35, col = 'black')+
-  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_630mapped.pdf'))
-
-# Aggregate data for all tumour samples together 
-twins_filtered_mtr[, sum_PD62341_mtr := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
-twins_filtered_dep[, sum_PD62341_dep := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
-twins_filtered_mtr[, sum_PD63383_mtr := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
-twins_filtered_dep[, sum_PD63383_dep := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
-
-twins_PD62341_agg = merge(twins_filtered_mtr[, c('mut_ID', 'sum_PD62341_mtr'), with=FALSE], 
-                         twins_filtered_dep[, c('mut_ID', 'sum_PD62341_dep'), with=FALSE], by = 'mut_ID')
-twins_PD62341_agg[, PD62341_normal_vaf := sum_PD62341_mtr / sum_PD62341_dep]
-
-twins_PD63383_agg = merge(twins_filtered_mtr[, c('mut_ID', 'sum_PD63383_mtr'), with=FALSE], 
-                          twins_filtered_dep[, c('mut_ID', 'sum_PD63383_dep'), with=FALSE], by = 'mut_ID')
-twins_PD63383_agg[, PD63383_normal_vaf := sum_PD63383_mtr / sum_PD63383_dep]
-
-# Data table with all aggregated data 
-twins_agg = merge(merge(twins_tumour_agg, twins_PD62341_agg, by = 'mut_ID'), twins_PD63383_agg, by = 'mut_ID')
-twins_agg_filt = twins_agg[mut_ID %in% muts_mapped_tumour]
-
-ggplot(twins_agg_filt, aes(x=tumour_vaf, y=PD62341_vaf))+
-  geom_point()+
-  theme_classic(base_size=15)+
-  xlim(c(0, 1))+
-  ylim(c(0, 1))+
-  labs(x = 'VAF (total tumour)', y = glue('VAF in PD62341'), col = 'Mutation category')+
-  ggtitle(glue('630 mutations mapped in the tumour, PD62341'))
-ggsave(glue('Results/20241106_vaf_tumour_vs_PD62341_630mapped.pdf'))
-
-ggplot(twins_agg_filt, aes(x=tumour_vaf, y=PD63383_vaf))+
-  geom_point()+
-  theme_classic(base_size=15)+
-  xlim(c(0, 1))+
-  ylim(c(0, 1))+
-  labs(x = 'VAF (total tumour)', y = glue('VAF in PD63383'), col = 'Mutation category')+
-  ggtitle(glue('630 mutations mapped in the tumour, PD63383'))
-ggsave(glue('Results/20241106_vaf_tumour_vs_PD63383_630mapped.pdf'))
-
-# how many of those mutations are also present in all normal samples?
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD63383 == 6] # 594
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 6] # 593
-
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 6 & sum_normal_PD63383 == 6] # 588
-
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 6] # 0
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 4] # 0
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 5] # 0
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 3] # 0
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 2] # 0
-
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 6 & sum_normal_PD63383 == 0] # 1 
-# chr14_105458006_C_A our favourite one!
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 5 & sum_normal_PD63383 == 0] # 0
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 4 & sum_normal_PD63383 == 0] # 2 
-# chr3_62055057_C_G aa and h (possibly contamination), n and q (heart and pancreas), missing in v (?) and ad
-# chr3_62055077_G_C aa and h (possibly contamination), n and q (heart and pancreas), missing in v (?) and ad
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 3 & sum_normal_PD63383 == 0] # 0
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 2 & sum_normal_PD63383 == 0] # 2 (h and aa only)
-# chr10_100754461_C_T # looks okay
-# chr6_95827754_C_A not the best mapping quality but fine, aa and h (possibly contamination) 
-twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 1 & sum_normal_PD63383 == 0] # 6 (h only)
-# chr13_60216504_A_C # looks okay
-# chr16_32621521_C_A # mapping quality not excellent (double check because it doesn't look that bad)
-# chr17_78256883_C_T # looks okay
-# chr22_17774668_G_A # looks okay 
-# chr22_30553442_G_T # looks okay
-# chr2_199565129_G_A # looks okay
 
 ######################################################################################################
 # Accounting for contamination (use purity estimates)
@@ -518,28 +289,78 @@ twins_filtered_vaf_adj[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341_adj =
 # chr5_136349883_C_T # looks okay
 
 ######################################################################################################
+# Basic checks: number of mutations once adjusted for contamination 
+
+# Create lists of mutations 
+muts_adj  = twins_filtered_vaf_adj[, mut_ID] %>% unlist()
+muts_all_adj = twins_filtered_vaf_adj[sum_normal==12 & sum_tumour==10, mut_ID] %>% unlist()
+muts_normal_adj = twins_filtered_vaf[sum_normal>=1, mut_ID] %>% unlist()
+muts_tumour_adj = twins_filtered_vaf[sum_tumour>=1, mut_ID] %>% unlist()
+muts_normal_all_adj = twins_filtered_vaf[sum_normal==12, mut_ID] %>% unlist()
+muts_tumour_all_adj = twins_filtered_vaf[sum_tumour==10, mut_ID] %>% unlist()
+muts_tumour_only_adj = twins_filtered_vaf[sum_normal==0, mut_ID] %>% unlist()
+muts_tumour_all_only_adj = Reduce(intersect, list(muts_tumour_all, muts_tumour_only)) %>% unlist()
+muts_normal_only_adj = twins_filtered_vaf[sum_tumour==0, mut_ID] %>% unlist()
+muts_normal_all_only_adj = Reduce(intersect, list(muts_normal_all, muts_normal_only)) %>% unlist()
+muts_normal_all_nt_adj = setdiff(muts_normal_all_adj, muts_all_adj)
+muts_tumour_all_nt_adj = setdiff(muts_tumour_all_adj, muts_all_adj)
+
+paste('Mutations present in all samples:', length(muts_all_adj)) # 616
+paste('Number of muts present in min 1 normal sample:', length(muts_normal_adj)) # 971
+paste('Number of muts present in min 1 tumour sample:', length(muts_tumour_adj)) # 983
+paste('Number of muts present in all normal samples:', length(muts_normal_all_adj)) # 683
+paste('Number of muts present in all tumour samples:', length(muts_tumour_all_adj)) # 685
+paste('Number of muts present in only tumour samples:', length(muts_tumour_only_adj)) # 31
+paste('Number of muts present in all tumour samples and only tumour samples:', length(muts_tumour_all_only_adj)) # 0
+paste('Number of muts present in only normal samples:', length(muts_normal_only_adj)) # 19
+paste('Number of muts in all tumour but not all normal:', length(muts_tumour_all_nt_adj)) # 69
+paste('Number of muts in all normal but not all tumour:', length(muts_normal_all_nt_adj)) # 67
+paste('Number of muts present in all normal samples and max 1 tumour:', length(muts_normal_all_only)) # 0 # makes sense since tumour is from normal
+
+######################################################################################################
+# CLASSES OF MUTATIONS 1: MUTATIONS PRESENT IN ALL NORMAL SAMPLES 
 # Inspect mutations that are present in all samples
 # Why were these not called as germline?
 
-twins_filtered_vaf_adj[mut_ID %in% muts_normal_all] # 632 of those 
+twins_agg_vaf = merge(twins_filtered_vaf[, c('mut_ID', samples_vaf), with=FALSE], merge(twins_filtered_mtr[, c('mut_ID', samples_mtr), with=FALSE], twins_filtered_dep[, c('mut_ID', samples_dep), with=FALSE], by = 'mut_ID'), by = 'mut_ID')
 
-twins_filtered_vaf_adj[, mean_vaf_adj_normal := apply(.SD, 1, mean), .SDcols = samples_normal_adj]
-twins_filtered_vaf_adj[, mean_vaf_adj_normal_PD62341 := apply(.SD, 1, mean), .SDcols = samples_normal_PD62341_adj]
-twins_filtered_vaf_adj[, mean_vaf_adj_normal_PD63383 := apply(.SD, 1, mean), .SDcols = samples_normal_PD63383_adj]
+twins_agg_vaf[, dep_normal_all := rowSums(.SD), .SDcols = samples_normal_dep]
+twins_agg_vaf[, dep_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
+twins_agg_vaf[, dep_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
+twins_agg_vaf[, dep_tumour_all := rowSums(.SD), .SDcols = samples_tumour_dep]
+twins_agg_vaf[, dep_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_dep]
+twins_agg_vaf[, dep_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_dep]
 
-pdf('Results/20241106_p4_hist_vaf_632muts_in_all_normal_samples.pdf')
-hist(twins_filtered_vaf_adj[mut_ID %in% muts_normal_all, mean_vaf_adj_normal] %>% unlist(), 
-     xlab = 'Adjusted VAF (agg normal samples)', main = '632 muts: all normal samples', xlim = c(0, 1), breaks=30)
+twins_agg_vaf[, mtr_normal_all := rowSums(.SD), .SDcols = samples_normal_mtr]
+twins_agg_vaf[, mtr_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
+twins_agg_vaf[, mtr_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
+twins_agg_vaf[, mtr_tumour_all := rowSums(.SD), .SDcols = samples_tumour_mtr]
+twins_agg_vaf[, mtr_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_mtr]
+twins_agg_vaf[, mtr_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_mtr]
+
+twins_agg_vaf[, vaf_normal_all := mtr_normal_all / dep_normal_all]
+twins_agg_vaf[, vaf_normal_PD62341 := mtr_normal_PD62341 / dep_normal_PD62341]
+twins_agg_vaf[, vaf_normal_PD63383 := mtr_normal_PD63383 / dep_normal_PD63383]
+twins_agg_vaf[, vaf_tumour_all := mtr_tumour_all / dep_tumour_all]
+twins_agg_vaf[, vaf_tumour_PD62341 := mtr_tumour_PD62341 / dep_tumour_PD62341]
+twins_agg_vaf[, vaf_tumour_PD63383 := mtr_tumour_PD63383 / dep_tumour_PD63383]
+
+pdf('Results/20241109_p4_hist_vaf_632muts_in_all_normal_samples.pdf')
+hist(twins_agg_vaf[mut_ID %in% muts_normal_all, vaf_normal_all] %>% unlist(), 
+     xlab = 'VAF (agg normal samples)', main = '632 muts: all normal samples', xlim = c(0, 1), breaks=30)
+abline(v = median(twins_agg_vaf[mut_ID %in% muts_normal_all, vaf_normal_all]), col = 'purple', lwd = 2.5)
 dev.off()
 
-pdf('Results/20241106_p4_hist_vaf_632muts_in_all_normal_samples_PD62341.pdf')
-hist(twins_filtered_vaf_adj[mut_ID %in% muts_normal_all, mean_vaf_adj_normal_PD62341] %>% unlist(), 
-     xlab = 'Adjusted VAF (agg normal PD62341)', main = '632 muts: PD62341 normal samples', xlim = c(0, 1), breaks=30)
+pdf('Results/20241109_p4_hist_vaf_632muts_in_all_normal_samples_PD62341.pdf')
+hist(twins_agg_vaf[mut_ID %in% muts_normal_all, vaf_normal_PD62341] %>% unlist(), 
+     xlab = 'VAF (agg normal PD62341)', main = '632 muts: PD62341 normal samples', xlim = c(0, 1), breaks=30)
+abline(v = median(twins_agg_vaf[mut_ID %in% muts_normal_all, vaf_normal_PD62341]), col = 'purple', lwd = 2.5)
 dev.off()
 
-pdf('Results/20241106_p4_hist_vaf_632muts_in_all_normal_samples_PD63383.pdf')
-hist(twins_filtered_vaf_adj[mut_ID %in% muts_normal_all, mean_vaf_adj_normal_PD63383] %>% unlist(), 
-     xlab = 'Adjusted VAF (agg normal PD63383)', main = '632 muts: PD63383 normal samples', xlim = c(0, 1), breaks=30)
+pdf('Results/20241109_p4_hist_vaf_632muts_in_all_normal_samples_PD63383.pdf')
+hist(twins_agg_vaf[mut_ID %in% muts_normal_all, vaf_normal_PD63383] %>% unlist(), 
+     xlab = 'VAF (agg normal PD63383)', main = '632 muts: PD63383 normal samples', xlim = c(0, 1), breaks=30)
+abline(v = median(twins_agg_vaf[mut_ID %in% muts_normal_all, vaf_normal_PD63383]), col = 'purple', lwd = 2.5)
 dev.off()
 
 # conclusion: these are clearly not germline based on their VAF 
@@ -547,26 +368,35 @@ dev.off()
 
 # plot VAF in PD62341 vs PD63383 
 # if real / informative, likely enriched just in one twin
-ggplot(twins_filtered_vaf_adj[mut_ID %in% muts_normal_all], aes(x = mean_vaf_adj_normal_PD62341, y = mean_vaf_adj_normal_PD63383))+
+ggplot(twins_agg_vaf[mut_ID %in% muts_normal_all], aes(x = vaf_normal_PD62341, y = vaf_normal_PD63383))+
   geom_point(size=1.5, alpha = 0.6)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Adjusted VAF (agg PD62341 normal)', y = 'Adjusted VAF (agg PD63383 normal)')+
+  theme_classic(base_size = 12)+
+  labs(x = 'VAF (agg PD62341 normal)', y = 'VAF (agg PD63383 normal)')+
   xlim(c(0, 1))+
   ylim(c(0, 1))+
-  ggtitle(glue('632 mutations present in all normal samples'))+
+  ggtitle(glue('632 mutations (all normal samples)'))+
   coord_equal(ratio=1)
-ggsave(glue('Results/20241106_adj_vaf_normal_PD62341_PD63383.pdf'))
+ggsave(glue('Results/20241109_vaf_normal_PD62341_vs_PD63383.pdf'), heigh = 4, width = 4)
 
-# color by different mutation categories that are potentially interesting 
-twins_filtered_vaf_adj[, vaf_ratio := mean_vaf_adj_normal_PD62341 / mean_vaf_adj_normal_PD63383]
-pdf('Results/20241106_p4_hist_vaf_632muts_in_all_normal_samples_ratio_PD62341toPD63383.pdf')
+# identify enriched mutations 
+# log fold change 
+twins_agg_vaf[, vaf_ratio := mean_vaf_adj_normal_PD62341 / mean_vaf_adj_normal_PD63383]
+twins_agg_vaf[, vaf_ratio_log := log2(vaf_ratio)]
+
+# get a p-value for comparison 
+# perhaps can run the KS test 
+bin_test <- function(a, b, p = 0.5) {ks.test(a, b, 0.5, alternative=
+                                                  c("two.sided"), conf.level = 0.95)$p.value}
+twins_agg_vaf[, ks_vaf = mapply(bin_test, , PD62341_depths_agg$total_depth)
+
+
+pdf('Results/20241109_p4_hist_vaf_632muts_in_all_normal_samples_ratio_PD62341toPD63383.pdf')
 hist(twins_filtered_vaf_adj[mut_ID %in% muts_normal_all, vaf_ratio] %>% unlist(), 
      xlab = 'Adjusted VAF ratio PD62341 / PD63383', main = '632 muts: VAF ratio', 
      breaks=30)
 dev.off()
 
-twins_filtered_vaf_adj[, vaf_ratio_log := log2(vaf_ratio)]
-pdf('Results/20241106_p4_hist_vaf_632muts_in_all_normal_samples_logratio_PD62341toPD63383.pdf')
+pdf('Results/20241109_p4_hist_vaf_632muts_in_all_normal_samples_logratio_PD62341toPD63383.pdf')
 hist(twins_filtered_vaf_adj[mut_ID %in% muts_normal_all, vaf_ratio_log] %>% unlist(), 
      xlab = 'log2(Adjusted VAF ratio PD62341 / PD63383)', main = '632 muts: log2(VAF ratio)', 
      breaks=30)
@@ -590,7 +420,7 @@ ggplot(twins_filtered_vaf_adj[mut_ID %in% muts_normal_all], aes(x = mean_vaf_adj
   ylim(c(0, 0.6))+
   ggtitle(glue('632 mutations present in all normal samples'))+
   coord_equal(ratio = 1)
-ggsave(glue('Results/20241106_adj_vaf_normal_PD62341_PD63383_col_cat.pdf'), width = 6, height = 4)
+ggsave(glue('Results/20241109_adj_vaf_normal_PD62341_PD63383_col_cat.pdf'), width = 6, height = 4)
 
 # adjusted VAF is nice but not exactly great so let's check we get a similar result with aggregate VAF (non-corrected)
 purity_dt[, twin := tstrsplit(sample, '_VAF', fixed = TRUE, keep = 1)]
@@ -619,7 +449,7 @@ ggplot(twins_agg[mut_ID %in% muts_normal_all], aes(x = PD62341_normal_vaf, y = P
   ylim(c(0, 0.6))+
   ggtitle(glue('632 mutations present in all normal samples'))+
   coord_equal(ratio = 1)
-ggsave(glue('Results/20241106_agg_vaf_normal_PD62341_PD63383_col_cat.pdf'), width = 6, height = 4)
+ggsave(glue('Results/20241109_agg_vaf_normal_PD62341_PD63383_col_cat.pdf'), width = 6, height = 4)
 
 # inspect enriched mutations
 twins_filtered_vaf_adj[mut_ID %in% muts_normal_all & mut_cat == 'likely germline', mut_ID]
@@ -658,7 +488,7 @@ ggplot(twins_vaf_adj_melt[mut_ID=='chr8_123201027_T_C'], aes(x = sample, y = val
   ggtitle(glue('Mutation: chr8:123201027, T>C'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241106_dist_samples_mut_chr8_PD62341_enriched.pdf'))
+ggsave(glue('Results/20241109_dist_samples_mut_chr8_PD62341_enriched.pdf'))
 
 ggplot(twins_vaf_adj_melt[mut_ID=='chr1_38827952_C_A'], aes(x = sample, y = value, col = twin))+
   geom_point(size=2.5)+
@@ -667,7 +497,7 @@ ggplot(twins_vaf_adj_melt[mut_ID=='chr1_38827952_C_A'], aes(x = sample, y = valu
   ggtitle(glue('Mutation: chr1:38827952, C>A'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241106_dist_samples_mut_chr1_PD63383_enriched.pdf'))
+ggsave(glue('Results/20241109_dist_samples_mut_chr1_PD63383_enriched.pdf'))
 
 ggplot(twins_vaf_adj_melt[mut_ID=='chr15_20262122_C_T'], aes(x = sample, y = value, col = twin))+
   geom_point(size=2.5)+
@@ -676,7 +506,7 @@ ggplot(twins_vaf_adj_melt[mut_ID=='chr15_20262122_C_T'], aes(x = sample, y = val
   ggtitle(glue('Mutation: chr15:20262122, C>T'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241106_dist_samples_mut_chr15_PD63383_enriched.pdf'))
+ggsave(glue('Results/20241109_dist_samples_mut_chr15_PD63383_enriched.pdf'))
 
 twins_agg[mut_ID %in% muts_normal_all & mut_cat == 'likely germline', mut_ID]
 # "chr12_131428827_C_A" # mapping issues 
@@ -707,9 +537,9 @@ ggplot(twins_vaf_adj_melt[mut_ID %in% mut_chr12_cluster], aes(x = sample, y = va
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.6))
-ggsave(glue('Results/20241106_dist_samples_mut_chr12.pdf'))
+ggsave(glue('Results/20241109_dist_samples_mut_chr12.pdf'))
 
-pdf('Results/20241106_p5_hist_chr12_PD62341_PD63383.pdf')
+pdf('Results/20241109_p5_hist_chr12_PD62341_PD63383.pdf')
 par(mfrow = c(2, 1))
 hist(twins_agg[mut_ID %in% mut_chr12_cluster, PD63383_normal_vaf], xlab = 'VAF', xlim = c(0, 1), main = 'PD63383 chr12', breaks = 6)
 hist(twins_agg[mut_ID %in% mut_chr12_cluster, PD62341_normal_vaf], xlab = 'VAF', xlim = c(0, 1), main = 'PD62341 chr12', breaks = 6)
@@ -728,7 +558,7 @@ ggplot(twins_agg[mut_ID %in% muts_normal_all] %>% arrange(mut_chr12), aes(x = su
   ggtitle(glue('PD62341 normal samples (632 muts)'))+
   xlim(c(0, 500))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_632_PD62341.pdf'), height=5, width=7)
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_632_PD62341.pdf'), height=5, width=7)
 
 ggplot(twins_agg[mut_ID %in% muts_normal_all] %>% arrange(mut_chr12), aes(x = sum_PD63383_dep, y = PD63383_normal_vaf, col = mut_chr12))+
   geom_point(size=2.5, alpha = 0.6)+
@@ -738,7 +568,7 @@ ggplot(twins_agg[mut_ID %in% muts_normal_all] %>% arrange(mut_chr12), aes(x = su
   ggtitle(glue('PD62341 normal samples (632 muts)'))+
   xlim(c(0, 500))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_632_PD63383.pdf'), height=5, width=7)
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_632_PD63383.pdf'), height=5, width=7)
 
 # similar thing on chr 14?
 mut_chr14_cluster = c("chr14_19725920_G_T",  "chr14_19735467_A_C",  "chr14_19770060_C_T",  "chr14_19778921_G_T", 
@@ -760,7 +590,7 @@ ggplot(twins_agg[mut_ID %in% muts_normal_all] %>% arrange(mut_cluster), aes(x = 
   ggtitle(glue('PD62341 normal samples (632 muts)'))+
   xlim(c(0, 500))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_632_PD62341_clusters.pdf'), height=5, width=7)
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_632_PD62341_clusters.pdf'), height=5, width=7)
 
 ggplot(twins_agg[mut_ID %in% muts_normal_all] %>% arrange(mut_cluster), aes(x = sum_PD63383_dep, y = PD63383_normal_vaf, col = mut_cluster))+
   geom_point(size=2.5, alpha = 0.6)+
@@ -770,7 +600,7 @@ ggplot(twins_agg[mut_ID %in% muts_normal_all] %>% arrange(mut_cluster), aes(x = 
   ggtitle(glue('PD63383 normal samples (632 muts)'))+
   xlim(c(0, 500))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_632_PD63383_clusters.pdf'), height=5, width=7)
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_632_PD63383_clusters.pdf'), height=5, width=7)
 
 # can I plot the distribution of these mutations for each chromosome
 twins_agg[, Chrom := tstrsplit(mut_ID, '_', fixed=TRUE, keep=1)]
@@ -778,20 +608,20 @@ twins_agg[, pos := tstrsplit(mut_ID, '_', fixed=TRUE, keep=2)]
 twins_agg[, pos := as.numeric(pos)]
 
 Chrom = c("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10",
-             "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", 
-             "chr20", "chr21", "chr22", "chrX")
+          "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", 
+          "chr20", "chr21", "chr22", "chrX")
 Chrom_length = as.numeric(c(248956422, 242193529, 198295559, 190214555,
-                           181528259, 170805979, 159345973, 145138636,
-                           139394717, 133797422, 135086622, 133275309,
-                           114364328, 107043718, 101991189, 90338345,
-                           83257441, 80373285, 58617616, 64444167,
-                           46709983, 50818468, 150040895))
+                            181528259, 170805979, 159345973, 145138636,
+                            139394717, 133797422, 135086622, 133275309,
+                            114364328, 107043718, 101991189, 90338345,
+                            83257441, 80373285, 58617616, 64444167,
+                            46709983, 50818468, 150040895))
 chr_lengths_dt = data.table(cbind(Chrom, Chrom_length))
 
 twins_agg = merge(twins_agg, chr_lengths_dt, by = 'Chrom')
 twins_agg[, Chrom := factor(Chrom, levels = c("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10",
-                                                "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", 
-                                                "chr20", "chr21", "chr22", "chrX"))]
+                                              "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", 
+                                              "chr20", "chr21", "chr22", "chrX"))]
 
 for (chr in Chrom){
   dt = twins_agg[Chrom == chr & mut_ID %in% muts_normal_all]
@@ -805,7 +635,7 @@ for (chr in Chrom){
     ggtitle(glue('Chromosome: {chr}, {nr} mutations'))+
     xlim(c(0, length))+
     ylim(c(0, 0.7))
-  ggsave(glue('Results/20241106_dist_across_genome_632_{chr}_PD63383.pdf'), height=3, width=4.5)
+  ggsave(glue('Results/20241109_dist_across_genome_632_{chr}_PD63383.pdf'), height=3, width=4.5)
 }
 
 # compare to coverage across all mutations in the set
@@ -824,7 +654,7 @@ ggplot(twins_agg, aes(x = sum_PD62341_dep, y = PD62341_normal_vaf, col = mut_cla
   ggtitle(glue('PD62341 normal samples (1002 muts)'))+
   xlim(c(0, 500))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_1002_PD62341.pdf'), height=5, width=7)
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_1002_PD62341.pdf'), height=5, width=7)
 
 ggplot(twins_agg, aes(x = sum_PD63383_dep, y = PD63383_normal_vaf, col = mut_class))+
   geom_point(size=2.5, alpha = 0.6)+
@@ -833,7 +663,7 @@ ggplot(twins_agg, aes(x = sum_PD63383_dep, y = PD63383_normal_vaf, col = mut_cla
   ggtitle(glue('PD63383 normal samples (1002 muts)'))+
   xlim(c(0, 500))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241106_cov_vs_vaf_mut_class_1002_PD63383.pdf'), height=5, width=7)
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_1002_PD63383.pdf'), height=5, width=7)
 
 twins_dt[, sum_normal_PD63383_mtr := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
 twins_dt[, sum_normal_PD63383_dep := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
@@ -844,40 +674,113 @@ twins_dt[, sum_normal_PD62341_vaf := sum_normal_PD62341_mtr / sum_normal_PD62341
 
 par(mfrow = c(1,1))
 
-pdf('Results/20241106_p6_hist_PD62341_allmuts.pdf')
+pdf('Results/20241109_p6_hist_PD62341_allmuts.pdf')
 hist(twins_dt[sum_normal_dep < 600, sum_normal_PD62341_dep], 
      xlab = 'Depth (aggregated PD62341 normal)', main = 'PD62341, all mutations (362,814)', breaks = 50)
 abline(v = median(twins_dt[sum_normal_dep < 600, sum_normal_PD62341_dep]), col = 'red', lwd = 2)
 dev.off()
 
-pdf('Results/20241106_p6_hist_PD63383_allmuts.pdf')
+pdf('Results/20241109_p6_hist_PD63383_allmuts.pdf')
 hist(twins_dt[sum_normal_dep < 600, sum_normal_PD63383_dep], 
      xlab = 'Depth (aggregated PD63383 normal)', main = 'PD63383, all mutations (362,814)', breaks = 50)
 abline(v = median(twins_dt[sum_normal_dep < 600, sum_normal_PD63383_dep]), col = 'red', lwd = 2)
 dev.off()
 
-pdf('Results/20241106_p6_hist_PD62341_632muts.pdf')
+pdf('Results/20241109_p6_hist_PD62341_632muts.pdf')
 hist(twins_agg[mut_ID %in% muts_normal_all,sum_PD62341_dep] %>% unlist(), breaks = 50, xlab = 'Depth (aggregated PD62341 normal)', main = 'PD62341, 632 normal')
 abline(v = median(twins_agg[mut_ID %in% muts_normal_all, sum_PD62341_dep]), col = 'blue', lwd = 2) # 264.5
 dev.off()
 
-pdf('Results/20241106_p6_hist_PD63383_632muts.pdf')
+pdf('Results/20241109_p6_hist_PD63383_632muts.pdf')
 hist(twins_agg[mut_ID %in% muts_normal_all,sum_PD63383_dep] %>% unlist(), breaks = 50, xlab = 'Depth (aggregated PD63383 normal)', main = 'PD63383, 632 normal')
 abline(v = median(twins_agg[mut_ID %in% muts_normal_all, sum_PD63383_dep]), col = 'blue', lwd = 2) # 264.5
 dev.off()
 
-pdf('Results/20241106_p6_hist_PD62341_1002muts.pdf')
+pdf('Results/20241109_p6_hist_PD62341_1002muts.pdf')
 hist(twins_agg[,sum_PD62341_dep] %>% unlist(), breaks = 50, xlab = 'Depth (aggregated PD62341 normal)', main = 'PD62341, 1002 normal')
 abline(v = median(twins_agg[,sum_PD62341_dep]), col = 'purple', lwd = 2) # 264.5
 dev.off()
 
-pdf('Results/20241106_p6_hist_PD63383_1002muts.pdf')
+pdf('Results/20241109_p6_hist_PD63383_1002muts.pdf')
 hist(twins_agg[,sum_PD63383_dep] %>% unlist(), breaks = 50, xlab = 'Depth (aggregated PD63383 normal)', main = 'PD63383, 1002 normal')
 abline(v = median(twins_agg[,sum_PD63383_dep]), col = 'purple', lwd = 2) # 264.5
 dev.off()
 
 ######################################################################################################
 # how do mutations present in all normal samples look like in tumour samples?
+
+ggplot(twins_agg[mut_ID %in% muts_normal_all], aes(x = PD62341_normal_vaf, y = tumour_vaf))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'VAF (PD62341 normal)', y = 'VAF (tumour)')+
+  ggtitle(glue('Mutations present in all normal samples (632)'))+
+  xlim(c(0, 0.7))+
+  ylim(c(0, 0.7))+
+  coord_equal(ratio = 1)
+ggsave(glue('Results/20241109_vaf_PD62341_normal_vs_tumour_632.pdf'), height=5, width=7)
+
+ggplot(twins_agg[mut_ID %in% muts_normal_all], aes(x = PD63383_normal_vaf, y = tumour_vaf))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'VAF (PD63383 normal)', y = 'VAF (tumour)')+
+  ggtitle(glue('Mutations present in all normal samples (632)'))+
+  xlim(c(0, 0.7))+
+  ylim(c(0, 0.7))+
+  coord_equal(ratio = 1)
+ggsave(glue('Results/20241109_vaf_PD63383_normal_vs_tumour_632.pdf'), height=5, width=7)
+
+twins_agg[, vaf_ratio_PD62341 := PD62341_normal_vaf / tumour_vaf]
+twins_agg[, vaf_ratio_PD62341_log := log2(vaf_ratio_PD62341)]
+twins_agg[, vaf_ratio_PD63383 := PD63383_normal_vaf / tumour_vaf]
+twins_agg[, vaf_ratio_PD63383_log := log2(vaf_ratio_PD63383)]
+
+pdf('Results/20241107_p1_hist_vaf_ratio_PD62341_normal_vs_tumour_632.pdf')
+hist(twins_agg[mut_ID %in% muts_normal_all, vaf_ratio_PD62341] %>% unlist(), xlab = 'Ratio VAF PD62341 normal / tumour', main = '632 mutations (all normal)')
+dev.off()
+
+pdf('Results/20241107_p1_hist_vaf_ratio_PD62341_normal_vs_tumour_632_log.pdf')
+hist(twins_agg[mut_ID %in% muts_normal_all, vaf_ratio_PD62341_log] %>% unlist(), xlab = 'log2(Ratio VAF PD62341 normal / tumour)', main = '632 mutations (all normal)')
+dev.off()
+
+pdf('Results/20241107_p1_hist_vaf_ratio_PD63383_normal_vs_tumour_632.pdf')
+hist(twins_agg[mut_ID %in% muts_normal_all, vaf_ratio_PD63383] %>% unlist(), xlab = 'Ratio VAF PD62341 normal / tumour', main = '632 mutations (all normal)')
+dev.off()
+
+pdf('Results/20241107_p1_hist_vaf_ratio_PD63383_normal_vs_tumour_632_log.pdf')
+hist(twins_agg[mut_ID %in% muts_normal_all, vaf_ratio_PD63383_log] %>% unlist(), xlab = 'log2(Ratio VAF PD62341 normal / tumour)', main = '632 mutations (all normal)')
+dev.off()
+
+twins_agg[, mut_class_n2t_ratio_PD62341 := factor(fcase(
+  vaf_ratio_PD62341_log < -0.5, 'enriched in tumour',
+  vaf_ratio_PD62341_log > 0.5, 'enriched in normal (PD62341)',
+  vaf_ratio_PD62341_log >= -0.5 & vaf_ratio_PD62341_log <= 0.5, 'no difference'))]
+
+twins_agg[, mut_class_n2t_ratio_PD63383 := factor(fcase(
+  vaf_ratio_PD63383_log < -0.5, 'enriched in tumour',
+  vaf_ratio_PD63383_log > 0.5, 'enriched in normal (PD63383)',
+  vaf_ratio_PD63383_log >= -0.5 & vaf_ratio_PD63383_log <= 0.5, 'no difference'))]
+
+ggplot(twins_agg[mut_ID %in% muts_normal_all], aes(x = PD62341_normal_vaf, y = tumour_vaf, col = mut_class_n2t_ratio_PD62341))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'VAF (PD62341 normal)', y = 'VAF (tumour)', col = 'Mutation category')+
+  ggtitle(glue('Mutations present in all normal samples (632)'))+
+  scale_color_manual(values = c(col_PD62341, col_tumour, 'grey'))+
+  xlim(c(0, 0.7))+
+  ylim(c(0, 0.7))+
+  coord_equal(ratio = 1)
+ggsave(glue('Results/20241109_vaf_PD62341_normal_vs_tumour_632_col.pdf'), height=5, width=7)
+
+ggplot(twins_agg[mut_ID %in% muts_normal_all], aes(x = PD63383_normal_vaf, y = tumour_vaf, col = mut_class_n2t_ratio_PD63383))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'VAF (PD63383 normal)', y = 'VAF (tumour)', col = 'Mutation category')+
+  ggtitle(glue('Mutations present in all normal samples (632)'))+
+  scale_color_manual(values = c(col_PD63383, col_tumour, 'grey'))+
+  xlim(c(0, 0.7))+
+  ylim(c(0, 0.7))+
+  coord_equal(ratio = 1)
+ggsave(glue('Results/20241109_vaf_PD63383_normal_vs_tumour_632_col.pdf'), height=5, width=7)
 
 ######################################################################################################
 # plot distribution of mutations present in all tumour samples across the genome 
@@ -893,17 +796,20 @@ for (chr in Chrom){
     ggtitle(glue('Chromosome: {chr}, {nr} mutations'))+
     xlim(c(0, length))+
     ylim(c(0, 0.7))
-  ggsave(glue('Results/20241106_dist_across_genome_641_tumour_{chr}.pdf'), height=3, width=4.5)
+  ggsave(glue('Results/20241109_dist_across_genome_641_tumour_{chr}.pdf'), height=3, width=4.5)
 }
 
-twins_tumour_agg[, mut_class := as.factor(fcase(
-  mut_ID %in% muts_normal_all, 'all normal samples',
-  mut_ID %in% muts_tumour_all_only, 'all tumour samples only',
-  mut_ID %in% muts_tumour_all, 'all tumour samples',
+twins_agg[, mut_class := as.factor(fcase(
+  mut_ID %in% muts_normal_all_nt, 'all normal, but not all tumour',
+  mut_ID %in% muts_tumour_all_nt, 'all tumour, but not all normal samples',
   mut_ID %in% muts_all, 'all samples',
   mut_ID %in% muts_tumour_only, 'only tumour samples',
   mut_ID %in% muts_normal_only, 'only normal samples',
   !mut_ID %in% c(muts_normal_all, muts_tumour_all, muts_all, muts_normal_only, muts_tumour_all_only, muts_tumour_only), 'other'))]
+
+# make sure colors are always the same
+myColors <- c('darkred', 'purple', '#07a94b', '#f3782b',  '#2fb1f3', 'grey')
+names(myColors) <- levels(twins_agg[, mut_class])
 
 for (chr in Chrom){
   dt = twins_agg[Chrom == chr]
@@ -912,12 +818,253 @@ for (chr in Chrom){
   ggplot(dt, aes(x = pos, y = tumour_vaf, col = mut_class))+
     geom_point(size=2.5)+
     theme_classic(base_size = 10)+
+    scale_color_manual(values = myColors)+
     labs(x = 'Genomic position', y = 'VAF (agg tumour)', col = 'Mutation category')+
     ggtitle(glue('Chromosome: {chr}, {nr} mutations'))+
     xlim(c(0, length))+
     ylim(c(0, 0.7))
-  ggsave(glue('Results/20241106_dist_across_genome_1002_tumour_{chr}_cat.pdf'), height=3, width=5)
+  ggsave(glue('Results/20241109_dist_across_genome_1002_tumour_{chr}_cat.pdf'), height=3, width=5)
 }
+
+
+######################################################################################################
+# Analysis of tumour evolution: coverage vs VAF plot
+
+twins_filtered_mtr[, sum_tumour_mtr := rowSums(.SD), .SDcols = samples_tumour_mtr]
+twins_filtered_dep[, sum_tumour_dep := rowSums(.SD), .SDcols = samples_tumour_dep]
+
+# Aggregate data for all tumour samples together 
+twins_tumour_agg = merge(twins_filtered_mtr[, c('mut_ID', 'sum_tumour_mtr'), with=FALSE], 
+                         twins_filtered_dep[, c('mut_ID', 'sum_tumour_dep'), with=FALSE])
+twins_tumour_agg[, tumour_vaf := sum_tumour_mtr / sum_tumour_dep]
+twins_tumour_agg[, mut_class := as.factor(fcase(
+  mut_ID %in% muts_all, 'all samples',
+  mut_ID %in% muts_normal_all_nt, 'all normal, but not all tumour',
+  mut_ID %in% muts_tumour_all_nt, 'all tumour, but not all normal',
+  mut_ID %in% muts_tumour_only, 'only tumour samples',
+  mut_ID %in% muts_normal_only, 'only normal samples',
+  !mut_ID %in% c(muts_normal_all_nt, muts_tumour_all_nt, muts_all, muts_normal_only, muts_tumour_only), 'other'))]
+
+myColors <- c('darkred', 'purple', '#07a94b', '#f3782b',  '#2fb1f3', 'grey')
+names(myColors) <- levels(twins_tumour_agg[, mut_class])
+
+# Plot coverage vs VAF 
+ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Mutation class')+
+  ggtitle(glue('Coverage vs VAF across the tumour'))+
+  geom_hline(yintercept = 0.35, col = 'black')+
+  scale_color_manual(values = myColors)+
+  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_1002.pdf'), height = 5, width = 6)
+
+ggplot(twins_tumour_agg[mut_class!='all samples'], aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Mutation class')+
+  ggtitle(glue('Coverage vs VAF across the tumour'))+
+  geom_hline(yintercept = 0.35, col = 'black')+
+  scale_color_manual(values = myColors)+
+  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_not_all_1002.pdf'), height = 5, width = 6)
+
+# color by type of mutation
+twins_tumour_agg[, c('Ref', 'Alt') := tstrsplit(mut_ID, '_', fixed=T, keep=3:4)]
+twins_tumour_agg[, mut_type := paste0(Ref, '>', Alt)]
+twins_tumour_agg[, mut_type := as.factor(fcase(
+  mut_type == 'A>T', 'T>A',
+  mut_type == 'A>C', 'T>G',
+  mut_type == 'G>C', 'C>G',
+  mut_type == 'G>T', 'C>A',
+  mut_type == 'A>G', 'T>C',
+  mut_type == 'G>A', 'C>T',
+  mut_type == 'C>A', 'C>A',
+  mut_type == 'C>G', 'C>G',
+  mut_type == 'C>T', 'C>T',
+  mut_type == 'T>A', 'T>A',
+  mut_type == 'T>C', 'T>C',
+  mut_type == 'T>G', 'T>G'))]
+ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_type))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Chromosome')+
+  ggtitle(glue('Coverage vs VAF across the tumour'))+
+  geom_hline(yintercept = 0.35, col = 'black')+
+  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_type.pdf'))
+
+# color by chromosome 
+twins_tumour_agg[, Chrom := tstrsplit(mut_ID, '_', fixed=TRUE, keep=1)]
+ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = Chrom))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Chromosome')+
+  ggtitle(glue('Coverage vs VAF across the tumour'))+
+  geom_hline(yintercept = 0.35, col = 'black')+
+  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
+ggsave(glue('Results/20241109_cov_vs_vaf_chrom.pdf'))
+
+twins_tumour_agg[, loss := as.factor(fcase( 
+  Chrom %in% c('chr1', 'chr18'), 'loss in tumour', # chr1 and chr18 segments lost in tumour samples
+  !Chrom %in% c('chr1', 'chr18'), 'normal ploidy'))]
+
+ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = loss))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Chromosome')+
+  ggtitle(glue('Coverage vs VAF across the tumour'))+
+  geom_hline(yintercept = 0.35, col = 'black')+
+  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
+ggsave(glue('Results/20241109_cov_vs_vaf_loss.pdf'))
+
+# add number of tumour samples the mutation is present in 
+twins_tumour_agg = merge(twins_tumour_agg, twins_filtered_vaf[, c('mut_ID', 'sum_tumour'), with=FALSE], by = 'mut_ID')
+twins_tumour_agg[, sum_tumour := as.factor(sum_tumour)]
+ggplot(twins_tumour_agg, aes(x = sum_tumour_dep, y = tumour_vaf, col = sum_tumour))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = '# tumour samples\nmut detected in')+
+  ggtitle(glue('Coverage vs VAF across the tumour'))+
+  geom_hline(yintercept = 0.35, col = 'black')+
+  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
+ggsave(glue('Results/20241109_cov_vs_vaf_sum_tumour.pdf'))
+
+######################################################################################################
+# Plot VAF and coverage across the genome 
+twins_tumour_agg[, pos := tstrsplit(mut_ID, '_', fixed=T, keep=2)]
+twins_tumour_agg[, pos := as.numeric(pos)]
+twins_tumour_agg[, Chrom_nr := tstrsplit(Chrom, 'chr', fixed=T, keep=2)]
+twins_tumour_agg[, Chrom_nr := factor(Chrom_nr, levels = 
+                                        c('1', '2', '3', '4', '5',
+                                          '6', '7', '8', '9', '10',
+                                          '11', '12', '13', '14', '15',
+                                          '16', '17', '18', '19', '20',
+                                          '21', '22', 'X'))]
+
+ggplot(twins_tumour_agg, aes(x = pos, y = tumour_vaf, col=mut_class))+
+  geom_point(size=1.5)+
+  labs(x = 'Position', y = 'VAF (all tumour samples)', col='Mutation class')+
+  ggtitle(glue('VAF across the genome'))+
+  facet_grid(~Chrom_nr)+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  #  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))
+ggsave(glue('Results/20241109_vaf_across_the_genome_1002.pdf'))
+
+######################################################################################################
+# Get out mutations that are well mapped in all tumour samples 
+
+for(sample in samples_tumour){
+  tumour_sample = twins_filtered_dt[, c('mut_ID', glue('{sample}_MTR'), glue('{sample}_VAF'))]
+  setnames(tumour_sample, c(glue('{sample}_MTR'), glue('{sample}_VAF')), c('mtr', 'vaf'))
+  tumour_sample[, glue('mapped_{sample}') :=  as.numeric(mtr >= 4) * as.numeric(vaf >= 0.1)]
+  twins_filtered_dt = merge(twins_filtered_dt, tumour_sample[, c('mut_ID', glue('mapped_{sample}')), with = FALSE], by = 'mut_ID')
+}
+
+mapped_samples = paste0('mapped_', samples_tumour)
+twins_filtered_dt[, tumour_mapped_sum := rowSums(.SD == 1), .SDcols = mapped_samples]
+twins_filtered_dt[, tumour_mapped_all := as.numeric(tumour_mapped_sum == 10)] 
+
+# identify mutations that are well mapped in all tumour samples
+muts_well_mapped_tumour = twins_filtered_dt[tumour_mapped_all==1, mut_ID] %>% unlist() # 641
+
+# require min VAF 0.2 across the tumour 
+muts_mapped_tumour = twins_tumour_agg[tumour_vaf > 0.2 & mut_ID %in% muts_well_mapped_tumour, mut_ID] %>% unlist() # 630 
+paste('Number of mutations in the tumour:', length(muts_mapped_tumour)) # 630 
+
+# plot the distribution of VAF of those mutations across the tumour 
+pdf('Results/20241109_p3_hist_vaf_dist_630muts.pdf')
+hist(twins_tumour_agg[mut_ID %in% muts_mapped_tumour, tumour_vaf], breaks = 20,
+     xlab = 'VAF (total tumour)', main = '630 mutations (mapped all tumour samples)', xlim = c(0, 1))
+abline(v = median(twins_tumour_agg[mut_ID %in% muts_mapped_tumour, tumour_vaf]), col = 'purple')
+dev.off()
+
+######################################################################################################
+# Patterns of sharing with normal samples 
+
+ggplot(twins_tumour_agg[mut_ID %in% muts_mapped_tumour], aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class))+
+  geom_point(size=2.5, alpha = 0.6)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage (all tumour samples)', y = 'VAF (all tumour samples)', col = 'Mutation class')+
+  ggtitle(glue('Coverage vs VAF across the tumour: mutations mapped in all tumour samples'))+
+  geom_hline(yintercept = 0.35, col = 'black')+
+  annotate('text', 525, 0.365, label = 'Estimated clonal VAF', col = 'black')
+ggsave(glue('Results/20241109_cov_vs_vaf_mut_class_630mapped.pdf'))
+
+# Aggregate data for all tumour samples together 
+twins_filtered_mtr[, sum_PD62341_mtr := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
+twins_filtered_dep[, sum_PD62341_dep := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
+twins_filtered_mtr[, sum_PD63383_mtr := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
+twins_filtered_dep[, sum_PD63383_dep := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
+
+twins_PD62341_agg = merge(twins_filtered_mtr[, c('mut_ID', 'sum_PD62341_mtr'), with=FALSE], 
+                         twins_filtered_dep[, c('mut_ID', 'sum_PD62341_dep'), with=FALSE], by = 'mut_ID')
+twins_PD62341_agg[, PD62341_normal_vaf := sum_PD62341_mtr / sum_PD62341_dep]
+
+twins_PD63383_agg = merge(twins_filtered_mtr[, c('mut_ID', 'sum_PD63383_mtr'), with=FALSE], 
+                          twins_filtered_dep[, c('mut_ID', 'sum_PD63383_dep'), with=FALSE], by = 'mut_ID')
+twins_PD63383_agg[, PD63383_normal_vaf := sum_PD63383_mtr / sum_PD63383_dep]
+
+# Data table with all aggregated data 
+twins_agg = merge(merge(twins_tumour_agg, twins_PD62341_agg, by = 'mut_ID'), twins_PD63383_agg, by = 'mut_ID')
+twins_agg_filt = twins_agg[mut_ID %in% muts_mapped_tumour]
+
+ggplot(twins_agg_filt, aes(x=tumour_vaf, y=PD62341_vaf))+
+  geom_point()+
+  theme_classic(base_size=15)+
+  xlim(c(0, 1))+
+  ylim(c(0, 1))+
+  labs(x = 'VAF (total tumour)', y = glue('VAF in PD62341'), col = 'Mutation category')+
+  ggtitle(glue('630 mutations mapped in the tumour, PD62341'))
+ggsave(glue('Results/20241109_vaf_tumour_vs_PD62341_630mapped.pdf'))
+
+ggplot(twins_agg_filt, aes(x=tumour_vaf, y=PD63383_vaf))+
+  geom_point()+
+  theme_classic(base_size=15)+
+  xlim(c(0, 1))+
+  ylim(c(0, 1))+
+  labs(x = 'VAF (total tumour)', y = glue('VAF in PD63383'), col = 'Mutation category')+
+  ggtitle(glue('630 mutations mapped in the tumour, PD63383'))
+ggsave(glue('Results/20241109_vaf_tumour_vs_PD63383_630mapped.pdf'))
+
+# how many of those mutations are also present in all normal samples?
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD63383 == 6] # 594
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 6] # 593
+
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 6 & sum_normal_PD63383 == 6] # 588
+
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 6] # 0
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 4] # 0
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 5] # 0
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 3] # 0
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 0 & sum_normal_PD63383 == 2] # 0
+
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 6 & sum_normal_PD63383 == 0] # 1 
+# chr14_105458006_C_A our favourite one!
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 5 & sum_normal_PD63383 == 0] # 0
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 4 & sum_normal_PD63383 == 0] # 2 
+# chr3_62055057_C_G aa and h (possibly contamination), n and q (heart and pancreas), missing in v (?) and ad
+# chr3_62055077_G_C aa and h (possibly contamination), n and q (heart and pancreas), missing in v (?) and ad
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 3 & sum_normal_PD63383 == 0] # 0
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 2 & sum_normal_PD63383 == 0] # 2 (h and aa only)
+# chr10_100754461_C_T # looks okay
+# chr6_95827754_C_A not the best mapping quality but fine, aa and h (possibly contamination) 
+twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 1 & sum_normal_PD63383 == 0] # 6 (h only)
+# chr13_60216504_A_C # looks okay
+# chr16_32621521_C_A # mapping quality not excellent (double check because it doesn't look that bad)
+# chr17_78256883_C_T # looks okay
+# chr22_17774668_G_A # looks okay 
+# chr22_30553442_G_T # looks okay
+# chr2_199565129_G_A # looks okay
+
+######################################################################################################
+# Looking at tumour-clonal mutations
 
 
 ######################################################################################################
