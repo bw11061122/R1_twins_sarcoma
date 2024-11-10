@@ -1785,21 +1785,22 @@ twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 1 & su
 ######################################################################################################
 # Looking at tumour-clonal mutations
 
-muts_tumour_only
+twins_filtered_vaf[sum_tumour > 1 & sum_normal == 0] # 28
+twins_filtered_vaf_adj[sum_tumour_adj > 1 & sum_normal_adj == 0] # 52
 
-twins_filtered_vaf[sum_tumour > 0 & sum_normal == 0] # 31
+twins_filtered_vaf[sum_tumour > 1 & sum_normal >= 1 & sum_normal <= 3] # 117
+twins_filtered_vaf_adj[sum_tumour_adj > 1 & sum_normal_adj >= 1 & sum_normal_adj <= 3] # 106
 
-twins_filtered_vaf[sum_tumour > 0 & sum_normal >= 1 & sum_normal <= 3] # 119
 # which normal samples are these mutations present in?
-colSums(twins_filtered_vaf[sum_tumour > 0 & sum_normal >= 1 & sum_normal <= 3, c(samples_normal_vaf), with=FALSE] >= 0.1)
+colSums(twins_filtered_vaf[sum_tumour > 1 & sum_normal >= 1 & sum_normal <= 3, c(samples_normal_vaf), with=FALSE] >= 0.1)
 # PD62341aa = 27
 # PD62341h = 75
 # PD63383bb = 86
 
-colSums(twins_filtered_vaf_adj[sum_tumour_adj > 0 & sum_normal_adj >= 1 & sum_normal_adj <= 3, c(samples_normal_adj), with=FALSE] >= 0.1)
+colSums(twins_filtered_vaf_adj[sum_tumour_adj > 1 & sum_normal_adj >= 1 & sum_normal_adj <= 3, c(samples_normal_adj), with=FALSE] >= 0.1)
 # PD62341aa = 12
-# PD62341h = 53
-# PD63383bb = 55
+# PD62341h = 52
+# PD63383bb = 54
 
 # identify mutations which are present in normal samples other than contaminated ones
 contaminated_samples = c('PD62341aa', 'PD62341h', 'PD63383bb')
@@ -1807,13 +1808,13 @@ contaminated_samples_vaf = paste0(contaminated_samples, '_VAF')
 contaminated_samples_adj = paste0(contaminated_samples, '_adj')
 
 twins_filtered_vaf[, sum_normal_cont := rowSums(.SD >= 0.1), .SDcols = contaminated_samples_vaf]
-twins_filtered_vaf[sum_tumour > 0 & sum_normal <= 3 & sum_normal == sum_normal_cont] # 128
+twins_filtered_vaf[sum_tumour > 1 & sum_normal <= 3 & sum_normal == sum_normal_cont] # 124
 
 twins_filtered_vaf_adj[, sum_normal_cont_adj := rowSums(.SD >= 0.1), .SDcols = contaminated_samples_adj]
-twins_filtered_vaf_adj[sum_tumour_adj > 0 & sum_normal_adj <= 3 & sum_normal_adj == sum_normal_cont_adj] # 136
+twins_filtered_vaf_adj[sum_tumour_adj > 1 & sum_normal_adj <= 3 & sum_normal_adj == sum_normal_cont_adj] # 136
 
 # check the other mutations (present in normal samples but not contaminated ones)
-twins_filtered_vaf[sum_tumour > 0 & sum_normal <= 3 & sum_normal != sum_normal_cont, mut_ID] 
+twins_filtered_vaf[sum_tumour > 1 & sum_normal <= 3 & sum_normal != sum_normal_cont, mut_ID] 
 # "chr10_49977949_A_G" # poor mapping 
 # "chr13_18565005_G_A" # poor mapping 
 # "chr15_30811818_A_G" # poor mapping 
@@ -1823,12 +1824,10 @@ twins_filtered_vaf[sum_tumour > 0 & sum_normal <= 3 & sum_normal != sum_normal_c
 # "chr19_7878006_A_G" # not real  
 # "chr1_83136026_A_T" # poor mapping 
 # "chr20_44114996_C_T" # looks real n, h (n after adjustment)
-# "chr22_43290224_C_T" # please check this one! looks v interesting PD63383ae, ak
 # "chr2_57814739_A_C" # looks real q, h (q after adjustment)
 # "chr5_70784531_C_A" # poor mapping 
 # "chr7_120677593_C_T" # looks real n, h, bb (n, h after adjustment)
 # "chr7_139659050_G_A" # looks real q, h
-# "chr7_63778593_T_G" # poor mapping 
 # "chr8_131571989_A_T" # looks real q, h, bb (q after adjustment)
 # "chr8_46678612_T_C" # looks real q, h, n (q, n after adjustment)
 # "chr9_100061581_C_T" # double check, not convinced PD63383ak, w
@@ -1837,13 +1836,177 @@ twins_filtered_vaf[sum_tumour > 0 & sum_normal <= 3 & sum_normal != sum_normal_c
 # "chr9_41808224_G_T" # poor mapping  
 # "chrX_124531709_C_T" # looks good q, h, bb
 
-muts_tumour = twins_filtered_vaf[sum_tumour > 0 & sum_normal <= 3, mut_ID] %>% unlist() 
+# "chr22_43290224_C_T" # please check this one! looks v interesting PD63383ae, ak
+
+muts_tumour = twins_filtered_vaf[sum_tumour > 1 & sum_normal <= 3, mut_ID] %>% unlist() # 144
 
 # how many tumour samples are these mutations usually in?
-pdf('Results/20241109_p4_hist_nr_tumour_samples_150muts.pdf')
+pdf('Results/20241109_p4_hist_nr_tumour_samples_144muts.pdf')
 hist(twins_filtered_vaf[mut_ID %in% muts_tumour, sum_tumour], 
-     xlab = 'Number of tumour samples with mutation', main = '150 mutations (min 1 tumour, max 3 normal)')
+     xlab = 'Number of tumour samples with mutation', main = '144 mutations (min 2 tumour, max 3 normal)')
 dev.off()
 
+pdf('Results/20241109_p4_hist_vaf_144muts.pdf')
+hist(twins_agg_vaf[mut_ID %in% muts_tumour, vaf_tumour_all], breaks = 20,
+     xlab = 'VAF (agg tumour)', main = '144 mutations (min 2 tumour, max 3 normal)')
+dev.off()
 
+# heatmap so it is easier to think about it 
+mut_tumour_144 = twins_agg_vaf[mut_ID %in% muts_tumour, c('mut_ID', samples_vaf), with=FALSE]
+mut_tumour_144_mat = as.matrix(mut_tumour_144[, c(samples_vaf), with=FALSE])
+rownames(mut_tumour_144_mat) = mut_tumour_144[,1] %>% unlist()  
+colnames(mut_tumour_144_mat) = tstrsplit(colnames(mut_tumour_144_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
+                            Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)))
+rownames(col_annotation) = colnames(mut_tumour_144_mat)
+annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), Twin = c(PD62341=col_PD62341, PD63383=col_PD63383))
+
+# heatmap
+pdf('Results/20241109_p6_heatmap_tumour_144muts.pdf')
+pheatmap(mut_tumour_144_mat,
+         cellwidth=10, cellheight=2,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="144 mutations: likely tumour samples only", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+# more investigation of PD63383 mutations
+twins_vaf_sub = twins_agg_vaf[, c('mut_ID', samples_vaf), with=FALSE]
+twins_vaf_melt = melt(twins_vaf_sub, id.vars = 'mut_ID')
+twins_vaf_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+twins_vaf_melt[, status := factor(fcase(
+  sample %in% samples_normal, 'normal',
+  sample %in% samples_tumour, 'tumour'
+))]
+twins_vaf_melt[, twin := factor(fcase(
+  sample %in% samples_PD62341, 'PD62341',
+  sample %in% samples_PD63383, 'PD63383'
+))]
+twins_vaf_melt[, sample_type := paste(status, twin, sep = ', ')]
+                 
+ggplot(twins_vaf_melt[mut_ID %in% muts_PD63383_tumour_only], aes(x = value, y = mut_ID, col = sample_type))+
+  geom_point()+
+  theme_classic(base_size=14)+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour, col_tumour_PD63383))+
+  labs(x = 'VAF', y = glue('Mutation'), col = 'Sample type')+
+  ggtitle(glue('PD63383 tumour-restricted mutations'))
+ggsave(glue('Results/20241109_vaf_PD63383restircted_tumour.pdf'), height = 8, width = 6)
+
+# investigation of other classes of mutations
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 2 & sum_tumour_PD63383 == 2] # 28
+
+# mutations present in 2 tumour samples not in PD63383 tumour 
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 2 & sum_tumour_PD63383 != 2] # 13
+# chr10_72139813_C_T # ak, ap looks okay
+# chr11_43029745_A_T # ae, b
+# chr12_19555916_C_T # ae, aj
+# chr13_18565005_G_A # PD63383aq, PD62341ap
+# chr13_62110424_G_A # am, ap
+# chr15_30811818_A_G # ag, ap
+# chr15_68707110_G_A # ak, ap
+# chr1_14644486_C_A # ae, aj
+# chr1_38311094_G_T # ak, ap
+# chr2_231591536_G_T # ae, aj
+# chr5_58182780_T_A # ak, ap
+# chrX_64561555_C_T # ak, ap
+# chrX_9804641_G_A # ak, ap
+
+twins_filtered_vaf[sum_tumour_PD63383 >= 1 & sum_tumour_PD62341 == 0] # 30
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour_PD63383 >= 1 & sum_tumour_PD62341 == 0] # 28
+setdiff(twins_filtered_vaf[sum_tumour_PD63383 >= 1 & sum_tumour_PD62341 == 0, mut_ID] %>% unlist(), twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour_PD63383 >= 1 & sum_tumour_PD62341 == 0, mut_ID] %>% unlist())
+# "chr22_43290224_C_T" - not buying it 
+# "chr5_157248612_A_G"
+
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 10] # 27
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 9] # 38
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 8] # 8
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 7] # 1
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 6] # 8
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 5] # 8
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 4] # 10
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 3] # 3
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 2] # 41
+
+# add a column for names of samples which the mutation is missing in:
+twins_filtered_vaf[, missing_tumour_sample := apply(twins_filtered_vaf[, ..samples_tumour_vaf], 1, function(row) {
+  cols_vaf01 = samples_tumour_vaf[which(row < 0.1)]
+  paste(cols_vaf01, collapse = ', ')
+})]
+
+twins_filtered_vaf[, present_tumour_sample := apply(twins_filtered_vaf[, ..samples_tumour_vaf], 1, function(row) {
+  cols_vaf01 = samples_tumour_vaf[which(row >= 0.1)]
+  paste(cols_vaf01, collapse = ', ')
+})]
+
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 9, missing_tumour_sample])
+# 1 missing in b, 2 in ag, 35 in ak
+
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 8, missing_tumour_sample])
+# 1 missing in ag and u, 2 missing in ak and u, 5 missing in ak and ag
+
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 7, missing_tumour_sample])
+# missing in ak, ag, u
+
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 6, missing_tumour_sample])
+# 1 missing in ak, ag, ae, aj
+# 3 missing in ak, ag, u, ae
+# 2 missing in ak, ag, u, aj
+# 1 missing in aj, ap, b, PD63383ap # chr1 - loss? (mapping isn't great so not 100% convinced)
+# 1 missing in am, ap, b, PD63383ap # chr19 - loss?
+
+# mutations in 5 tumour samples or less
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 5]
+# chr10_49977949_A_G # not very good 
+# chr11_26060345_G_T # looks okay
+# chr12_112652964_C_T # looks okay
+# chr13_103318073_T_A # looks okay
+# chr16_17805832_C_T # looks okay
+# chr17_70958446_C_T # looks okay
+# chr4_135461656_G_A # looks okay
+# chr6_8310684_G_T # looks okay
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 4]
+# chr12_114403258_G_A # looks okay
+# chr12_82832044_C_A # looks okay
+# chr18_1379467_G_T # looks okay
+# chr19_7878006_A_G # looks horrible
+# chr5_70784531_C_A # terrible mapping 
+# chr6_168731130_C_T # looks okay
+# chr7_153784080_C_G # only on poorly mapped reads
+# chr8_21444725_G_A # looks okay
+# chr9_100061581_C_T # looks okay but a bit funny 
+# chr9_41808224_G_A # poor mapping 
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 3]
+# chr13_28953051_G_T # looks okay
+# chr8_141860196_G_A # looks okay
+# chr9_100061582_G_A # looks okay but a bit funny 
+twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 2] # checked these and generally look fine
+
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 5, present_tumour_sample])
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 4, present_tumour_sample])
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 3, present_tumour_sample])
+table(twins_filtered_vaf[mut_ID %in% muts_tumour & sum_tumour == 2, present_tumour_sample])
+
+######################################################################################################
+# what about mutations present in all tumour but not all normal samples?
+muts_tumour_all_nt[muts_tumour_all_nt %in% muts_tumour] # 24
+# makes sense as the other two are on chr3 G>C and C>G
+
+twins_filtered_vaf[mut_ID %in% muts_tumour_all_nt & sum_normal_PD63383 == 0] # 11
+twins_filtered_vaf[mut_ID %in% muts_tumour_all_nt & sum_normal_PD63383 == 1] # 21
+
+# likely shared with all normal samples 
+twins_filtered_vaf[mut_ID %in% muts_tumour_all_nt & sum_normal_PD63383 >= 5] # 31
+
+twins_filtered_vaf[mut_ID %in% muts_tumour_all_nt & sum_normal_PD63383 %in% c(2, 3, 4)]
+# chr15_49480646_T_A # looks okay (probably PD62341 specific and contamination)
+# chr17_18402053_G_C # poor mapping 
+# chrX_798031_G_A # looks okay 
+
+######################################################################################################
 
