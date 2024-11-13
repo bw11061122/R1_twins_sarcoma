@@ -635,6 +635,9 @@ write.table(mut_included, 'Data/mutations_include_20241106_771.txt', quote = FAL
 # different LQ pileup filtering
 write.table(mut_included_2, 'Data/mutations_include_20241106_312.txt', quote = FALSE, col.names = F, row.names = F)
 
+######################################################################################################
+# SAVE THE DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS)
+write.csv(twins_dt_filters, 'Data/twins_dt_filters_20241112.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # Plot distribution of mutational classes on full and filtered dataset
