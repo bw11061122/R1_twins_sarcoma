@@ -5,46 +5,18 @@
 # INPUT: merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples
 # dataframe created in the script: 20241015_pileup_checks.R (pileup run 14/10/2024-15/10/2024)
 
-# OUTPUT: list of mutations which pass required filters and will be used for phylogeny reconstruction
+# OUTPUT:
+# 1 list of mutations which pass required filters and will be used for phylogeny reconstruction
+# 2 dataframe with pass/fail status for each mutation for each filter 
+# 3 complete dataframe (pileup data + pass/fail status for each mutation for each filter)
+# 4 trinucleotide context plots: signatures of mutations retained after employing each filter 
 
 # NOTE ON ADDING COLUMNS WITH FILTERS 
-# I want to add a column which says 0 if sample is fine and 1 if sample is wrong 
-
-# COLUMNS (from the header)
-##FORMAT-:DEP	Total reads covering this position (for subs del positions should be ignored)
-##FORMAT-:FAZ	Reads presenting A for this position, forward strand
-##FORMAT-:FCZ	Reads presenting C for this position, forward strand
-##FORMAT-:FGZ	Reads presenting G for this position, forward strand
-##FORMAT-:FTZ	Reads presenting T for this position, forward strand
-##FORMAT-:MDR	Variant allele read directions 0=no reads; 1=Forward; 2=Reverse; 3=Forward + Reverse
-##FORMAT-:MTR	Reads reporting the variant allele
-##FORMAT-:OFS	Original filter status as defined in input vcf FILTER field
-##FORMAT-:RAZ	Reads presenting A for this position, reverse strand
-##FORMAT-:RCZ	Reads presenting C for this position, reverse strand
-##FORMAT-:RGZ	Reads presenting G for this position, reverse strand
-##FORMAT-:RTZ	Reads presenting T for this position, reverse strand
-##FORMAT-:VAF	Variant Allele Fraction (excludes ambiguous reads if any)
-##FORMAT-:WDR	Reference allele read directions 0=no reads; 1=Forward; 2=Reverse; 3=Forward + Reverse
-##FORMAT-:WTR	Reads reporting the reference allele
-##FILTER-:1	New filter status 1=not called in any sample
-##FILTER-:2	New filter status 2=called in at least one sample
-##FILTER-:3	New filter status 3=called + passed
-##FILTER-:BD	Location from bed file
-##ORIGINAL_FILTER-:CR	Position falls within a centromeric repeat using the supplied bed file
-##ORIGINAL_FILTER-:DTH	Less than 1/3 mutant alleles were >= 25 base quality
-##ORIGINAL_FILTER-:GI	Position falls within a germline indel using the supplied bed file
-##ORIGINAL_FILTER-:HSD	Position falls within a high sequencing depth region using the supplied bed file
-##ORIGINAL_FILTER-:MN	More than 0.05 of mutant alleles that were >= 15 base quality found in the matched normal
-##ORIGINAL_FILTER-:MNP Tumour sample mutant allele proportion - normal sample mutant allele proportion < 0.2
-##ORIGINAL_FILTER-:MQ	Mean mapping quality of the mutant allele reads was < 21
-##ORIGINAL_FILTER-:PH	Mutant reads were on one strand (permitted proportion on other strand: 0.04), and mean mutant base quality was less than 21
-##ORIGINAL_FILTER-:PT	Mutant alleles all on one direction of read (1rd allowed on opposite strand) and in second half of the read. Second half of read contains the motif GGC[AT]G in sequenced orientation and the mean base quality of all bases after the motif was less than 20
-##ORIGINAL_FILTER-:RP	Coverage was less than 8 and no mutant alleles were found in the first 2/3 of a read (shifted 0.08 from the start and extended 0.08 more than 2/3 of the read length)
-##ORIGINAL_FILTER-:SE	Coverage is >= 10 on each strand but mutant allele is only present on one strand
-##ORIGINAL_FILTER-:SR	Position falls within a simple repeat using the supplied bed file
-##ORIGINAL_FILTER-:VUM	Position has >= 3 mutant allele present in at least 1 percent unmatched normal samples in the unmatched VCF
+# 0 indicates that filter is passed; 1 indicates that filter is failed (sample does not meet the criteria and should be excluded) 
 
 ###################################################################################################################################
+# LIBRARIES
+
 # Load needed libraries
 library(data.table)
 library(dplyr)
@@ -61,6 +33,8 @@ library(GenomicRanges)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
 ###################################################################################################################################
+# INPUT
+
 # Read the merged dataframe 
 setwd('/Users/bw18/Desktop/1SB')
 twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv'))
@@ -69,56 +43,30 @@ twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv'))
 twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
+# Print the number of unique mutations identified in at least one sample (ie how many mutations do I have?)
+paste('Number of unique mutations identified across samples:', dim(twins_dt)[1]) # 362,814
+paste('Number of unique mutations identified across samples (check for duplicates):', length(twins_dt[, mut_ID] %>% unlist() %>% unique())) # 362,814
+
 ###################################################################################################################################
-# Specify settings for plotting 
+# PLOT SETTINGS
+# Specify colors for plotting 
 col_tumour = '#ad0505'
 col_normal = '#07a7d0'
-col_PD62341 = "#8909c1"
-col_PD63383 = "#bca4f6"
-col_tumour_PD62341 = "#980505"
-col_tumour_PD63383 = "#eb6767"
-col_normal_PD62341 = "#0785a5"
-col_normal_PD63383 = "#70c6db"
+col_PD62341 = "#0ac368"
+col_PD63383 = "#a249e8"
+col_tumour_PD62341 = "#099272"
+col_tumour_PD63383 = "#6F09D4"
+col_normal_PD62341 = "#71D99B"
+col_normal_PD63383 = "#C99DF6"
 col_bar = '#e87811'
 
 ######################################################################################################
 # SAMPLES
+
 # Examine which samples are being analysed 
-samples = colnames(twins_dt[,c(seq(2, 330, 15))])
+samples = grep("_MTR", names(twins_dt), value = TRUE) # MTR = number of variant reads 
 samples = sapply(strsplit(samples,"_"), `[`, 1)
 paste('Number of samples analysed:', length(samples)) # remove the PD38is_wgs sample: not from the samples of interest
-
-# KEY TO SAMPLES PRESENT IN THE DATAFRAME 
-
-# PD62341 NORMAL
-# "PD62341n" - liver and nodules
-# "PD62341h" - heart (left ventricle)
-# "PD62341v" - spleen 
-# "PD62341q" - pancreas
-# "PD62341aa" - skin 
-# "PD62341ad" - cerebellum
-
-# PD62341 TUMOUR 
-# "PD62341u" - tumour (liver hilum)
-# "PD62341b" - tumour (left adrenal)
-# "PD62341ae" - tumour (brain)
-# "PD62341ag" - tumour (brain)
-# "PD62341aj" - tumour (brain)
-# "PD62341ak" - tumour 
-# "PD62341am" - tumour 
-# "PD62341ap" - tumour 
-
-# PD63383 NORMAL
-# "PD63383w" - spleen
-# "PD63383t" - liver 
-# "PD63383u" - pancreas
-# "PD63383ae" - left ventricle
-# "PD63383ak" - cerebellum 
-# "PD63383bb" - skin 
-
-# PD63383 TUMOUR
-# "PD63383ap" - tumour
-# "PD63383aq" - tumour
 
 # create lists of possible samples of interest
 samples_names = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak", "PD63383bb","PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap", "PD63383ap", "PD63383aq", "PD62341b", "PD62341h", "PD62341n", "PD62341u")
@@ -168,18 +116,20 @@ samples_PD63383_dep = paste(samples_PD63383, 'DEP', sep='_')
 samples_PD63383_vaf = paste(samples_PD63383, 'VAF', sep='_')
 
 ######################################################################################################
-# CHECKS 
-
-# Determine the number of unique mutations identified in at least one sample (ie how many mutations do I have?)
-paste('Number of unique mutations identified across samples:', dim(twins_dt)[1]) # 362,814
-paste('Number of unique mutations identified across samples (check):', length(twins_dt[, mut_ID] %>% unlist() %>% unique())) # 362,814
-
-# Check that class of each column makes sense
-sapply(twins_dt, class) # all fine 
+# LIST OF APPLIED FILTERS 
+# 1 Exclude mutations mapped to chromosome Y
+# 2 Exclude mutations within 30 base pairs of an indel
+# 3a Exclude mutations with median coverage < 15 in normal samples
+# 3b Exclude mutations with median coverage > 60 in normal samples
+# 4 Require mutation to be well mapped (MTR >= 4 AND VAF >= 0.1) in at least one sample
+# 5 Exclude mutations exhibiting strand bias in mutant reads but not in wild type reads across all samples
+# 6 Exclude mutations with substantial poor quality mapping (ratio of reads mapped in high vs low quality pileup < 0.7)
+# 7 Exclude mutations identified as germline both normal samples of PD62341 AND normal samples of PD63383 in low-quality pileup 
 
 ######################################################################################################
 # 1 FILTERING OUT READS MAPPING TO CHROMOSOME Y: EXCLUDE MUTATIONS MAPPED TO Y
 
+# Add column to indicate read mapping to chromosome Y
 twins_dt[, f1_mappedY := as.numeric(Chrom=='chrY')]
 paste('Number of mutations mapped to chromosome Y:', dim(twins_dt[f1_mappedY==1])[1]) # 277
 
@@ -187,18 +137,19 @@ paste('Number of mutations mapped to chromosome Y:', dim(twins_dt[f1_mappedY==1]
 # 2 FILTERING BASED ON DISTANCE TO INDELS (DATA FROM PINDEL)
 # Remove substitutions present next to any indels, as these are often poor quality (indels can lead to mapping issues) 
 
-# Read indels (coordinates of low and high quality indels)
+# Read indel dataframe (coordinates of low and high quality indels)
 indel_all = data.table(read.csv('Data/PD62341_PD63382_unmatched_indels_pass_or_fail.txt', sep = '\t', header = FALSE))
 setnames(indel_all, c('V1', 'V2', 'V3', 'V4'), c('Chrom', 'pos', 'ref', 'alt'))
 indel_all[,mut_ID := paste(Chrom, pos, ref, alt, sep = '_')]
 indel_all_id = indel_all[, mut_ID] %>% unlist()
 paste("Number of indels identified in the dataset:", length(indel_all_id)) # 2,728,148
 
-# exclude reads where reference not mapped
+# Exclude reads where reference not mapped
 indel_all_dt = indel_all[!is.na(ref)]
 indel_all_dt[, length := str_count(alt) - str_count(ref)]
 
-# add start and end coordinates depending on if you have insertion or deletion (30 bp around the deletion)
+# Add start and end coordinates 30 bp around the deletion
+# Identify boundaries of regions to screen for presence of substitutions to remove 
 indel_all_dt[, start30 := pos - 30]
 indel_all_dt[, end30 := pos + abs(length) + 30]
 
@@ -211,6 +162,7 @@ chrom_end = indel_all_dt[, chrom_end] %>% unique() %>% unlist()
 twins_coord = twins_dt[, c('mut_ID', 'Chrom', 'Pos'), with=FALSE]
 twins_coord[, coord := paste(Chrom, Pos, sep = '_')]
 
+# Identify mutations close to indels present on each chromosome 
 mut_indels = c()
 for (chr in twins_coord[, Chrom] %>% unlist() %>% unique()){
   tc = twins_coord[Chrom==chr]
@@ -221,260 +173,110 @@ for (chr in twins_coord[, Chrom] %>% unlist() %>% unique()){
   mut_indels = c(mut_indels, res[, mut_ID] %>% unlist())
 }
 
+# Add column to indicate mutation being present nearby an indel 
 twins_dt[, f2_FailedIndelNearby30 := as.numeric(mut_ID %in% mut_indels)]
 paste('Number of mutations near poor-quality indels:', dim(twins_dt[f2_FailedIndelNearby30==1])[1]) # 13,524
 
 ######################################################################################################
-# 3 COVERAGE, NUMBER OF VARIANT READS, VAF
+# 3 FILTERING BASED ON COVERAGE 
 
-# check that DEPTH = MTR + WTR (mutant + wt reads)
-paste('Fraction of DEP = MTR + WTR:', dim(twins_dt[PD62341ak_MTR+PD62341ak_WTR==PD62341ak_DEP])[1] / dim(twins_dt)[1]) # 1
-
-# for each mutation, get data on MTR (nr mutant reads), DEP (total nr of reads), VAF
-# create subsetted dataframes with this information only
-twins_mtr = twins_dt[,c('mut_ID', samples_mtr), with=FALSE]
-twins_dep = twins_dt[,c('mut_ID', samples_dep), with=FALSE]
-twins_vaf = twins_dt[,c('mut_ID', samples_vaf), with=FALSE]
-
-# determine min, max and mean nr of variant reads / depth / vaf
-twins_mtr[,mean_mtr := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_mtr]
-twins_mtr[,median_mtr := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_mtr]
-twins_mtr[,min_mtr := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_mtr]
-twins_mtr[,max_mtr := apply(.SD, 1, max), .SDcols = samples_mtr]
-
-twins_dep[,mean_dep := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_dep]
-twins_dep[,median_dep := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_dep]
-twins_dep[,min_dep := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_dep]
-twins_dep[,max_dep := apply(.SD, 1, max), .SDcols = samples_dep]
-
-twins_vaf[,mean_vaf := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_vaf]
-twins_vaf[,median_vaf := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_vaf]
-twins_vaf[,min_vaf := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_vaf]
-twins_vaf[,max_vaf := apply(.SD, 1, max), .SDcols = samples_vaf]
-
-# determine this specifically in normal samples (in case of ploidy changes in the tumour)
-twins_mtr[,mean_mtr_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_normal_mtr]
-twins_mtr[,median_mtr_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_normal_mtr]
-twins_mtr[,min_mtr_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_normal_mtr]
-twins_mtr[,max_mtr_normal := apply(.SD, 1, max), .SDcols = samples_normal_mtr]
-
-twins_dep[,mean_dep_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_normal_dep]
-twins_dep[,median_dep_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_normal_dep]
-twins_dep[,min_dep_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_normal_dep]
-twins_dep[,max_dep_normal := apply(.SD, 1, max), .SDcols = samples_normal_dep]
-
-twins_vaf[,mean_vaf_normal := apply(.SD, 1, function(x) mean(x[x>0])), .SDcols = samples_normal_vaf]
-twins_vaf[,median_vaf_normal := apply(.SD, 1, function(x) median(x[x>0])), .SDcols = samples_normal_vaf]
-twins_vaf[,min_vaf_normal := apply(.SD, 1, function(x) min(x[x>0])), .SDcols = samples_normal_vaf]
-twins_vaf[,max_vaf_normal := apply(.SD, 1, max), .SDcols = samples_normal_vaf]
+# Exclude mutations with median coverage < 15 or > 60 in normal samples
+twins_dt[, median_dep_normal := apply(.SD, 1, function(x) median(x)), .SDcols = samples_dep] # calculate median depth across all normal samples 
+twins_dt[,f3_lowDepthNormal := as.numeric(median_dep_normal < 15)] # 1 if median depth is below 15 
+twins_dt[,f3_highDepthNormal := as.numeric(median_dep_normal > 60)] # 1 if median depth is above 60
+paste('Number of sites with median coverage below 15 (normal samples):', dim(twins_dt[f3_lowDepthNormal==1])[1]) # 9,041
+paste('Number of sites with median coverage above 60 (normal samples):', dim(twins_dt[f3_highDepthNormal==1])[1]) # 527
 
 ######################################################################################################
-# 3 FILTERING BASED ON COVERAGE (total number of reads covering a base)
+# 4 FILTERING BASED ON EVIDENCE IN MIN 1 SAMPLE
 
-# Filter out mutations which have consistently low or high coverage
-# Based on the histogram (20241011_pileup_qcplots.R), the appropriate boundaries are perhaps 20 and 50
-# I'm debating what exact coverage value would be best to use to max specificity / sensitivity 
-# I decided to go less stringent than this to not exclude good mutations 
-# Default cut-off in Sequoia (clonal samples) is median > 10x and < 500x, but it is perhaps better to use thresholds based on the coverage distirbution in my samples 
-paste('Number of sites with median coverage below 15 (normal samples):', dim(twins_dep[median_dep_normal < 15])[1]) # 9,215
-paste('Number of sites with median coverage above 60 (normal samples):', dim(twins_dep[median_dep_normal > 60])[1]) # 500
-
-# Filter out mutations where there are no reads in at least 1 sample (cannot tell status in the sample)
-twins_dep[,sum_no_reads := rowSums(.SD==0), .SDcols = samples_normal_dep]
-paste('Number of mutations w/o any reads in at least one sample:', dim(twins_dep[sum_no_reads>0])[1]) # 2,720
-
-# Add columns with specific filters
-twins_dep[,f3_lowDepthNormal := as.numeric(median_dep_normal < 15)] # 1 if does not pass the filter 
-twins_dep[,f3_highDepthNormal := as.numeric(median_dep_normal > 60)] # 1 if does not pass the filter
-twins_dep[,f3_noReadsMapped := as.numeric(sum_no_reads > 0)] # 1 if does not pass the filter
-
-######################################################################################################
-# FILTERING BASED ON NUMBER OF VARIANT READS (MTR)
-
-# 1 count samples with MTR > 4 and with MTR = 0
-twins_mtr[,sum_mtr0 := rowSums(.SD==0), .SDcols = samples_mtr]
-twins_mtr[,sum_mtr4 := rowSums(.SD>=4), .SDcols = samples_mtr]
-twins_mtr[,sum_mtr0_normal := rowSums(.SD==0), .SDcols = samples_normal_mtr] # specific to normal samples (tumour lost chr1/18)
-twins_mtr[,sum_mtr4_normal := rowSums(.SD>=4), .SDcols = samples_normal_mtr] # specific to normal samples (tumour lost chr1/18)
-
-# 2 identify mutations present in all samples (by MTR = 4 cut-off)
-paste('Number of mutations identified in all samples (MTR >= 4 in all):', dim(twins_mtr[sum_mtr4==length(samples)])[1]) # 322,563
-
-# 3 identify mutations present in no samples (by MTR = 4 cut-off)
-paste('Number of mutations identified in no samples (MTR < 4 in all):', dim(twins_mtr[sum_mtr4==0])[1]) # 5,310
-
-# 4 identify mutations present in ONLY one sample (by MTR = 4 cut-off)
-# Those probably won't be any useful but we may want to check they really are absent everywhere else
-# A lot of those look a bit dodgy / in regions with truncations / very few reads mapped or poor mapping quality  
-paste('Number of mutations identified in only one sample (at MTR >= 4):', dim(twins_mtr[sum_mtr4==1])[1]) # 1,704
-paste('Number of mutations identified in only one NORMAL sample (at MTR >= 4):', dim(twins_mtr[sum_mtr4_normal==1])[1]) # 1,760
-
-# 5 check for mutations absent in one sample
-paste('Number of mutations absent in only one sample (at MTR >= 4):', dim(twins_mtr[sum_mtr0==1])[1]) # 10,389 - most on chr1/18 due to loss in tumour samples
-paste('Number of mutations absent in only one NORMAL sample (at MTR >= 4):', dim(twins_mtr[sum_mtr0_normal==1])[1]) # 1,867
-
-# Add filter columns
-twins_mtr[,f4_mtr4_presentInAll := as.numeric(sum_mtr4==length(samples))] # present in all samples with MTR >= 4 # 322,563
-twins_mtr[,f4_mtr4_presentInNone := as.numeric(sum_mtr4==0)] # no sample with MTR >= 4 # 5310
-twins_mtr[,f4_mtr4_presentInOne := as.numeric(sum_mtr4==1)] # only 1 sample with MTR >= 4 # 1704
-twins_mtr[,f4_mtr4_absentInOne := as.numeric(sum_mtr4==length(samples_names)-1)] # only 1 sample with MTR < 4 # 3504
-
-# Get a list of mutations which pass the MTR filter (they are mapped with 4 reads in at least one case)
-muts_mapped_mtr = twins_mtr[f4_mtr4_presentInNone==0, mut_ID] %>% unlist()
-
-######################################################################################################
-# FILTERING BASED ON VAF
-
-# require VAF > 0.1 in at least one sample 
-twins_vaf[, f5_absentAllVaf := as.numeric(max_vaf < 0.1)] 
-paste("Number of mutations which don't reach VAF 0.1 in any sample:", dim(twins_vaf[f5_absentAllVaf==1])[1]) # 1,479
-
-# exclude mutations with VAF > 0.4 in all samples (i.e., present everywhere at high levels)
-twins_vaf[, f5_presentAllVaf := as.numeric(min_vaf > 0.4)] 
-paste("Number of mutations present in all samples (VAF > 0.4):", dim(twins_vaf[f5_presentAllVaf==1])[1]) # 21,828
-
-######################################################################################################
-# FILTERING BASED ON GOOD MAPPING IN AT LEAST 1 SAMPLE
-
-# Require correct mapping (MTR >= 4 and VAF >= 0.1) in THE SAME sample - i.e., require a sample where everything is correct
-twins_mtr_vaf = twins_dt[, c('mut_ID', samples_mtr, samples_vaf), with=FALSE]
+# Require that in at least sample, the mutation is supported by good evidence (MTR >= 4 AND VAF >= 0.1 in at least one sample)
 
 # for each sample, check if the sample has MTR >= 4 and VAF >= 0.1
 # 0 if both are fulfilled, 1 if either is not 
-
 for(sample in samples_names){
-    twins_sample = twins_mtr_vaf[, c('mut_ID', glue('{sample}_MTR'), glue('{sample}_VAF'))]
-    setnames(twins_sample, c(glue('{sample}_MTR'), glue('{sample}_VAF')), c('mtr', 'vaf'))
-    twins_sample[, glue('f6_{sample}') :=  1 - as.numeric(mtr >= 4) * as.numeric(vaf >= 0.1)]
-    twins_mtr_vaf = merge(twins_mtr_vaf, twins_sample[, c('mut_ID', glue('f6_{sample}')), with = FALSE], by = 'mut_ID')
+  twins_sample = twins_dt[, c('mut_ID', glue('{sample}_MTR'), glue('{sample}_VAF'))]
+  setnames(twins_sample, c(glue('{sample}_MTR'), glue('{sample}_VAF')), c('mtr', 'vaf'))
+  twins_sample[, glue('f4_{sample}') :=  1 - as.numeric(mtr >= 4) * as.numeric(vaf >= 0.1)]
+  twins_dt = merge(twins_dt, twins_sample[, c('mut_ID', glue('f4_{sample}')), with = FALSE], by = 'mut_ID')
 }
 
-f6_samples = paste0('f6_', samples_names)
-twins_mtr_vaf[, f6_sum := rowSums(.SD == 0), .SDcols = f6_samples]
-twins_mtr_vaf[, f6_mtrAndVaf := as.numeric(f6_sum == 0)] # 0 if VAF > 0.1 and MTR > 4 in at least one sample
-paste("Number of mutations which are NOT well mapped by both MTR and VAF in at least 1 sample:", dim(twins_mtr_vaf[f6_mtrAndVaf==1])[1]) # 5,501
+f4_samples = paste0('f4_', samples_names)
+twins_dt[, f4_sum := rowSums(.SD == 0), .SDcols = f4_samples]
+twins_dt[, f4_mtrAndVaf := as.numeric(f4_sum == 0)] # 0 if VAF > 0.1 and MTR > 4 in at least one sample
+paste("Number of mutations which are NOT well mapped by both MTR and VAF in at least 1 sample:", dim(twins_dt[f4_mtrAndVaf==1])[1]) # 5,501
 
 ######################################################################################################
-# EXCLUDE LIKELY GERMLINE MUTATIONS BASED ON EXACT BINOMIAL
+# 5 FILTERING BASED ON STRAND BIAS (IN VARIANT READS, BUT NOT WT READS TO INCREASE SPECIFICITY)
 
-twins_normal = twins_dt[, c('mut_ID', samples_normal_mtr, samples_normal_dep), with=FALSE]
-twins_normal[, sum_MTR_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
-twins_normal[, sum_DEP_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
-twins_normal[, sum_MTR_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
-twins_normal[, sum_DEP_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
-twins_normal[, sum_MTR_all := sum_MTR_PD62341 + sum_MTR_PD63383]
-twins_normal[, sum_DEP_all := sum_DEP_PD62341 + sum_DEP_PD63383]
+# define the function to obtain p value from 2-sided exact binomial test 
+bin_test_2sided <- function(a, b, p = 0.5) {
+  if (b > 0) {binom.test(a, b, 0.5, alternative = c("two.sided"), conf.level = 0.95)$p.value}
+  else {2}} # if no reads are mapped at all, return 2 so these cases can be easily identified and excluded
 
-# remove rows where there is no coverage (total or in either twin)
-twins_normal = twins_normal[(sum_DEP_all!=0 & sum_DEP_PD62341!=0 & sum_DEP_PD63383!=0)]
-
-# function to run binomial test
-bin_test_less <- function(a, b, p = 0.5) {binom.test(a, b, 0.5, alternative=
-                                                  c("less"), conf.level = 0.95)$p.value}
-
-# stat test 
-twins_normal[, p_val_PD62341 := mapply(bin_test_less, sum_MTR_PD62341, sum_DEP_PD62341)]
-twins_normal[, p_val_PD63383 := mapply(bin_test_less, sum_MTR_PD63383, sum_DEP_PD63383)]
-twins_normal[, p_val_all := mapply(bin_test_less, sum_MTR_all, sum_DEP_all)]
-
-# Add column as a filter (NOTE: H0 is germline so if p > 0.01 you don't reject H0)
-twins_normal[, f7_likelyGermline_PD62341 := as.numeric(p_val_PD62341 >= 0.01/dim(twins_normal)[1])]
-twins_normal[, f7_likelyGermline_PD63383 := as.numeric(p_val_PD63383 >= 0.01/dim(twins_normal)[1])] 
-twins_normal[, f7_likelyGermline_aggTwins := as.numeric(p_val_all >= 0.01/dim(twins_normal)[1])]  
-twins_normal[, f7_likelyGermline_bothTwins := as.numeric(f7_likelyGermline_PD62341==1 & f7_likelyGermline_PD63383==1)]  
-paste('Number of likely germline mutations (PD62341):', dim(twins_normal[f7_likelyGermline_PD62341==1])[1]) # 353,597
-paste('Number of likely germline mutations (PD63383):', dim(twins_normal[f7_likelyGermline_PD63383==1])[1]) # 353,817
-paste('Number of likely germline mutations (agg twins):', dim(twins_normal[f7_likelyGermline_aggTwins==1])[1]) # 351,674
-paste('Number of likely germline mutations (PD62341 + PD63383):', dim(twins_normal[f7_likelyGermline_bothTwins==1])[1]) # 353,109
-
-# write IDs of likely germline mutations to csv
-germline_mutations = twins_normal[f7_likelyGermline_bothTwins==1, mut_ID] %>% unlist()
-write.table(germline_mutations, 'Data/mutations_likely_germline_20241106.txt', quote = FALSE, col.names = F, row.names = F)
-
-######################################################################################################
-# FILTERING BASED ON STRAND BIAS (IN VARIANT READS)
-
-bin_test_2sided <- function(a, b, p = 0.5) {binom.test(a, b, 0.5, alternative = c("two.sided"), conf.level = 0.95)$p.value}
-
-# Subset strand information (for normal and tmour samples)
+# Subset strand information (for normal and tumour samples)
 forward_cols = grep("_FAZ|_FCZ|_FTZ|_FGZ", names(twins_dt), value = TRUE) 
-forward_cols = grep('PD6', forward_cols, value=TRUE) # I don't want PD38is_wgs
 reverse_cols = grep("_RAZ|_RCZ|_RTZ|_RGZ", names(twins_dt), value = TRUE) 
-reverse_cols = grep('PD6', reverse_cols, value=TRUE) # I don't want PD38is_wgs
 
-# for each mutation, select relevant forward and reverse reads (corresponding to the Alt variant)
-twins_strands = twins_dt[,c('mut_ID', 'Ref', 'Alt', forward_cols, reverse_cols), with=FALSE]
-twins_strands[, (forward_cols) := lapply(.SD, as.numeric), .SDcols = forward_cols]
-twins_strands[, (reverse_cols) := lapply(.SD, as.numeric), .SDcols = reverse_cols]
+# 1 Strand bias across all reads  
+twins_dt[,sum_FAZ := rowSums(.SD), .SDcols = patterns("_FAZ", cols = forward_cols)]
+twins_dt[,sum_FTZ := rowSums(.SD), .SDcols = patterns("_FTZ", cols = forward_cols)]
+twins_dt[,sum_FCZ := rowSums(.SD), .SDcols = patterns("_FCZ", cols = forward_cols)]
+twins_dt[,sum_FGZ := rowSums(.SD), .SDcols = patterns("_FGZ", cols = forward_cols)]
 
-twins_strands[, forward_mut := sapply(1:.N, function(row) {
-  alt = Alt[row]
-  cols_to_sum = names(twins_strands)[grepl(paste0('F', alt, 'Z'), names(twins_strands))]
-  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
-})]
+twins_dt[,sum_RAZ := rowSums(.SD), .SDcols = patterns("_RAZ", cols = reverse_cols)]
+twins_dt[,sum_RTZ := rowSums(.SD), .SDcols = patterns("_RTZ", cols = reverse_cols)]
+twins_dt[,sum_RCZ := rowSums(.SD), .SDcols = patterns("_RCZ", cols = reverse_cols)]
+twins_dt[,sum_RGZ := rowSums(.SD), .SDcols = patterns("_RGZ", cols = reverse_cols)]
 
-twins_strands[, reverse_mut := sapply(1:.N, function(row) {
-  alt = Alt[row]
-  cols_to_sum = names(twins_strands)[grepl(paste0('R', alt, 'Z'), names(twins_strands))]
-  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
-})]
-
-# aggregate across all samples 
-twins_strands[, sum_all_mut := forward_mut + reverse_mut]
+twins_dt[,sum_forward := sum_FAZ + sum_FCZ + sum_FTZ + sum_FGZ]
+twins_dt[,sum_reverse := sum_RAZ + sum_RCZ + sum_RTZ + sum_RGZ]
+twins_dt[,sum_all := sum_forward + sum_reverse]
 
 # Filter out mutations where sum of forward + reverse = 0
-twins_strands = twins_strands[sum_all_mut!=0] 
-twins_strands[, p_val_mut := mapply(bin_test_2sided, forward_mut, sum_all_mut)]
+twins_dt[, p_val := mapply(bin_test_2sided, sum_forward, sum_all)]
 
 # correct for multiple testing (Bonferroni correction for nr of tests)
-twins_strands[, significance_mut := as.factor(fcase( 
-  p_val_mut < 0.01/dim(twins_strands)[1], 'significant', # differs from 0.5 so biased and maybe we don't want it
-  p_val_mut >= 0.01/dim(twins_strands)[1], 'not_significant'
-))] # really want to minimize false positives because there is a risk of throwing away high-quality mutations
-
-# Add column as a filter 
-twins_strands[, f8_strandBiasMut := as.numeric(significance_mut == 'significant')] 
-paste('Number of mutations which show strand bias (across mutant reads):', dim(twins_strands[f8_strandBiasMut==1])[1]) # 10,905
-
-# strand bias in normal reads 
-twins_strands[,sum_FAZ := rowSums(.SD), .SDcols = patterns("_FAZ", cols = names(twins_strands))]
-twins_strands[,sum_FTZ := rowSums(.SD), .SDcols = patterns("_FTZ", cols = names(twins_strands))]
-twins_strands[,sum_FCZ := rowSums(.SD), .SDcols = patterns("_FCZ", cols = names(twins_strands))]
-twins_strands[,sum_FGZ := rowSums(.SD), .SDcols = patterns("_FGZ", cols = names(twins_strands))]
-
-twins_strands[,sum_RAZ := rowSums(.SD), .SDcols = patterns("_RAZ", cols = names(twins_strands))]
-twins_strands[,sum_RTZ := rowSums(.SD), .SDcols = patterns("_RTZ", cols = names(twins_strands))]
-twins_strands[,sum_RCZ := rowSums(.SD), .SDcols = patterns("_RCZ", cols = names(twins_strands))]
-twins_strands[,sum_RGZ := rowSums(.SD), .SDcols = patterns("_RGZ", cols = names(twins_strands))]
-
-twins_strands[,sum_forward := sum_FAZ + sum_FCZ + sum_FTZ + sum_FGZ]
-twins_strands[,sum_reverse := sum_RAZ + sum_RCZ + sum_RTZ + sum_RGZ]
-twins_strands[,sum_all := sum_forward + sum_reverse]
-
-# Filter out mutations where sum of forward + reverse = 0
-twins_strands = twins_strands[sum_all!=0] 
-twins_strands[, p_val := mapply(bin_test_2sided, sum_forward, sum_all)]
-
-# correct for multiple testing (Bonferroni correction for nr of tests)
-twins_strands[, significance := as.factor(fcase( 
+twins_dt[, significance := as.factor(fcase( 
   p_val < 0.01/dim(twins_strands)[1], 'significant', # differs from 0.5 so biased and maybe we don't want it
   p_val >= 0.01/dim(twins_strands)[1], 'not_significant'
 ))]
 
-# Add column as a filter 
-twins_strands[, f8_strandBias := as.numeric(significance == 'significant')] 
-paste('Number of mutations which show strand bias (across all reads):', dim(twins_strands[f8_strandBias==1])[1]) # 19,481
+# 1 test for strand bias in mutant reads 
+# For each mutation, select relevant forward and reverse reads (corresponding to the Alt variant)
+twins_dt[, forward_mut := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = names(twins_dt)[grepl(paste0('F', alt, 'Z'), names(twins_dt))]
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
+})]  
+twins_dt[, reverse_mut := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = names(twins_dt)[grepl(paste0('R', alt, 'Z'), names(twins_dt))]
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
+})]
 
-# Ideally, I would like a better test to compare bias in mutant vs all reads, but this will do for now 
-twins_strands[, f8_strandBiasMutOnly := as.numeric(f8_strandBias==0 & f8_strandBiasMut==1)] 
-paste('Number of mutations which show strand bias (mutant reads only):', dim(twins_strands[f8_strandBiasMutOnly==1])[1]) # 1,539
+# Sum mutant reads (equivalent to N = number of trials) 
+twins_dt[, sum_all_mut := forward_mut + reverse_mut]
+
+# Calculate p value from exact binomial (forward reads = number of successes, all reads = number of trials)
+twins_dt[, p_val_mut := mapply(bin_test_2sided, forward_mut, sum_all_mut)]
+
+# correct for multiple testing (Bonferroni correction for nr of tests)
+twins_dt[, significance_mut := as.factor(fcase( 
+  p_val_mut < 0.01/dim(twins_dt)[1], 'significant', # support for H1; p < 0.5; include 
+  p_val_mut >= 0.01/dim(twins_dt)[1], 'not_significant' # no support for H1; likely germline  
+))] # really want to minimize false positives because there is a risk of throwing away high-quality mutations
+
+# Add column with strand bias filter 
+twins_strands[, f5_strandBiasMutOnly := as.numeric(significance==0 & significance_mut==1)] 
+paste('Number of mutations which show strand bias (mutant reads only):', dim(twins_strands[f5_strandBiasMutOnly==1])[1]) # 1,539
 
 ######################################################################################################
 # FILTERING BASED ON RATIO OF READS MAPPED IN HQ AND LQ PILEUP 
 
 # read in files with high and low quality pileup 
-twins_hq = data.table(read.csv('Data/pileup_merged_20241016.tsv'))
-twins_lq = data.table(read.csv('Data/pileup_merged_20241025.tsv'))
+twins_hq = data.table(read.csv('Data/pileup_merged_20241016.tsv')) # -mq 30   
+twins_lq = data.table(read.csv('Data/pileup_merged_20241025.tsv')) # -mq 5
 
 twins_PDv38is = grep("PDv38is", names(twins_hq), value = TRUE)
 twins_hq[, c(twins_PDv38is) := NULL]
@@ -551,24 +353,12 @@ length(setdiff(muts_exclude_lqpresent, germline_mutations)) # 2080
 # CREATE A DATAFRAME WHICH HAS ALL FILTERS TOGETHER
 
 # Extract dataframes with filters and merge with the main dataframe
-dep_filters = twins_dep[, c('mut_ID', "f3_highDepthNormal", 'f3_lowDepthNormal', 'f3_noReadsMapped'), with = FALSE]
-mtr_filters = twins_mtr[, c('mut_ID', 'f4_mtr4_presentInAll', 'f4_mtr4_presentInNone', 'f4_mtr4_presentInOne'), with = FALSE]
-vaf_filters = twins_vaf[, c('mut_ID', "f5_presentAllVaf", 'f5_absentAllVaf') , with = FALSE]
-mtr_vaf_filters = twins_mtr_vaf[, c('mut_ID', 'f6_mtrAndVaf'), with=FALSE]
-germline_filters = twins_normal[, c('mut_ID', "f7_likelyGermline_PD62341", "f7_likelyGermline_PD63383", 'f7_likelyGermline_aggTwins', "f7_likelyGermline_bothTwins"), with = FALSE]
 strand_filters = twins_strands[, c('mut_ID', 'f8_strandBias', 'f8_strandBiasMut', 'f8_strandBiasMutOnly'), with = FALSE]
-
-twins_dt_merge = merge(twins_dt, dep_filters, by = 'mut_ID')
-twins_dt_merge = merge(twins_dt_merge, mtr_filters, by = 'mut_ID')
-twins_dt_merge = merge(twins_dt_merge, vaf_filters, by = 'mut_ID')
-twins_dt_merge = merge(twins_dt_merge, mtr_vaf_filters, by = 'mut_ID')
-twins_dt_merge = merge(twins_dt_merge, germline_filters, by = 'mut_ID')
-twins_dt_filters = merge(twins_dt_merge, strand_filters, by = 'mut_ID')
+twins_dt_filters = merge(twins_dt, strand_filters, by = 'mut_ID')
 
 # add filter from beta-binomial (rho)
-twins_dt_filters[, f9_lowQualRatio := as.numeric(mut_ID %in% muts_exclude_ratio)]
-twins_dt_filters[, f9_lowQualPresent := as.numeric(mut_ID %in% muts_exclude_lqpresent)]
-twins_dt_filters[, f9_lowQualGermline := as.numeric(mut_ID %in% muts_exclude_lqgermline)]
+twins_dt_filters[, f6_lowQualRatio := as.numeric(mut_ID %in% muts_exclude_ratio)]
+twins_dt_filters[, f7_lowQualGermline := as.numeric(mut_ID %in% muts_exclude_lqgermline)]
 
 ######################################################################################################
 # CHECK NR OF MUTATIONS EXCLUDED IN EACH FILTER
@@ -580,64 +370,32 @@ dim(twins_dt_filters[f1_mappedY==1])[1] # 147
 dim(twins_dt_filters[f2_FailedIndelNearby30==1])[1] # 13,464
 dim(twins_dt_filters[f3_lowDepthNormal==1])[1] # 8,733
 dim(twins_dt_filters[f3_highDepthNormal==1])[1] # 500
-dim(twins_dt_filters[f3_noReadsMapped==1])[1] # 2,101
-dim(twins_dt_filters[f4_mtr4_presentInAll==1])[1] # 322,563
-dim(twins_dt_filters[f4_mtr4_presentInNone==1])[1] # 4,584
-dim(twins_dt_filters[f4_mtr4_presentInOne==1])[1] # 1,698
-dim(twins_dt_filters[f5_presentAllVaf==1])[1] # 21,061
-dim(twins_dt_filters[f5_absentAllVaf==1])[1] # 1033
-dim(twins_dt_filters[f6_mtrAndVaf==1])[1] # 4,739
-dim(twins_dt_filters[f7_likelyGermline_PD62341==1])[1] # 353,484
-dim(twins_dt_filters[f7_likelyGermline_PD63383==1])[1] # 353,705
-dim(twins_dt_filters[f7_likelyGermline_aggTwins==1])[1] # 351,595
-dim(twins_dt_filters[f7_likelyGermline_bothTwins==1])[1] # 353,004
-dim(twins_dt_filters[f8_strandBias==1])[1] # 19,481
-dim(twins_dt_filters[f8_strandBiasMut==1])[1] # 10,905
-dim(twins_dt_filters[f8_strandBiasMutOnly==1])[1] # 1,539
-dim(twins_dt_filters[f9_lowQualRatio==1])[1] # 13,619
-dim(twins_dt_filters[f9_lowQualPresent==1])[1] # 328,252
-dim(twins_dt_filters[f9_lowQualGermline==1])[1] # 351,714
+dim(twins_dt_filters[f4_mtrAndVaf==1])[1] # 4,739
+dim(twins_dt_filters[f5_strandBiasMutOnly==1])[1] # 1,539
+dim(twins_dt_filters[f6_lowQualRatio==1])[1] # 13,619
+dim(twins_dt_filters[f7_lowQualGermline==1])[1] # 351,714
 
 ######################################################################################################
 # Specify required filters 
-columns_req_filters1 = c('f1_mappedY', 'f2_FailedIndelNearby30', 
-                        'f3_lowDepthNormal', 'f3_highDepthNormal', 'f3_noReadsMapped',
-                        'f4_mtr4_presentInOne', 'f6_mtrAndVaf',
-                        'f8_strandBiasMutOnly', 'f9_lowQualRatio', 'f9_lowQualGermline')
-twins_dt_filters[, sum_req_filters1 := rowSums(.SD), .SDcols = columns_req_filters1] 
-mut_included_1 = twins_dt_filters[sum_req_filters1==0, mut_ID] %>% unlist()
-paste('Number of mutations that pass required filters (1):', dim(twins_dt_filters[sum_req_filters1==0])[1]) # 1002  
-write.table(mut_included_1, 'Data/mutations_include_20241106_1002.txt', quote = FALSE, col.names = F, row.names = F)
+columns_req_filters = c('f1_mappedY', 'f2_FailedIndelNearby30','f3_lowDepthNormal', 'f3_highDepthNormal', 
+                        'f4_mtrAndVaf', 'f5_strandBiasMutOnly', 'f6_lowQualRatio', 'f7_lowQualGermline')
+twins_dt_filters[, sum_req_filters := rowSums(.SD), .SDcols = columns_req_filters] 
+muts_included = twins_dt_filters[sum_req_filters==0, mut_ID] %>% unlist()
+paste('Number of mutations that pass required filters (1):', dim(twins_dt_filters[sum_req_filters==0])[1]) # 1002  
 
 ######################################################################################################
-cols_info = c('VariantID', 'Chrom', 'Pos', 'Ref', 'Alt', 'Qual', 'Filter', 'Gene', 'Transcript', 'RNA', 'CDS',
-              'Protein', 'Effect')
-twins_filtered = twins_dt_filters[sum_req_filters==0]
-twins_filtered_mtr = twins_filtered[, c('mut_ID', cols_info, samples_mtr), with=FALSE]
-twins_filtered_mtr[, (samples_mtr) := lapply(.SD, as.numeric), .SDcols = samples_mtr]
-twins_filtered_mtr[, sum_tumour := rowSums(.SD>=4), .SDcols = samples_tumour_mtr]
-twins_filtered_mtr[, sum_normal := rowSums(.SD>=4), .SDcols = samples_normal_mtr]
-twins_filtered_mtr[, sum_PD62341 := rowSums(.SD>=4), .SDcols = samples_PD62341_mtr]
-twins_filtered_mtr[, sum_PD63383 := rowSums(.SD>=4), .SDcols = samples_PD63383_mtr]
-twins_filtered_mtr[, sum_tumour_PD62341 := rowSums(.SD>=4), .SDcols = samples_tumour_PD62341_mtr]
-twins_filtered_mtr[, sum_tumour_PD63383 := rowSums(.SD>=4), .SDcols = samples_tumour_PD63383_mtr]
-twins_filtered_mtr[, sum_normal_PD62341 := rowSums(.SD>=4), .SDcols = samples_normal_PD62341_mtr]
-twins_filtered_mtr[, sum_normal_PD63383 := rowSums(.SD>=4), .SDcols = samples_normal_PD63383_mtr]
-mut_included = twins_filtered[, mut_ID] %>% unlist()
-paste('Number of retained mutations:', length(mut_included)) # 771
-
-######################################################################################################
-# SAVE FILTERED MUTATIONS TO A TXT FILE
+# OUTPUT 1: SAVE FILTERED MUTATIONS TO A TXT FILE
 paste('Number of mutations that passed required filters:', length(mut_included)) # 771
-write.table(mut_included, 'Data/mutations_include_20241106_771.txt', quote = FALSE, col.names = F, row.names = F)
+write.table(mut_included, 'Data/mutations_include_20241112_1002.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
-# different LQ pileup filtering
-write.table(mut_included_2, 'Data/mutations_include_20241106_312.txt', quote = FALSE, col.names = F, row.names = F)
+# OUTPUT 2: SAVE THE DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS)
+write.csv(twins_dt_filters, 'Data/twins_dt_filters_20241112_1002.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
-# SAVE THE DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS)
-write.csv(twins_dt_filters, 'Data/twins_dt_filters_20241112.csv', quote = FALSE, row.names = F)
+# OUTPUT 3: SAVE THE DATAFRAME TO A FILE (MUTATION + FILTERING STATUS ONLY)
+twins_dt_filters_info = twins_dt_filters[, c('mut_ID', columns_required_filters, 'sum_req_filters'), with=FALSE]
+write.csv(twins_dt_filters, 'Data/twins_status_filters_20241112_1002.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # Plot distribution of mutational classes on full and filtered dataset
