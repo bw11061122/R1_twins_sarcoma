@@ -1,13 +1,13 @@
 # Script to analyse the pileup (high quality, run 15/10/2024)
-# 2024-11-06
+# 2024-11-29
 # Barbara Walkowiak bw18
 
 # INPUT: 
 # 1 merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples
-# 2 list of mutations that passed required filters 
+# 2 list of mutations that passed required filters (from script: 20241011_pileup_filters.R)
 
-# Cleaned up script to identify mutations of interest 
-# Script to look at tumour-specific mutations and tumour evolution 
+# Script to identify regions of copy number alterations (deletions or duplications) in the germline
+# These regions can be small (several 100 kb) and would not be picked up by ASCAT 
 
 ###################################################################################################################################
 # Load needed libraries
@@ -35,25 +35,10 @@ twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv')) # import high
 twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
-# Filter to only include mutations retained for filtering 
+# Create a dataframe that only includes mutations retained post filtering  
 muts = read.table('Data/mutations_include_20241106_1002.txt') %>% unlist()
 paste('Number of mutations that passed required filters:', length(muts)) # 1002
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
-
-# Add column to indicate chromosomes lost in the tumour
-twins_filtered_dt[, loss := as.factor(fcase( 
-  Chrom %in% c('chr1', 'chr18'), 'loss in tumour', # chr1 and chr18 segments lost in tumour samples
-  !Chrom %in% c('chr1', 'chr18'), 'normal ploidy'
-))]
-
-# Import dataframe with purity estimates
-purity_dt = data.table(read.csv('Data/20241106_estimates_tumour_cont_68muts.csv'))
-# Note: technically for ak I am estimating 0.1 but this gives rise to ridiculous values
-# changed to .3 to see how it goes and will figure it out on Monday
-
-# Import list of driver genes (from Henry Lee-Six, 12/11/2024)
-driver_genes_dt = data.table(read.csv('Data/HLS_fibromatoses_driver_list_with_fusions.csv', header=T))
-driver_genes = driver_genes_dt[, gene] %>% unlist()
 
 ###################################################################################################################################
 # PLOT SETTINGS
