@@ -355,7 +355,7 @@ for (chr in Chrom){
     labs(x = 'Genomic position', y = 'Total coverage (all samples)', col = 'Mutation class')+
     ggtitle(glue('{chr}'))+
     xlim(c(0, length))
-  ggsave(glue('Results/20241114_dep_all_{chr}_col_mutsAll.pdf'), height=3, width=6.5)
+  ggsave(glue('Results/20241114_p2_dep_all_{chr}_col_mutsAll.pdf'), height=3, width=6.5)
 }
 
 for (chr in Chrom){
@@ -372,7 +372,7 @@ for (chr in Chrom){
     ggtitle(glue('{chr}'))+
     xlim(c(0, length))+
     ylim(c(0, 900))
-  ggsave(glue('Results/20241114_dep_normal_{chr}_col_mutsAllNormal.pdf'), height=3, width=6.5)
+  ggsave(glue('Results/20241114_p2_dep_normal_{chr}_col_mutsAllNormal.pdf'), height=3, width=6.5)
 }
 
 # for each chromosome, calculate the median depth of all mutations present on the chromosome
@@ -406,7 +406,7 @@ for (chr in Chrom){
       geom_hline(yintercept = as.numeric(dt[,median_dep_chr] %>% unique()), col = 'purple', linetype = 'dashed', size = 0.6, alpha = 0.8)+
       geom_hline(yintercept = as.numeric(dt[,upper_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)+
       geom_hline(yintercept = as.numeric(dt[,lower_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)
-    ggsave(glue('Results/20241114_dep_normal_{chr}_col_mutsAllNormal_thresholds.pdf'), height=3, width=5.5)
+    ggsave(glue('Results/20241114_p2_dep_normal_{chr}_col_mutsAllNormal_thresholds.pdf'), height=3, width=5.5)
 }
 
 ggplot(dt, aes(x = pos, y = dep_all_normal, col = mut_cat2, alpha = mut_cat2, order = mut_cat2))+
@@ -422,7 +422,7 @@ ggplot(dt, aes(x = pos, y = dep_all_normal, col = mut_cat2, alpha = mut_cat2, or
   geom_hline(yintercept = as.numeric(dt[,median_dep_chr] %>% unique()), col = 'purple', linetype = 'dashed', size = 0.6, alpha = 0.8)+
   geom_hline(yintercept = as.numeric(dt[,upper_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)+
   geom_hline(yintercept = as.numeric(dt[,lower_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)
-ggsave(glue('Results/20241114_dep_normal_{chr}_col_mutsAllNormal_thresholds_legend.pdf'), height=3, width=6.5)
+ggsave(glue('Results/20241114_p2_dep_normal_{chr}_col_mutsAllNormal_thresholds_legend.pdf'), height=3, width=6.5)
 
 # Identify mutations which are above or below the threshold 
 twins_dt[, CovThreshold := as.numeric(dep_all_normal < lower_dep | dep_all_normal > upper_dep)]
