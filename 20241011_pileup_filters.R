@@ -1,4 +1,7 @@
-# Script to analyse the pileup (run 15/10/2024)
+###################################################################################################################################
+# SCRIPT 1
+
+# Script to obtain set of mutations (SNVs) to reconstruct the phylogeny
 # 2024-10-11 - 2024-11-14
 # Barbara Walkowiak bw18
 

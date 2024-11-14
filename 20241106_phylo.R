@@ -1,3 +1,6 @@
+###################################################################################################################################
+# SCRIPT 5
+
 # Script to analyse the pileup (high quality, run 15/10/2024)
 # 2024-11-06
 # Barbara Walkowiak bw18
@@ -53,16 +56,17 @@ driver_genes = driver_genes_dt[, gene] %>% unlist()
 ###################################################################################################################################
 # PLOT SETTINGS
 
-# Specify settings for plotting 
+# Specify colors for plotting 
 col_tumour = '#ad0505'
 col_normal = '#07a7d0'
-col_PD62341 = "#8909c1"
-col_PD63383 = "#bca4f6"
-col_tumour_PD62341 = "#980505"
-col_tumour_PD63383 = "#eb6767"
-col_normal_PD62341 = "#0785a5"
-col_normal_PD63383 = "#70c6db"
+col_PD62341 = "#0ac368"
+col_PD63383 = "#a249e8"
+col_tumour_PD62341 = "#099272"
+col_tumour_PD63383 = "#6F09D4"
+col_normal_PD62341 = "#71D99B"
+col_normal_PD63383 = "#C99DF6"
 col_bar = '#e87811'
+
 
 ######################################################################################################
 # SAMPLES

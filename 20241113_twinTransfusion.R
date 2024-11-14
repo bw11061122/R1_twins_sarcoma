@@ -1,16 +1,17 @@
-# Script to analyse the pileup (run 15/10/2024)
-# 2024-10-11 - 2024-10-14
+###################################################################################################################################
+# SCRIPT 4
+
+# Script to analyse twin-twin transfusion (spleen contamination)
+# 2024-11-13
 # Barbara Walkowiak bw18
 
-# INPUT: merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples
-# dataframe created in the script: 20241015_pileup_checks.R (pileup run 14/10/2024-15/10/2024)
+# INPUT: 
+# 1 merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples
+# 2 list of mutations that passed required filters (1,134, 14/11/2024)
 
 # OUTPUT:
-# 1 list of mutations which pass required filters and will be used for phylogeny reconstruction
-# 2 dataframe with pass/fail status for each mutation for each filter 
-
-# NOTE ON ADDING COLUMNS WITH FILTERS 
-# 0 indicates that filter is passed; 1 indicates that filter is failed (sample does not meet the criteria and should be excluded) 
+# 1 estimates of twin-twin transfusion in spleen samples (fraction of PD62341 and PD63383 cells in each sample)
+# 2 analysis of telomere length across samples from normal tissues of twins 
 
 ###################################################################################################################################
 # LIBRARIES
@@ -42,22 +43,22 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Create a dataframe that only includes mutations retained post filtering  
-muts = read.table('Data/mutations_include_20241106_1002.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts)) # 1002
+muts = read.table('Data/mutations_include_20241114_1134.txt') %>% unlist()
+paste('Number of mutations that passed required filters:', length(muts)) # 1134
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 ###################################################################################################################################
 # PLOT SETTINGS
 
-# Specify settings for plotting 
+# Specify colors for plotting 
 col_tumour = '#ad0505'
 col_normal = '#07a7d0'
-col_PD62341 = "#8909c1"
-col_PD63383 = "#bca4f6"
-col_tumour_PD62341 = "#980505"
-col_tumour_PD63383 = "#eb6767"
-col_normal_PD62341 = "#0785a5"
-col_normal_PD63383 = "#70c6db"
+col_PD62341 = "#0ac368"
+col_PD63383 = "#a249e8"
+col_tumour_PD62341 = "#099272"
+col_tumour_PD63383 = "#6F09D4"
+col_normal_PD62341 = "#71D99B"
+col_normal_PD63383 = "#C99DF6"
 col_bar = '#e87811'
 
 ######################################################################################################
@@ -415,4 +416,10 @@ ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241113_telomeres_F4_by_tissue.pdf'), height = 3, width = 6.5)
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
+######################################################################################################
+# ALL DONE 
 
