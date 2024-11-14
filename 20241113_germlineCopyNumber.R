@@ -504,21 +504,30 @@ ggplot(twins_dt[f8_excludeCovThreshold == 0 & mut_ID %in% muts_included], aes(x 
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour_excludeCNGermline.pdf'), height=3.5, width=5.5)
 
 ######################################################################################################
-# Identify coordinates of regions with altered copy number 
-
-pos_copy_number = 
+# OUTPUT 1: SAVE FILTERED MUTATIONS TO A TXT FILE
+muts_copynumber_exclude = twins_dt[f8_excludeCovThreshold==1, mut_ID] %>% unlist()
+muts_retained = setdiff(muts_included, muts_copynumber_exclude)
+paste('Number of mutations retained after excluding likely copy number mutations:', length(muts_retained))
+write.table(muts_retained, 'Data/mutations_include_20241114_658.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
-# Identify mutations present in all samples yet at lower VAF, likely on copy-number altered regions 
+# OUTPUT 2: SAVE THE DATAFRAME WITH DATA + FILTERS TO A FILE (INCUDING ALL CLASSES OF FILTERS)
+write.csv(twins_dt, 'Data/twins_dt_filters_20241114_658_full.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
-# Are there mutations which are present in those regions at VAF indicative of lack of copy number change?
+# OUTPUT 3: SAVE THE DATAFRAME WITH FILTERS TO A FILE (INCUDING ALL CLASSES OF FILTERS)
+cols_filters = c('f1_mappedY', 'f2_FailedIndelNearby30','f3_lowDepthNormal', 'f3_highDepthNormal', 
+                'f4_mtrAndVaf', 'f5_strandBiasMutOnly', 'f6_lowQualRatio',
+                'f7_likelyGermline_bothTwins', 'f8_excludeCovThreshold')
+write.csv(twins_dt[, c('mut_ID', cols_filters), with=FALSE], 'Data/twins_dt_filters_20241114_658_filters.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 ######################################################################################################
 ######################################################################################################
 ######################################################################################################
 # ALL DONE  
+
+
 
 
 
