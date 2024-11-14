@@ -33,7 +33,7 @@ library(GenomicRanges)
 library(BSgenome.Hsapiens.UCSC.hg38)
 
 ###################################################################################################################################
-# INPUT
+# INPUT FILES
 
 # Read the merged dataframe 
 setwd('/Users/bw18/Desktop/1SB')
@@ -49,6 +49,7 @@ paste('Number of unique mutations identified across samples (check for duplicate
 
 ###################################################################################################################################
 # PLOT SETTINGS
+
 # Specify colors for plotting 
 col_tumour = '#ad0505'
 col_normal = '#07a7d0'
@@ -352,16 +353,21 @@ paste('Number of mutations that pass required filters (1):', dim(twins_dt[sum_re
 
 ######################################################################################################
 # OUTPUT 1: SAVE FILTERED MUTATIONS TO A TXT FILE
-write.table(muts_included, 'Data/mutations_include_20241113_1134.txt', quote = FALSE, col.names = F, row.names = F)
+write.table(muts_included, 'Data/mutations_include_20241114_1134.txt', quote = FALSE, col.names = F, row.names = F)
+
+######################################################################################################
+# OUTPUT 1: SAVE PUTATIVE GERMLINE MUTATIONS TO A TXT FILE
+muts_germline = twins_dt[sum_req_filters==1 & f7_likelyGermline_bothTwins==1, mut_ID] %>% unlist() # 333,031
+write.table(muts_germline, 'Data/mutations_putativeGermline_20241114.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
 # OUTPUT 2: SAVE THE DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS)
-write.csv(twins_dt, 'Data/twins_dt_20241113_1134.csv', quote = FALSE, row.names = F)
+write.csv(twins_dt, 'Data/twins_dt_20241114_1134.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # OUTPUT 3: SAVE THE DATAFRAME TO A FILE (MUTATION + FILTERING STATUS ONLY)
 twins_dt_info = twins_dt[, c('mut_ID', columns_req_filters, 'sum_req_filters'), with=FALSE]
-write.csv(twins_dt_info, 'Data/twins_status_filters_20241113_1134.csv', quote = FALSE, row.names = F)
+write.csv(twins_dt_info, 'Data/twins_status_filters_20241114_1134.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # OUTPUT 4: PLOT DISTIRBUTON OF MUTATION CLASSES AFTER FILTERING 
@@ -379,7 +385,13 @@ muts_dt[, mut_type := as.factor(fcase(
   mut_type == 'G>C', 'C>G',
   mut_type == 'G>T', 'C>A',
   mut_type == 'A>G', 'T>C',
-  mut_type == 'G>A', 'C>T'))]
+  mut_type == 'G>A', 'C>T',
+  mut_type == 'T>A', 'T>A',
+  mut_type == 'T>G', 'T>G',
+  mut_type == 'C>G', 'C>G',
+  mut_type == 'C>A', 'C>A',
+  mut_type == 'T>C', 'T>C',
+  mut_type == 'C>T', 'C>T'))]
 
 mut_counts = data.table(sort(table(muts_dt[,mut_type])), decreasing=TRUE)
 mut_counts[,V1:=as.factor(V1)]
@@ -403,12 +415,14 @@ mut_counts_qc = data.table(rbind(mut_counts_passed, mut_counts_failed))
 mut_counts_qc[, V1 := factor(V1, levels = c('C>A', 'C>G', 'C>T', 'T>A', 'T>C', 'T>G'))]
 # keep the order that is applied in plots of mutation signatures
 
+num_mut = sum(mut_counts_qc[,N])
 ggplot(data=mut_counts_qc, aes(x=V1, y=freq_norm, fill=QC)) +
   geom_bar(stat='identity', position = 'dodge')+
   scale_fill_manual(values = c('#e71919', '#5fd2ef'))+
-  theme_classic(base_size = 12)+
-  labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', title = 'Mutation types distribution\nall mutations')
-ggsave('Results/20241116_p1_mut_filters_types.pdf', width = 6, height = 4.5)
+  theme_classic(base_size = 10)+
+  labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', 
+       title = glue('All mutations ({num_mut})'))
+ggsave('Results/20241114_p1_mut_types_QC_all.pdf', width = 5, height = 3.5)
 
 # compare removing germline mutations (many likely will be real)
 muts_dt2 = twins_dt[f7_likelyGermline_bothTwins==0, c('mut_ID', 'Ref', 'Alt', 'sum_req_filters'), with=FALSE]
@@ -423,7 +437,13 @@ muts_dt2[, mut_type := as.factor(fcase(
   mut_type == 'G>C', 'C>G',
   mut_type == 'G>T', 'C>A',
   mut_type == 'A>G', 'T>C',
-  mut_type == 'G>A', 'C>T'))]
+  mut_type == 'G>A', 'C>T',
+  mut_type == 'T>A', 'T>A',
+  mut_type == 'T>G', 'T>G',
+  mut_type == 'C>G', 'C>G',
+  mut_type == 'C>A', 'C>A',
+  mut_type == 'T>C', 'T>C',
+  mut_type == 'C>T', 'C>T'))]
 
 mut_counts2 = data.table(sort(table(muts_dt2[,mut_type])), decreasing=TRUE)
 mut_counts2[,V1:=as.factor(V1)]
@@ -442,12 +462,14 @@ mut_counts_qc2[, V1 := as.factor(V1)]
 mut_counts_qc2[, V1 := factor(V1, levels = c('C>A', 'C>G', 'C>T', 'T>A', 'T>C', 'T>G'))]
 # keep the order that is applied in plots of mutation signatures
 
+num_mut2 = sum(mut_counts_qc2[,N])
 ggplot(data=mut_counts_qc2, aes(x=V1, y=freq_norm, fill=QC)) +
   geom_bar(stat='identity', position = 'dodge')+
   scale_fill_manual(values = c('#e71919', '#5fd2ef'))+
-  theme_classic(base_size = 12)+
-  labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', title = 'Mutation types in all samples\nexcluded putative germline')
-ggsave('Results/20241116_p1_mut_filters_types_germline_excluded.pdf', width = 6, height = 4.5)
+  theme_classic(base_size = 10)+
+  labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', 
+       title = glue('Excluded putative germline ({num_mut2})'))
+ggsave('Results/20241114_p1_mut_types_QC_germline_excluded.pdf', width = 5, height = 3.5)
 
 ######################################################################################################
 # OUTPUT 4: PLOT DISTIRBUTON OF MUTATIONS IN TRI-NUC CONTEXTS AFTER FILTERING 
@@ -515,7 +537,7 @@ ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
   facet_grid(~mut_class, scales = "free_x")+
   guides(fill="none")+ # remove legend
   labs(x = 'Context', y = 'Count', title = 'All mutations (362,814)')+
-  theme_minimal(base_size = 20) +
+  theme_classic(base_size = 15) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
@@ -524,8 +546,9 @@ ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Results/20241113_p1_mut_trins_allmuts.pdf', width = 10, height = 5.5)
+ggsave('Results/20241114_p1_mut_trins_allmuts.pdf', width = 7.5, height = 3.5)
 
+# plot tri-nucleotide context for the filtered set of mutations  
 dtf = twins_dt[sum_req_filters==0]
 mnr = dim(dtf)[1]
 mybed = twins_dt[sum_req_filters==0,c('Chrom', 'Pos', 'Ref', 'Alt')]
@@ -544,8 +567,8 @@ ggplot(data=mut_sign_counts2, aes(x=context, y=count, fill=mut_class)) +
   scale_fill_manual(values = colors_sign)+
   facet_grid(~mut_class, scales = "free_x")+
   guides(fill="none")+ # remove legend
-  labs(x = 'Context', y = 'Count', title = glue('Final set ({mnr} mutations)'))+
-  theme_minimal(base_size = 20) +
+  labs(x = 'Context', y = 'Count', title = glue('Final set ({mnr})'))+
+  theme_classic(base_size = 15) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
@@ -554,7 +577,7 @@ ggplot(data=mut_sign_counts2, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Results/20241113_p1_mut_trins_finalset.pdf', width = 10, height = 5.5)
+ggsave('Results/20241114_p1_mut_trins_finalset.pdf', width = 7.5, height = 3.5)
 
 # Create a series of plots that show what happens when you progressively apply different filters
 # filters in the order of which removes the most mutations first 
@@ -584,8 +607,8 @@ for (f in filters){
     scale_fill_manual(values = colors_sign)+
     facet_grid(~mut_class, scales = "free_x")+
     guides(fill="none")+ # remove legend
-    labs(x = 'Context', y = 'Count', title = glue('Excluded: {f}, n = {mut_nr}'))+
-    theme_minimal(base_size = 15) +
+    labs(x = 'Context', y = 'Count', title = glue('Excluded: {f} ({mut_nr})'))+
+    theme_classic(base_size = 15) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
     theme(axis.title.x=element_blank(),
           axis.text.x=element_blank(),
@@ -594,17 +617,10 @@ for (f in filters){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Results/202411013_p1_mut_trins_allmuts_{f}.pdf'), width = 10, height = 5.5)
+  ggsave(glue('Results/202411014_p1_mut_trins_allmuts_{f}.pdf'), width = 7.5, height = 3.5)
 }
 
-# we want to show how signatures change after each filter is applied
-
-# specify order of filters such that germline removed first 
-filters = c("f7_likelyGermline_bothTwins", 'f4_mtr4_presentInAll', 'f5_presentAllVaf',
-            "f6_mtrAndVaf", "f4_mtr4_presentInNone", "f4_mtr4_presentInOne", "f5_absentAllVaf",
-            "f3_highDepthNormal", "f3_lowDepthNormal", "f9_lowQualRatio", "f9_lowQualPresent",
-            "f2_FailedIndelNearby30", "f1_mappedY")
-
+# show how signatures change after consecutive filters are applied
 for (i in seq_along(filters)){
   
   subset_filters = filters[1:i]
@@ -629,7 +645,7 @@ for (i in seq_along(filters)){
     facet_grid(~mut_class, scales = "free_x")+
     guides(fill="none")+ # remove legend
     labs(x = 'Context', y = 'Count', title = glue('n = {mut_nr}'))+
-    theme_minimal(base_size = 15) +
+    theme_classic(base_size = 15) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
     theme(axis.title.x=element_blank(),
           axis.text.x=element_blank(),
@@ -638,43 +654,7 @@ for (i in seq_along(filters)){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Results/20241105_p1_mut_trins_allmuts_filters_{i}.pdf'), width = 10, height = 5.5)
-}
-
-for (i in seq_along(columns_req_filters)){
-  
-  subset_filters = columns_req_filters[1:i]
-  cond = paste(subset_filters, '!= 1', collapse = ' & ')
-  twins_dt_f = twins_dt[eval(parse(text = cond))]
-  mut_nr = dim(twins_dt_f)[1]
-  mybed = twins_dt[eval(parse(text = cond)), c('Chrom', 'Pos', 'Ref', 'Alt')]
-  trins = get_trinucs(mybed, BSgenome.Hsapiens.UCSC.hg38)
-  twins_dt_f$trins=trins
-  
-  # plot the distribution of different mutations across different contexts 
-  mut_sign_counts = data.table(table(twins_dt_f[, trins]))
-  setnames(mut_sign_counts, c('V1', 'N'), c('trins', 'count'))
-  mut_sign_counts[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
-  mut_sign_counts[, mut_class := gsub("\\.", ">", mut_class)]
-  mut_sign_counts[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
-  
-  # aggregate by mutation class and context 
-  ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
-    geom_bar(stat = 'identity')+
-    scale_fill_manual(values = colors_sign)+
-    facet_grid(~mut_class, scales = "free_x")+
-    guides(fill="none")+ # remove legend
-    labs(x = 'Context', y = 'Count', title = glue('n = {mut_nr}'))+
-    theme_minimal(base_size = 15) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-    theme(axis.title.x=element_blank(),
-          axis.text.x=element_blank(),
-          axis.ticks.x=element_blank())+
-    theme( strip.background = element_blank())+ 
-    theme(panel.spacing = unit(0, "lines"))+
-    theme(strip.text.x = element_text(size = 13))+
-    geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Results/20241105_p1_mut_trins_allmuts_req_filters_{i}.pdf'), width = 10, height = 5.5)
+  ggsave(glue('Results/20241114_p1_mut_trins_allmuts_filters_{i}.pdf'), width = 7.5, height = 3.5)
 }
 
 ######################################################################################################

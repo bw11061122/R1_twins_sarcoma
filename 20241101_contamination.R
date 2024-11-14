@@ -8,6 +8,8 @@
 # Script to estimate purity of each sample (normal + tumour cell content in each sample)
 
 ###################################################################################################################################
+# LIBRARIES 
+
 # Load needed libraries
 library(data.table)
 library(dplyr)
@@ -25,6 +27,7 @@ library(ggrepel)
 
 ###################################################################################################################################
 # INPUT FILES 
+
 # Read the merged dataframe 
 setwd('/Users/bw18/Desktop/1SB')
 twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv')) # import high quality pileup
@@ -46,6 +49,7 @@ twins_filtered_dt[, loss := as.factor(fcase(
 
 ###################################################################################################################################
 # PLOT SETTINGS
+
 # Specify colors for plotting 
 col_tumour = '#ad0505'
 col_normal = '#07a7d0'
@@ -59,6 +63,7 @@ col_bar = '#e87811'
 
 ######################################################################################################
 # SAMPLES
+
 # create lists of possible samples of interest
 samples_names = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak", "PD63383bb", "PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap",  "PD63383ap", "PD63383aq", "PD62341b", "PD62341h", "PD62341n", "PD62341u")
 samples_normal = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak", "PD63383bb", "PD62341h", "PD62341n")

@@ -32,6 +32,7 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 
 ###################################################################################################################################
 # INPUT FILES 
+
 # Read the merged dataframe 
 setwd('/Users/bw18/Desktop/1SB')
 twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv')) # import high quality pileup
@@ -286,3 +287,132 @@ for (mut in muts_PD63383){
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   ggsave(glue('Results/20241109_PD63383_spec_by_mut_{mut}.pdf'), width=6, height=3.5)
 }
+
+######################################################################################################
+# Checking telomere length 
+
+# documentation on the telomerecat module: https://telomerecat.readthedocs.io/en/latest/understanding_output.html
+
+# INPUT: load dataframes of telomere length (output from telomerecat command: 20241113_telomere_length.sh)
+list_tel_files = paste0('Data/', list.files(path = "Data/", pattern = "*_telomere_length.csv"))
+telomere_dt = data.table(do.call(rbind, lapply(list_tel_files, function(x) read.csv(x, stringsAsFactors = FALSE))))
+
+# systematize column names
+setnames(telomere_dt, c('Sample'), 'sample')
+telomere_dt[, sample := tstrsplit(sample, '.', fixed = TRUE, keep = 1)]
+telomere_dt[, sample := factor(sample, levels = c(
+  'PD62341ad', 'PD62341aa', 'PD62341h', 'PD62341n', 'PD62341q', 'PD62341v',
+  'PD63383ak', 'PD63383bb', 'PD63383t', 'PD63383ae', 'PD63383u', 'PD63383w',
+  'PD62341ae', 'PD62341ag', 'PD62341aj', 'PD62341ak', 'PD62341am', 'PD62341ap', 'PD62341b', 'PD62341u',
+  'PD63383ap', 'PD63383aq'))] # specify order for plotting of samples such that normal / tumour samples plotted next to each other
+telomere_dt[, twin := factor(fcase(sample %in% samples_PD62341, 'PD62341', sample %in% samples_PD63383, 'PD63383'))]
+telomere_dt[, status := factor(fcase(sample %in% samples_normal, 'normal', sample %in% samples_tumour, 'tumour'))]
+telomere_dt[, sample_type := factor(paste(twin, status, sep = ', '))]
+telomere_dt[, sample_type2 := factor(fcase(status == 'tumour', 'tumour', 
+                                                 status == 'normal' & twin == 'PD62341', 'PD62341 normal',
+                                                 status == 'normal' & twin == 'PD63383', 'PD63383 normal'))]
+telomere_dt[, tissue := factor(fcase(
+  sample %in% c('PD62341ad', 'PD63383ak'), 'cerebellum',
+  sample %in% c('PD62341aa', 'PD63383bb'), 'skin',
+  sample %in% c('PD62341v', 'PD63383w'), 'spleen',
+  sample %in% c('PD62341h', 'PD63383t'), 'liver',
+  sample %in% c('PD62341q', 'PD63383u'), 'pancreas',
+  sample %in% c('PD62341n', 'PD63383ae'), 'heart', 
+  sample %in% samples_tumour, 'tumour'
+))]
+
+# check telomere length across samples
+ggplot(telomere_dt, aes(x = sample, y = Length, col = sample_type2))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Sample', y = 'Telomere length (bp)', col = 'Sample category')+
+  ggtitle(glue('Telomere lengths across samples'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomere_lengths.pdf'), height = 3, width = 6.5)
+
+ggplot(telomere_dt, aes(x = sample, y = Length, col = sample_type2))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Sample', y = 'Telomere length (bp)', col = 'Sample category')+
+  ggtitle(glue('Telomere lengths across samples'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 9000))
+ggsave(glue('Results/20241113_telomere_lengths_from0.pdf'), height = 3, width = 6.5)
+
+ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
+  geom_point(size=3)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'Telomere length (bp)', col = 'Twin')+
+  ggtitle(glue('Telomere lengths across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomere_lengths_by_tissue.pdf'), height = 3, width = 6.5)
+
+ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
+  geom_point(size=3)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'Telomere length (bp)', col = 'Twin')+
+  ggtitle(glue('Telomere lengths across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 9000))
+ggsave(glue('Results/20241113_telomere_lengths_by_tissue_from0.pdf'), height = 3, width = 6.5)
+
+# Plot F1, F2 and F4 metrics to better understand the output 
+ggplot(telomere_dt, aes(x = sample, y = F1, col = sample_type2))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Sample', y = 'Number of reads', col = 'Sample category')+
+  ggtitle(glue('Telomeric reads across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomeres_F1_by_sample.pdf'), height = 3, width = 6.5)
+
+ggplot(telomere_dt, aes(x = sample, y = F2, col = sample_type2))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Sample', y = 'Number of reads', col = 'Sample category')+
+  ggtitle(glue('CCCTAA across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomeres_F2_by_sample.pdf'), height = 3, width = 6.5)
+
+ggplot(telomere_dt, aes(x = sample, y = F4, col = sample_type2))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Sample', y = 'Number of reads', col = 'Sample category')+
+  ggtitle(glue('TTAGGG across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomeres_F4_by_sample.pdf'), height = 3, width = 6.5)
+
+# Compare F1, F2 and F4 metrics 
+ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = F1, col = twin))+
+  geom_point(size=3)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'Number of reads', col = 'Twin')+
+  ggtitle(glue('Telomeric reads across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomeres_F1_by_tissue.pdf'), height = 3, width = 6.5)
+
+ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = F2, col = twin))+
+  geom_point(size=3)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'Number of reads', col = 'Twin')+
+  ggtitle(glue('CCCTAA across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomeres_F2_by_tissue.pdf'), height = 3, width = 6.5)
+
+ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
+  geom_point(size=3)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'Number of reads', col = 'Twin')+
+  ggtitle(glue('TTAGGG lengths across normal tissues'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241113_telomeres_F4_by_tissue.pdf'), height = 3, width = 6.5)
+
