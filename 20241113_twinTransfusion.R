@@ -1,5 +1,5 @@
 ###################################################################################################################################
-# SCRIPT 4
+# SCRIPT 5
 
 # Script to analyse twin-twin transfusion (spleen contamination)
 # 2024-11-13
@@ -43,8 +43,8 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Create a dataframe that only includes mutations retained post filtering  
-muts = read.table('Data/mutations_include_20241114_1134.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts)) # 1134
+muts = read.table('Data/mutations_include_20241114_568.txt') %>% unlist()
+paste('Number of mutations that passed required filters:', length(muts)) # 568
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 ###################################################################################################################################
@@ -53,21 +53,19 @@ twins_filtered_dt = twins_dt[mut_ID %in% muts]
 # Specify colors for plotting 
 col_tumour = '#ad0505'
 col_normal = '#07a7d0'
-col_PD62341 = "#0ac368"
-col_PD63383 = "#a249e8"
+col_PD62341 = "#33dd89"
+col_PD63383 = "#c98ff7"
 col_tumour_PD62341 = "#099272"
 col_tumour_PD63383 = "#6F09D4"
 col_normal_PD62341 = "#71D99B"
 col_normal_PD63383 = "#C99DF6"
+col_PD62341_spleen = "#078757"
+col_PD63383_spleen = "#7208c6"
+col_PD63383_skin = '#d0bbe1'
 col_bar = '#e87811'
 
 ######################################################################################################
 # SAMPLES
-
-# Examine which samples are being analysed 
-samples = grep("PD6", names(twins_dt), value = TRUE)
-samples = sapply(strsplit(samples,"_"), `[`, 1)
-paste('Number of samples analysed:', length(samples)) # remove the PD38is_wgs sample: not from the samples of interest
 
 # create lists of possible samples of interest
 samples_names = c("PD62341v", "PD62341q", "PD62341aa", "PD62341ad", "PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak", "PD63383bb","PD62341ae", "PD62341ag", "PD62341aj", "PD62341ak", "PD62341am", "PD62341ap", "PD63383ap", "PD63383aq", "PD62341b", "PD62341h", "PD62341n", "PD62341u")
@@ -116,106 +114,176 @@ samples_PD63383_mtr = paste(samples_PD63383, 'MTR', sep='_')
 samples_PD63383_dep = paste(samples_PD63383, 'DEP', sep='_')
 samples_PD63383_vaf = paste(samples_PD63383, 'VAF', sep='_')
 
-# Print the number of unique mutations identified in at least one sample (ie how many mutations do I have?)
-paste('Number of unique mutations identified across samples:', dim(twins_dt)[1]) # 362,814
-paste('Number of unique mutations identified across samples (check):', length(twins_dt[, mut_ID] %>% unlist() %>% unique())) # 362,814
+######################################################################################################
+# CALCULATE VAF FOR AGGREGATED SAMPLES
+
+# Aggregated VAF in tumour samples 
+twins_filtered_dt[, dep_all_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
+twins_filtered_dt[, dep_all_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
+twins_filtered_dt[, dep_all_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_dep]
+twins_filtered_dt[, dep_all_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_dep]
+twins_filtered_dt[, dep_all_normal := rowSums(.SD), .SDcols = samples_normal_dep]
+twins_filtered_dt[, dep_all_tumour := rowSums(.SD), .SDcols = samples_tumour_dep]
+twins_filtered_dt[, dep_all := rowSums(.SD), .SDcols = samples_dep]
+
+twins_filtered_dt[, mtr_all_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
+twins_filtered_dt[, mtr_all_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
+twins_filtered_dt[, mtr_all_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_mtr]
+twins_filtered_dt[, mtr_all_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_mtr]
+twins_filtered_dt[, mtr_all_normal := rowSums(.SD), .SDcols = samples_normal_mtr]
+twins_filtered_dt[, mtr_all_tumour := rowSums(.SD), .SDcols = samples_tumour_mtr]
+twins_filtered_dt[, mtr_all := rowSums(.SD), .SDcols = samples_mtr]
+
+twins_filtered_dt[, vaf_all_normal_PD62341 := mtr_all_normal_PD62341 / dep_all_normal_PD62341]
+twins_filtered_dt[, vaf_all_normal_PD63383 := mtr_all_normal_PD63383 / dep_all_normal_PD63383]
+twins_filtered_dt[, vaf_all_tumour_PD62341 := mtr_all_tumour_PD62341 / dep_all_tumour_PD62341]
+twins_filtered_dt[, vaf_all_tumour_PD63383 := mtr_all_tumour_PD63383 / dep_all_tumour_PD63383]
+twins_filtered_dt[, vaf_all_normal := mtr_all_normal / dep_all_normal]
+twins_filtered_dt[, vaf_all_tumour := mtr_all_tumour / dep_all_tumour]
+twins_filtered_dt[, vaf_all := mtr_all / dep_all]
+
+# Add presence / absence based on MTR data
+twins_filtered_dt[, sum_tumour_mtr := rowSums(.SD>=4), .SDcols = samples_tumour_mtr]
+twins_filtered_dt[, sum_normal_mtr := rowSums(.SD>=4), .SDcols = samples_normal_mtr]
+twins_filtered_dt[, sum_PD62341_mtr := rowSums(.SD>=4), .SDcols = samples_PD62341_mtr]
+twins_filtered_dt[, sum_PD63383_mtr := rowSums(.SD>=4), .SDcols = samples_PD63383_mtr]
+twins_filtered_dt[, sum_tumour_PD62341_mtr := rowSums(.SD>=4), .SDcols = samples_tumour_PD62341_mtr]
+twins_filtered_dt[, sum_tumour_PD63383_mtr := rowSums(.SD>=4), .SDcols = samples_tumour_PD63383_mtr]
+twins_filtered_dt[, sum_normal_PD62341_mtr := rowSums(.SD>=4), .SDcols = samples_normal_PD62341_mtr]
+twins_filtered_dt[, sum_normal_PD63383_mtr := rowSums(.SD>=4), .SDcols = samples_normal_PD63383_mtr]
+
+# Add presence / absence based on VAF data
+twins_filtered_dt[, sum_tumour_vaf := rowSums(.SD>=0.1), .SDcols = samples_tumour_vaf]
+twins_filtered_dt[, sum_normal_vaf := rowSums(.SD>=0.1), .SDcols = samples_normal_vaf]
+twins_filtered_dt[, sum_PD62341_vaf := rowSums(.SD>=0.1), .SDcols = samples_PD62341_vaf]
+twins_filtered_dt[, sum_PD63383_vaf := rowSums(.SD>=0.1), .SDcols = samples_PD63383_vaf]
+twins_filtered_dt[, sum_tumour_PD62341_vaf := rowSums(.SD>=0.1), .SDcols = samples_tumour_PD62341_vaf]
+twins_filtered_dt[, sum_tumour_PD63383_vaf := rowSums(.SD>=0.1), .SDcols = samples_tumour_PD63383_vaf]
+twins_filtered_dt[, sum_normal_PD62341_vaf := rowSums(.SD>=0.1), .SDcols = samples_normal_PD62341_vaf]
+twins_filtered_dt[, sum_normal_PD63383_vaf := rowSums(.SD>=0.1), .SDcols = samples_normal_PD63383_vaf]
+
+twins_filtered_dt[, sum_tumour_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_tumour_mtr', 'sum_tumour_vaf')]
+twins_filtered_dt[, sum_normal_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_mtr', 'sum_normal_vaf')]
+twins_filtered_dt[, sum_PD62341_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_PD62341_mtr', 'sum_PD62341_vaf')]
+twins_filtered_dt[, sum_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_PD63383_mtr', 'sum_PD63383_vaf')]
+twins_filtered_dt[, sum_tumour_PD62341_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_tumour_PD62341_mtr', 'sum_tumour_PD62341_vaf')]
+twins_filtered_dt[, sum_tumour_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_tumour_PD63383_mtr', 'sum_tumour_PD63383_vaf')]
+twins_filtered_dt[, sum_normal_PD62341_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD62341_mtr', 'sum_normal_PD62341_vaf')]
+twins_filtered_dt[, sum_normal_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD63383_mtr', 'sum_normal_PD63383_vaf')]
+
 
 ######################################################################################################
 # Accounting for twin-twin transfusion (spleen samples) - I want to have quantitative estimates of how much transfer there is 
 
-muts_PD63383 = c(muts_normal_only_val, 'chr1_38827952_C_A')
+# Create lists of mutations which are present only in one twin, or at a significantly higher VAF in one of the twins
 muts_PD62341 = c("chr14_105458006_C_A", "chr17_33422229_C_A", "chr15_49480646_T_A",
                  "chr16_5479739_C_T", "chr2_95662131_G_A", "chr3_50106043_C_T",
                  "chr3_62055057_C_G", "chr3_62055077_G_C", "chr20_44114996_C_T") 
-mut_early = c(muts_PD62341, muts_PD63383)
+muts_PD63383 = c("chr11_34011887_C_T", "chr13_50815806_A_G", "chr1_103587565_A_C", "chr21_40193588_G_A",
+                 "chr3_165901319_C_A", "chr3_77633967_C_T", "chr4_15905566_C_T", "chr4_74625500_G_T", 
+                 "chr4_75704880_G_A", "chr7_149688370_C_T", "chrX_115066661_C_T", "chr7_73831920_C_T")
 
-mut_PD62341_dt = twins_vaf[mut_ID %in% muts_PD62341, 1:23]
+paste('Number of PD62341-enriched mutations:', length(muts_PD62341)) # 9 
+paste('Number of PD63383-enriched mutations:', length(muts_PD63383)) # 12 
+
+# Subset the dataframe to look at twin-specific / twin-enriched mutations 
+mut_PD62341_dt = twins_dt[mut_ID %in% muts_PD62341, c('mut_ID', samples_vaf), with=FALSE]
 mut_PD62341_melt = melt(mut_PD62341_dt, id.vars = 'mut_ID')
 mut_PD62341_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
 mut_PD62341_melt[, status := as.factor(fcase( 
-  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_tumour, 'tumour'
-))]
+  sample %in% samples_normal, 'normal', 
+  sample %in% samples_tumour, 'tumour'))]
 mut_PD62341_melt[, twin := as.factor(fcase( 
-  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_PD63383, 'PD63383'
-))]
-mut_PD62341_melt[, sample_type := as.factor(paste(status, twin, sep = '_'))]
-mut_PD62341_melt[, mut_ID := factor(mut_ID, levels = 
-                                      c('chr16_5479739_C_T','chr15_49480646_T_A',
-                                        'chr17_33422229_C_A','chr14_105458006_C_A',  
-                                        'chr3_50106043_C_T', 'chr2_95662131_G_A',
-                                        "chr3_62055057_C_G", "chr3_62055077_G_C", 
-                                        "chr20_44114996_C_T"))]
+  sample %in% samples_PD62341, 'PD62341', 
+  sample %in% samples_PD63383, 'PD63383'))]
+mut_PD62341_melt[, sample_type := as.factor(paste(twin, status, sep = ' '))]
+mut_PD62341_melt[, sample_type2 := as.factor(fcase( 
+  sample == 'PD62341v', 'PD62341 normal, spleen',
+  sample == 'PD63383w', 'PD63383 normal, spleen',
+  !sample %in% c('PD62341v', 'PD63383w'), paste(twin, status, sep = ' ')))]
+mut_PD62341_melt[, sample_type3 := as.factor(fcase(
+  sample == 'PD62341v', 'PD62341 normal, spleen',
+  sample == 'PD63383w', 'PD63383 normal, spleen',
+  sample == 'PD63383bb', 'PD63383 normal, skin',
+  !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(twin, status, sep = ' ')))]
 
-mut_PD63383_dt = twins_vaf[mut_ID %in% muts_PD63383, 1:23]
+mut_PD63383_dt = twins_dt[mut_ID %in% muts_PD63383, c('mut_ID', samples_vaf), with=FALSE]
 mut_PD63383_melt = melt(mut_PD63383_dt, id.vars = 'mut_ID')
 mut_PD63383_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
 mut_PD63383_melt[, status := as.factor(fcase( 
-  sample %in% samples_normal, 'normal', # differs from 0.5 so biased and maybe we don't want it
+  sample %in% samples_normal, 'normal', 
   sample %in% samples_tumour, 'tumour'))]
 mut_PD63383_melt[, twin := as.factor(fcase( 
-  sample %in% samples_PD62341, 'PD62341', # differs from 0.5 so biased and maybe we don't want it
-  sample %in% samples_PD63383, 'PD63383'
-))]
-mut_PD63383_melt[, sample_type := as.factor(paste(status, twin, sep = '_'))]
-
-# if this occurs, the spleen in PD62341 should be more similar to PD63383 than other PD62341 tissues
-# at the same time, we expect spleen in PD63383 to be more similar to PD62341 than other PD63383 tissues 
-# NB this is complicated because the tumour (which arose in PD62341) contaminated the skin sample (PD63383bb)
-
-# check PD62341v and PD63383w in PD63383-specific mutations
-mut_PD63383_melt[, sample_type := as.factor(paste(
-  status, twin, sep = '_'))]
-
+  sample %in% samples_PD62341, 'PD62341', 
+  sample %in% samples_PD63383, 'PD63383'))]
+mut_PD63383_melt[, sample_type := as.factor(paste(twin, status, sep = ' '))]
 mut_PD63383_melt[, sample_type2 := as.factor(fcase(
-  sample == 'PD62341v', 'normal_PD62341_spleen',
-  sample == 'PD63383w', 'normal_PD63383_spleen',
-  !sample %in% c('PD62341v', 'PD63383w'), paste(status, twin, sep = '_')
-))]
+  sample == 'PD62341v', 'PD62341 normal, spleen',
+  sample == 'PD63383w', 'PD63383 normal, spleen',
+  !sample %in% c('PD62341v', 'PD63383w'), paste(twin, status, sep = ' ')))]
+mut_PD63383_melt[, sample_type3 := as.factor(fcase( # identify skin (which is known to be contaminated with PD62341-derived tumour)
+  sample == 'PD62341v', 'PD62341 normal, spleen',
+  sample == 'PD63383w', 'PD63383 normal, spleen',
+  sample == 'PD63383bb', 'PD63383 normal, skin',
+  !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(twin, status, sep = ' ')))]
 
-mut_PD63383_melt[, sample_type3 := as.factor(fcase(
-  sample == 'PD62341v', 'normal_PD62341_spleen',
-  sample == 'PD63383w', 'normal_PD63383_spleen',
-  sample == 'PD63383bb', 'normal_PD63383_skin',
-  !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(status, twin, sep = '_')
-))]
-
-mut_PD62341_melt[, sample_type2 := as.factor(fcase(
-  sample == 'PD62341v', 'normal_PD62341_spleen',
-  sample == 'PD63383w', 'normal_PD63383_spleen',
-  !sample %in% c('PD62341v', 'PD63383w'), paste(status, twin, sep = '_')
-))]
-
-mut_PD62341_melt[, sample_type3 := as.factor(fcase(
-  sample == 'PD62341v', 'normal_PD62341_spleen',
-  sample == 'PD63383w', 'normal_PD63383_spleen',
-  sample == 'PD63383bb', 'normal_PD63383_skin',
-  !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(status, twin, sep = '_')
-))]
-
-ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2))+
-  geom_point(size=2.5, position = position_jitterdodge(0.4))+
-  scale_color_manual(values = c(col_PD62341, '#C42F0F', col_PD63383, '#F99A49'))+
-  theme_classic(base_size = 14)+
-  labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
-  ggtitle(glue('PD63383-specific mutations'))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  ylim(c(0, 0.7))
-ggsave(glue('Results/20241109_p3_vaf_dist_PD63383_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
-
-ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2))+
-  geom_point(size=2.5, position = position_jitterdodge(0.4))+
-  scale_color_manual(values = c(col_PD62341, '#C42F0F', col_PD63383, '#F99A49'))+
+# Plot # jitter by twin but not by tissue 
+ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, colour=sample_type2))+
+  geom_point(size=2, alpha = 0.8)+
+  scale_color_manual(values = c(col_PD62341, col_PD62341_spleen, col_PD63383, col_PD63383_spleen))+
   theme_classic(base_size = 14)+
   labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
   ggtitle(glue('PD62341-specific mutations'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
-ggsave(glue('Results/20241109_p3_vaf_dist_PD62341_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
+ggsave(glue('Results/20241114_p5_vaf_dist_PD62341_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
 
-# Is there a way I can quantify this 
-# Maybe first, compare mean VAF for 5 non-spleen samples and spleen 
+ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2))+
+  geom_point(size=2, alpha = 0.8)+
+  scale_color_manual(values = c(col_PD62341, col_PD62341_spleen, col_PD63383, col_PD63383_spleen))+
+  theme_classic(base_size = 14)+
+  labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
+  ggtitle(glue('PD63383-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ylim(c(0, 0.7))
+ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
+
+# show correlation between PD62341v for PD63383 specific mutations 
+# perhaps an easier way of showing this is to compare VAFs on a sample-by-sample basis 
+
+PD63383_vafs = twins_filtered_dt[mut_ID %in% muts_PD63383, 'vaf_all_normal_PD63383', with=FALSE] %>% unlist()
+for (sample_name in samples_normal_PD62341){
+  sample = paste0(sample_name, '_VAF')
+  PD62341_vaf = twins_filtered_dt[mut_ID %in% muts_PD63383, ..sample] %>% unlist()
+  dt = data.table(cbind(PD62341_vaf, PD63383_vafs))
+  ggplot(dt, aes(x=PD63383_vafs, y=PD62341_vaf))+
+    geom_point(size=2.5, alpha = 0.8)+
+    theme_classic(base_size = 10)+
+    labs(x = 'VAF (PD63383)', y = glue('VAF ({sample_name})'))+
+    ggtitle(glue('PD63383-specific mutations\n{sample_name}'))+
+    coord_equal(ratio=1)+
+    xlim(c(0, 0.3))+
+    ylim(c(0, 0.3))
+  ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_PD63383agg_vs_{sample_name}.pdf'), width=3, height=3)
+}
+
+PD62341_vafs = twins_filtered_dt[mut_ID %in% muts_PD62341, 'vaf_all_normal_PD62341', with=FALSE] %>% unlist()
+for (sample_name in samples_normal_PD63383){
+  sample = paste0(sample_name, '_VAF')
+  PD63383_vaf = twins_filtered_dt[mut_ID %in% muts_PD62341, ..sample] %>% unlist()
+  dt = data.table(cbind(PD63383_vaf, PD62341_vafs))
+  ggplot(dt, aes(x=PD62341_vafs, y=PD63383_vaf))+
+    geom_point(size=2.5, alpha = 0.8)+
+    theme_classic(base_size = 10)+
+    labs(x = 'VAF (PD62341)', y = glue('VAF ({sample_name})'))+
+    ggtitle(glue('PD62341-specific mutations\n{sample_name}'))+
+    coord_equal(ratio=1)+
+    xlim(c(0, 0.6))+
+    ylim(c(0, 0.3))
+  ggsave(glue('Results/20241114_p5_vaf_dist_PD62341_muts_samples_PD62341agg_vs_{sample_name}.pdf'), width=3, height=2)
+}
+
+# Quantification of PD62341 spleen contamination with PD63383 spleen 
 means_PD62341muts_spleen_PD62341 = mut_PD62341_melt[sample == 'PD62341v', c('mut_ID', 'value'), with=FALSE]
 means_PD62341muts_nonspleen_PD62341 = data.table(mut_PD62341_melt[sample %in% c('PD62341q','PD62341h', 'PD62341n', 'PD62341aa', 'PD62341ad'), mean(value), by = 'mut_ID'])
 means_PD62341muts_spleen_PD63383 = mut_PD62341_melt[sample == 'PD63383w', c('mut_ID', 'value'), with=FALSE]
@@ -239,7 +307,7 @@ ggplot(means_PD62341muts_clean, aes(x=PD62341_nonspleen, y=PD62341_spleen))+
   coord_equal(ratio = 1)+
   xlim(c(0, 0.5))+
   ylim(c(0, 0.5))
-ggsave(glue('Results/20241109_spleen_vs_nonspleen_PD62341.pdf'), width=4, height=4)
+ggsave(glue('Results/20241114_p5_spleen_vs_nonspleen_PD62341.pdf'), width=4, height=4)
 
 # do the same for PD63383 specific mutations
 means_PD63383muts_spleen_PD62341 = mut_PD63383_melt[sample == 'PD62341v', c('mut_ID', 'value'), with=FALSE]
@@ -274,7 +342,7 @@ for (mut in muts_PD62341){
     scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour, col_tumour_PD62341))+
     ggtitle(glue('{mut}'))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-  ggsave(glue('Results/20241109_PD62341_spec_by_mut_{mut}.pdf'), width=6, height=3.5)
+  ggsave(glue('Results/20241114_p5_PD62341_spec_by_mut_{mut}.pdf'), width=6, height=3.5)
 }
 
 for (mut in muts_PD63383){
@@ -286,7 +354,7 @@ for (mut in muts_PD63383){
     scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour, col_tumour_PD62341))+
     ggtitle(glue('{mut}'))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-  ggsave(glue('Results/20241109_PD63383_spec_by_mut_{mut}.pdf'), width=6, height=3.5)
+  ggsave(glue('Results/20241114_p5_PD63383_spec_by_mut_{mut}.pdf'), width=6, height=3.5)
 }
 
 ######################################################################################################
@@ -330,7 +398,7 @@ ggplot(telomere_dt, aes(x = sample, y = Length, col = sample_type2))+
   ggtitle(glue('Telomere lengths across samples'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomere_lengths.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomere_lengths.pdf'), height = 3, width = 6.5)
 
 ggplot(telomere_dt, aes(x = sample, y = Length, col = sample_type2))+
   geom_point(size=2.5)+
@@ -340,7 +408,7 @@ ggplot(telomere_dt, aes(x = sample, y = Length, col = sample_type2))+
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 9000))
-ggsave(glue('Results/20241113_telomere_lengths_from0.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomere_lengths_from0.pdf'), height = 3, width = 6.5)
 
 ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
   geom_point(size=3)+
@@ -349,7 +417,7 @@ ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
   ggtitle(glue('Telomere lengths across normal tissues'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomere_lengths_by_tissue.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomere_lengths_by_tissue.pdf'), height = 3, width = 6.5)
 
 ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
   geom_point(size=3)+
@@ -359,7 +427,7 @@ ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 9000))
-ggsave(glue('Results/20241113_telomere_lengths_by_tissue_from0.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomere_lengths_by_tissue_from0.pdf'), height = 3, width = 6.5)
 
 # Plot F1, F2 and F4 metrics to better understand the output 
 ggplot(telomere_dt, aes(x = sample, y = F1, col = sample_type2))+
@@ -369,7 +437,7 @@ ggplot(telomere_dt, aes(x = sample, y = F1, col = sample_type2))+
   ggtitle(glue('Telomeric reads across normal tissues'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomeres_F1_by_sample.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomeres_F1_by_sample.pdf'), height = 3, width = 6.5)
 
 ggplot(telomere_dt, aes(x = sample, y = F2, col = sample_type2))+
   geom_point(size=2.5)+
@@ -378,7 +446,7 @@ ggplot(telomere_dt, aes(x = sample, y = F2, col = sample_type2))+
   ggtitle(glue('CCCTAA across normal tissues'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomeres_F2_by_sample.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomeres_F2_by_sample.pdf'), height = 3, width = 6.5)
 
 ggplot(telomere_dt, aes(x = sample, y = F4, col = sample_type2))+
   geom_point(size=2.5)+
@@ -387,7 +455,7 @@ ggplot(telomere_dt, aes(x = sample, y = F4, col = sample_type2))+
   ggtitle(glue('TTAGGG across normal tissues'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomeres_F4_by_sample.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomeres_F4_by_sample.pdf'), height = 3, width = 6.5)
 
 # Compare F1, F2 and F4 metrics 
 ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = F1, col = twin))+
@@ -397,7 +465,7 @@ ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = F1, col = twin))+
   ggtitle(glue('Telomeric reads across normal tissues'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomeres_F1_by_tissue.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomeres_F1_by_tissue.pdf'), height = 3, width = 6.5)
 
 ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = F2, col = twin))+
   geom_point(size=3)+
@@ -406,7 +474,7 @@ ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = F2, col = twin))+
   ggtitle(glue('CCCTAA across normal tissues'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomeres_F2_by_tissue.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomeres_F2_by_tissue.pdf'), height = 3, width = 6.5)
 
 ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
   geom_point(size=3)+
@@ -415,7 +483,7 @@ ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
   ggtitle(glue('TTAGGG lengths across normal tissues'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241113_telomeres_F4_by_tissue.pdf'), height = 3, width = 6.5)
+ggsave(glue('Results/20241114_p5_telomeres_F4_by_tissue.pdf'), height = 3, width = 6.5)
 
 ######################################################################################################
 ######################################################################################################
