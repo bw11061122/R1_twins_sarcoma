@@ -178,12 +178,12 @@ twins_filtered_dt[, sum_normal_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(
 
 # Add a section for clean normal PD63383 samples (from script 2, evident that skin (PD63383bb) is contaminated)
 samples_normal_PD63383_clean = c("PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak")
-samples_normal_PD63383_clean_dep = paste(samples_normal_PD63383_clean, '_DEP')
-samples_normal_PD63383_clean_mtr = paste(samples_normal_PD63383_clean, '_MTR')
-samples_normal_PD63383_clean_vaf = paste(samples_normal_PD63383_clean, '_VAF')
+samples_normal_PD63383_clean_dep = paste0(samples_normal_PD63383_clean, '_DEP')
+samples_normal_PD63383_clean_mtr = paste0(samples_normal_PD63383_clean, '_MTR')
+samples_normal_PD63383_clean_vaf = paste0(samples_normal_PD63383_clean, '_VAF')
 
-twins_filtered_dt[, sum_normal_PD63383_clean_mtr := apply(.SD, 1, function(x) min(x)), .SDcols = samples_normal_PD63383_mtr]
-twins_filtered_dt[, sum_normal_PD63383_clean_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = samples_normal_PD63383_vaf]
+twins_filtered_dt[, sum_normal_PD63383_clean_mtr := rowSums(.SD>=4), .SDcols = samples_normal_PD63383_clean_mtr]
+twins_filtered_dt[, sum_normal_PD63383_clean_vaf := rowSums(.SD>=0.1), .SDcols = samples_normal_PD63383_clean_vaf]
 twins_filtered_dt[, sum_normal_PD63383_clean_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD63383_clean_mtr', 'sum_normal_PD63383_clean_vaf')]
 
 ######################################################################################################
@@ -193,8 +193,8 @@ twins_filtered_dt[, sum_normal_PD63383_clean_mtr_vaf := apply(.SD, 1, function(x
 # Present in all samples
 # Present in only a single sample
 # Present in all normal samples 
-# Present in all tumour samples 
-# Present in PD63383 tumour samples
+# Tumour specific  
+# Absent from PD63383 normal samples (PD62341 subclonal)
 
 # Create lists of mutations 
 muts = twins_filtered_dt[, mut_ID] %>% unlist()
@@ -220,16 +220,16 @@ muts_one_sample_normal = twins_filtered_dt[sum_tumour_mtr_vaf==0 & sum_normal_mt
 muts_one_sample_tumour = twins_filtered_dt[sum_tumour_mtr_vaf==1 & sum_normal_mtr_vaf==0, mut_ID] %>% unlist()
 muts_one_sample = c(muts_one_sample_normal, muts_one_sample_tumour)
 
-muts_absent_PD63383 = twins_filtered_dt[sum_normal_PD63383_clean_mtr_vaf==0, mut_ID] %>% unlist()
-muts_absent_PD63383 = setdiff(muts_absent_PD63383, c(muts_only_normal, muts_tumour_spec, muts_one_sample))
+muts_absent_PD63383_all = twins_filtered_dt[sum_normal_PD63383_clean_mtr_vaf==0, mut_ID] %>% unlist() # 282
+muts_absent_PD63383 = setdiff(muts_absent_PD63383_all, c(muts_only_normal, muts_tumour_spec, muts_one_sample))
 
 # Check number of mutations in each category 
 paste('Mutations present in all samples:', length(muts_all_samples)) # 78
 
 paste('Number of muts present in all normal samples:', length(muts_all_normal)) # 97 (632 - 535: makes sense)
 paste('Number of muts present in all tumour samples:', length(muts_all_tumour)) # 144
-paste('Number of muts present in all normal samples but not all tumour samples:', length(muts_all_normal_nt)) # (97 - 78 = 19)
-paste('Number of muts present in all tumour samples but not all normal samples:', length(muts_all_tumour_nt)) # (144 - 78 = 66)
+paste('Number of muts present in all normal samples but not all tumour samples:', length(muts_all_normal_nt)) # 19 (97 - 78 = 19)
+paste('Number of muts present in all tumour samples but not all normal samples:', length(muts_all_tumour_nt)) # 66 (144 - 78 = 66)
 
 paste('Number of muts present in only normal samples:', length(muts_only_normal)) # 20
 paste('Number of muts present in only PD62341 normal samples:', length(muts_only_normal_PD62341)) # 1
@@ -237,22 +237,22 @@ paste('Number of muts present in only PD63383 normal samples:', length(muts_only
 
 paste('Number of muts present in only tumour samples:', length(muts_only_tumour)) # 35
 paste('Number of muts likely in only tumour samples:', length(muts_only_tumour_cont)) # 81
-paste('Number of muts present in PD63383 tumour only:', length(c(muts_only_tumour_cont, muts_only_tumour_PD63383))) # 24 
-paste('Number of muts likely to be tumour-specific:', length(c(muts_tumour_spec))) # 116
+paste('Number of muts present in PD63383 tumour only:', length(muts_only_tumour_PD63383)) # 24 
+paste('Number of muts likely to be tumour-specific:', length(c(muts_tumour_spec))) # 140
 
 paste('Number of muts present in a single sample (normal):', length(muts_one_sample_normal)) # 38 
 paste('Number of muts present in a single sample (tumour):', length(muts_one_sample_tumour)) # 99 
 paste('Number of muts present in only a single sample:', length(c(muts_one_sample))) # 137
 
-paste('Number of muts absent from PD63383 normal (not yet identified):', length(c(muts_absent_PD63383))) # 137
+paste('Number of muts absent from PD63383 normal (not yet identified):', length(c(muts_absent_PD63383))) # 10
 
 # Create list with all mutations that have been assigned to a group (groups)
 muts_assigned = c(muts_all_samples, muts_all_normal_nt, muts_all_tumour_nt,
                   muts_only_normal, muts_tumour_spec, muts_one_sample, muts_absent_PD63383) %>% unique()
 muts_unassigned = setdiff(muts, muts_assigned)
 
-paste('Number of mutations assigned to a group:', length(muts_assigned)) # 412
-paste('Number of mutations unassigned to a group:', length(muts_unassigned)) # 187 
+paste('Number of mutations assigned to a group:', length(muts_assigned)) # 449
+paste('Number of mutations unassigned to a group:', length(muts_unassigned)) # 150 
 
 ######################################################################################################
 # Heatmap to show all classes of mutations
@@ -303,12 +303,12 @@ mut_assigned_mat = as.matrix(mut_assigned_dt[, c(samples_vaf), with=FALSE])
 rownames(mut_assigned_mat) = mut_assigned_dt[,1] %>% unlist()  
 colnames(mut_assigned_mat) = tstrsplit(colnames(mut_assigned_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
 
-pdf('Results/20241114_p4_heatmap_assigned_mutations436.pdf')
+pdf('Results/20241114_p4_heatmap_assigned_mutations449.pdf')
 pheatmap(mut_assigned_mat,
          cellwidth=10, cellheight=0.4,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="Assigned mutations (436)", 
+         main="Assigned mutations (449)", 
          legend = T, 
          treeheight_row = 0,
          cluster_rows = T, cluster_cols = T, 
@@ -322,12 +322,12 @@ mut_unassigned_mat = as.matrix(mut_unassigned_dt[, c(samples_vaf), with=FALSE])
 rownames(mut_unassigned_mat) = mut_unassigned_dt[,1] %>% unlist()  
 colnames(mut_unassigned_mat) = tstrsplit(colnames(mut_unassigned_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
 
-pdf('Results/20241114_p4_heatmap_unassigned_mutations163.pdf')
+pdf('Results/20241114_p4_heatmap_unassigned_mutations150.pdf')
 pheatmap(mut_unassigned_mat,
-         cellwidth=10, cellheight=0.4,
+         cellwidth=10, cellheight=2,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="Unassigned mutations (163)", 
+         main="Unassigned mutations (150)", 
          legend = T, 
          treeheight_row = 0,
          cluster_rows = T, cluster_cols = T, 
@@ -335,12 +335,12 @@ pheatmap(mut_unassigned_mat,
          fontsize=11, cexCol=2) 
 dev.off()
 
-pdf('Results/20241114_p4_heatmap_unassigned_mutations163_large.pdf', height = 80)
+pdf('Results/20241114_p4_heatmap_unassigned_mutations150_large.pdf', height = 30)
 pheatmap(mut_unassigned_mat,
          cellwidth=10, cellheight=10,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="Unassigned mutations (163)", 
+         main="Unassigned mutations (150)", 
          legend = T, 
          treeheight_row = 0,
          cluster_rows = T, cluster_cols = T, 
@@ -349,8 +349,275 @@ pheatmap(mut_unassigned_mat,
 dev.off()
 
 ######################################################################################################
-# Can I identify further categories of mutations of interest?
+# Plot tri-nucleotide context of assigned and unassigned mutations
 
+get_trinucs <- function(mybed, genome) {
+  
+  mybed$order <- 1:nrow(mybed) # order that rows are supplied in 
+  gr <- GRanges(seqnames = mybed$Chrom, IRanges(start = mybed$Pos, width=1), ref=mybed$Ref, alt=mybed$Alt, order=mybed$order)
+  # create a GRanges object with coordinates for the mutation
+  
+  if (all(substr(seqlevels(gr), 1, 3) != "chr")) {
+    gr <- renameSeqlevels(gr, paste0("chr", seqlevels(gr)))
+  }
+  
+  seqinfo(gr) <- seqinfo(genome)[seqlevels(gr)]
+  gr <- sort(gr)
+  bases <- c("A", "C", "G", "T")
+  trinuc_levels <- paste0(rep(bases, each = 16), rep(rep(bases, each = 4), 4), rep(bases, 16))
+  get_trinuc <- function(seqname) {
+    pos <- start(gr[seqnames(gr) == seqname])
+    view <- Views(genome[[seqname]], start = pos - 1, end = pos + 1)
+    ans <- factor(as.character(view), levels = trinuc_levels, labels = 1:64)
+    return(as.numeric(ans))
+  }
+  trinuc <- sapply(seqlevels(gr), get_trinuc)
+  gr$trinuc <- factor(unlist(trinuc, use.names = FALSE), levels = 1:64, labels = trinuc_levels)
+  remove(trinuc)
+  gr$REF <- gr$ref
+  gr$ALT <- gr$alt
+  gr$context <- gr$trinuc
+  torc <- which(gr$ref %in% c("A", "G"))
+  gr$REF[torc] <- as.character(reverseComplement(DNAStringSet(gr$REF[torc])))
+  gr$ALT[torc] <- as.character(reverseComplement(DNAStringSet(gr$ALT[torc])))
+  gr$context[torc] <- as.character(reverseComplement(DNAStringSet(gr$context[torc])))
+  gr$class <- paste(gr$REF, gr$ALT, "in", gr$context, sep = ".")
+  class_levels <- paste(rep(c("C", "T"), each = 48), rep(c("A", "G", "T", "A", "C", "G"), each = 16), "in", paste0(rep(rep(bases, each = 4), 6), rep(c("C", "T"), each = 48), rep(bases, 24)), sep = ".")
+  gr$class <- factor(gr$class, levels = class_levels)
+  
+  # match them up with one another using the original order that I put in - I think that they may have been reshuffled.
+  grdf <- as.data.frame(gr)
+  grdf <- grdf[with(grdf, order(order)),]
+  return(grdf$class)
+} 
+
+# Plot the trinucleotide context for unassigned mutations
+mybed_fin = twins_dt[mut_ID %in% muts,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins_fin = get_trinucs(mybed_fin, BSgenome.Hsapiens.UCSC.hg38)
+dt_fin = twins_dt[mut_ID %in% muts]
+dt_fin$trins_fin=trins_fin
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts_fin = data.table(table(dt_fin[, trins_fin]))
+setnames(mut_sign_counts_fin, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts_fin[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts_fin[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts_fin[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts_fin, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'All mutations (599)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_all_muts599.pdf', width = 7.5, height = 3.5)
+
+# Plot the trinucleotide distribution for assigned mutations
+mybed_asn = twins_dt[mut_ID %in% muts_assigned,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins_asn = get_trinucs(mybed_asn, BSgenome.Hsapiens.UCSC.hg38)
+dt_asn = twins_dt[mut_ID %in% muts_assigned]
+dt_asn$trins_asn=trins_asn
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts_asn = data.table(table(dt_asn[, trins_asn]))
+setnames(mut_sign_counts_asn, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts_asn[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts_asn[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts_asn[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts_asn, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'Assigned mutations (449)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_assigned_muts.pdf', width = 7.5, height = 3.5)
+
+# Plot the trinucleotide context for unassigned mutations
+mybed_usn = twins_dt[mut_ID %in% muts_unassigned,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins_usn = get_trinucs(mybed_usn, BSgenome.Hsapiens.UCSC.hg38)
+dt_usn = twins_dt[mut_ID %in% muts_unassigned]
+dt_usn$trins_usn=trins_usn
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts_usn = data.table(table(dt_usn[, trins_usn]))
+setnames(mut_sign_counts_usn, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts_usn[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts_usn[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts_usn[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts_usn, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'Unassigned mutations (150)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_unassigned_muts.pdf', width = 7.5, height = 3.5)
+
+# Trinucleotide context for different groups
+# Present in all normal samples
+# Plot the trinucleotide context for unassigned mutations
+mybed1 = twins_dt[mut_ID %in% muts_all_normal,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins1 = get_trinucs(mybed1, BSgenome.Hsapiens.UCSC.hg38)
+dt1 = twins_dt[mut_ID %in% muts_all_normal]
+dt1$trins1=trins1
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts1 = data.table(table(dt1[, trins1]))
+setnames(mut_sign_counts1, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts1[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts1[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts1[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts1, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'Mutations in all normal samples (97)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_allNormal_muts.pdf', width = 7.5, height = 3.5)
+
+# Likely tumour specific 
+mybed2 = twins_dt[mut_ID %in% muts_tumour_spec,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins2 = get_trinucs(mybed2, BSgenome.Hsapiens.UCSC.hg38)
+dt2 = twins_dt[mut_ID %in% muts_tumour_spec]
+dt2$trins2=trins2
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts2 = data.table(table(dt2[, trins2]))
+setnames(mut_sign_counts2, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts2[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts2[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts2[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts2, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'Mutations likely specific to the tumour (140)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_tumourSpec_muts.pdf', width = 7.5, height = 3.5)
+
+# PD63383 tumour specific 
+# Plot the trinucleotide context for unassigned mutations
+mybed3 = twins_dt[mut_ID %in% muts_tumour_PD63383,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins3 = get_trinucs(mybed3, BSgenome.Hsapiens.UCSC.hg38)
+dt3 = twins_dt[mut_ID %in% muts_tumour_PD63383]
+dt3$trins3=trins3
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts3 = data.table(table(dt3[, trins3]))
+setnames(mut_sign_counts3, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts3[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts3[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts3[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts3, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'Mutations specific to PD63383 tumour (24)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_tumourPD63383_muts.pdf', width = 7.5, height = 3.5)
+
+# PD63383 tumour specific 
+# Plot the trinucleotide context for unassigned mutations
+mybed4 = twins_dt[mut_ID %in% muts_one_sample,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins4 = get_trinucs(mybed4, BSgenome.Hsapiens.UCSC.hg38)
+dt4 = twins_dt[mut_ID %in% muts_one_sample]
+dt4$trins4=trins4
+
+# plot the distribution of different mutations across different contexts 
+mut_sign_counts4 = data.table(table(dt4[, trins4]))
+setnames(mut_sign_counts4, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts4[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts4[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts4[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts4, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'Mutations present in a single sample (137)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_singleSample_muts.pdf', width = 7.5, height = 3.5)
 
 
 ######################################################################################################
