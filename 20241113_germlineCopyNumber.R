@@ -221,6 +221,7 @@ for (chr in Chrom){
     theme_classic(base_size = 12)+
     labs(x = 'Genomic position', y = 'Total coverage (normal samples)')+
     ggtitle(glue('{chr}, {nr} mutations'))+
+    guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
     xlim(c(0, length))
   ggsave(glue('Results/20241114_p2_dep_across_genome_{chr}_allmuts.pdf'), height=3, width=6.5)
 }
@@ -259,9 +260,9 @@ dev.off()
 
 # Indicate classes of mutations of interest 
 twins_dt[, mut_cat := factor(fcase(
-  f7_likelyGermline_bothTwins == 1, 'germline',
-  mut_ID %in% muts_included == 1 & !mut_ID %in% muts_normal_all, 'included, other',
-  mut_ID %in% muts_included == 1 & mut_ID %in% muts_normal_all, 'included, present in all samples' # mutations that could be germline
+  f7_likelyGermline_bothTwins == 1, 'germline', # 351,943
+  mut_ID %in% muts_included == 1 & !mut_ID %in% muts_normal_all, 'included, other', # 502
+  mut_ID %in% muts_included == 1 & mut_ID %in% muts_normal_all, 'included, present in all samples' # mutations that could be germline # 632
 ))]
 
 # there are ~333k germline mutations: to avoid over-plotting, sample 5k germline mutations 
@@ -274,6 +275,7 @@ ggplot(twins_dt[sum_req_filters_qual==0 & mut_ID %in% c(muts_germline_sample, mu
   labs(x = 'Coverage (all samples)', y = 'VAF (all samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_germline, col_other, col_normal_all))+
   ggtitle(glue('All samples'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_allMuts_all_small.pdf'), height=4, width=6)
 
@@ -283,6 +285,7 @@ ggplot(twins_dt[sum_req_filters_qual==0 & mut_ID %in% c(muts_germline_sample, mu
   labs(x = 'Coverage (normal samples)', y = 'VAF (normal samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_germline, col_other, col_normal_all))+
   ggtitle(glue('Normal samples'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_allMuts_normal_small.pdf'), height=4, width=6)
@@ -293,6 +296,7 @@ ggplot(twins_dt[sum_req_filters_qual==0 & mut_ID %in% c(muts_germline_sample, mu
   labs(x = 'Coverage (tumour samples)', y = 'VAF (tumour samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_germline, col_other, col_normal_all))+
   ggtitle(glue('Tumour samples'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_allMuts_tumour_small.pdf'), height=4, width=6)
@@ -304,6 +308,7 @@ ggplot(twins_dt[mut_ID %in% muts_included], aes(x = dep_all, y = vaf_all, col = 
   labs(x = 'Coverage (all samples)', y = 'VAF (all samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_other, col_normal_all))+
   ggtitle(glue('All samples'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_all.pdf'), height=3.5, width=5.5)
 
@@ -313,6 +318,7 @@ ggplot(twins_dt[mut_ID %in% muts_included], aes(x = dep_all_normal, y = vaf_all_
   labs(x = 'Coverage (normal samples)', y = 'VAF (normal samples)', col = 'Mutation category')+
   ggtitle(glue('Normal samples'))+
   scale_color_manual(values =c(col_other, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_normal.pdf'), height=3.5, width=5.5)
@@ -323,6 +329,7 @@ ggplot(twins_dt[mut_ID %in% muts_included], aes(x = dep_all_tumour, y = vaf_all_
   labs(x = 'Coverage (tumour samples)', y = 'VAF (tumour samples)', col = 'Mutation category')+
   ggtitle(glue('Tumour samples'))+
   scale_color_manual(values = c(col_other, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour.pdf'), height=3.5, width=5.5)
@@ -334,7 +341,7 @@ ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour.pdf'), height=3.5, width
 
 # Add column to indicate mutation category (ignore germline)
 twins_dt[, mut_cat2 := factor(fcase(
-  mut_ID %in% muts_normal_all, 'mutations present in\nall normal samples',
+  mut_ID %in% muts_normal_all, 'included, present in all samples',
   !mut_ID %in% muts_normal_all, 'all other mutations'))]
 
 # Specify plotting colors 
@@ -354,6 +361,7 @@ for (chr in Chrom){
     scale_alpha_discrete(range = c(0.1, 0.8))+
     labs(x = 'Genomic position', y = 'Total coverage (all samples)', col = 'Mutation class')+
     ggtitle(glue('{chr}'))+
+    guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
     xlim(c(0, length))
   ggsave(glue('Results/20241114_p2_dep_all_{chr}_col_mutsAll.pdf'), height=3, width=6.5)
 }
@@ -370,6 +378,7 @@ for (chr in Chrom){
     scale_alpha_discrete(range = c(0.1, 0.8))+
     labs(x = 'Genomic position', y = 'Total coverage (normal samples)', col = 'Mutation class')+
     ggtitle(glue('{chr}'))+
+    guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
     xlim(c(0, length))+
     ylim(c(0, 900))
   ggsave(glue('Results/20241114_p2_dep_normal_{chr}_col_mutsAllNormal.pdf'), height=3, width=6.5)
@@ -396,7 +405,7 @@ for (chr in Chrom){
       guides(alpha = "none")+ # remove legend for alpha 
       theme_classic(base_size = 15)+
       scale_color_manual(values = c(my_colors))+
-      scale_alpha_discrete(range = c(0.8, 0.1))+
+      scale_alpha_discrete(range = c(0.1, 0.8))+
       labs(x = 'Genomic position', y = 'Coverage (normal samples)', col = 'Mutation class')+
       ggtitle(glue('{chr}'))+
       xlim(c(0, length))+
@@ -409,16 +418,18 @@ for (chr in Chrom){
     ggsave(glue('Results/20241114_p2_dep_normal_{chr}_col_mutsAllNormal_thresholds.pdf'), height=3, width=5.5)
 }
 
+# one plot with the legend
 ggplot(dt, aes(x = pos, y = dep_all_normal, col = mut_cat2, alpha = mut_cat2, order = mut_cat2))+
   geom_point(size=1.5)+
   guides(alpha = "none")+ # remove legend for alpha 
   theme_classic(base_size = 12)+
   scale_color_manual(values = c(my_colors))+
-  scale_alpha_discrete(range = c(0.8, 0.1))+
+  scale_alpha_discrete(range = c(0.1, 0.8))+
   labs(x = 'Genomic position', y = 'Total coverage (normal samples)', col = 'Mutation class')+
   ggtitle(glue('{chr}'))+
   xlim(c(0, length))+
   ylim(c(0, 850))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   geom_hline(yintercept = as.numeric(dt[,median_dep_chr] %>% unique()), col = 'purple', linetype = 'dashed', size = 0.6, alpha = 0.8)+
   geom_hline(yintercept = as.numeric(dt[,upper_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)+
   geom_hline(yintercept = as.numeric(dt[,lower_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)
@@ -426,20 +437,20 @@ ggsave(glue('Results/20241114_p2_dep_normal_{chr}_col_mutsAllNormal_thresholds_l
 
 # Identify mutations which are above or below the threshold 
 twins_dt[, CovThreshold := as.numeric(dep_all_normal < lower_dep | dep_all_normal > upper_dep)]
-paste('Number of mutations with unusual coverage compared to the chromosome:', dim(twins_dt[CovThreshold==1])[1]) # 32,835
-paste('Fraction of mutations with unusual coverage compared to the chromosome:', round(dim(twins_dt[CovThreshold==1])[1] / dim(twins_dt)[1], 4)) # 0.0906
+paste('Number of mutations with unusual coverage compared to the chromosome median coverage:', dim(twins_dt[CovThreshold==1])[1]) # 32,835
+paste('Fraction of mutations with unusual coverage compared to the chromosome median coverage:', round(dim(twins_dt[CovThreshold==1])[1] / dim(twins_dt)[1], 4)) # 0.0906
 
 # Determine the number of mutations present in all samples that are excluded by this criterion
 paste('Number of mutations with unusual coverage found in all normal samples at VAF < 0.5:', dim(twins_dt[mut_ID %in% muts_normal_all & CovThreshold==1])[1]) # 476
 paste('Fraction of mutations with unusual coverage found in all normal samples at VAF < 0.5:', round(dim(twins_dt[mut_ID %in% muts_normal_all & CovThreshold==1])[1] / length(muts_normal_all), 4)) # 0.7532
 # those mutations can be excluded based on the threshold  
 
-twins_dt[, f8_excludeCovThreshold := as.numeric((dep_all_normal < lower_dep | dep_all_normal > upper_dep) & mut_ID %in% muts_normal_all)]
+twins_dt[, f8_excludeCovThreshold := as.numeric(CovThreshold == 1 & mut_ID %in% muts_normal_all)]
 paste('Number of mutations with unusual coverage compared to the chromosome (to exclude):', dim(twins_dt[f8_excludeCovThreshold==1])[1]) # 32,835
 
 # Show mutations excluded by filtering 
 twins_dt[, mut_cat3 := factor(fcase(
-  f8_excludeCovThreshold == 1, 'all normal samples, excluded',
+  f8_excludeCovThreshold == 1, 'all normal samples, likely germline',
   mut_ID %in% muts_normal_all & f8_excludeCovThreshold == 0, 'all normal samples, retained',
   !mut_ID %in% muts_normal_all & f7_likelyGermline_bothTwins == 0, 'other', 
   f7_likelyGermline_bothTwins == 1, 'germline'
@@ -451,6 +462,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   labs(x = 'Coverage (all samples)', y = 'VAF (all samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_normal_all_removed, col_normal_all, col_germline, col_other))+
   ggtitle(glue('All samples'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_all_excludeCNGermline_show.pdf'), height=4, width=6)
 
@@ -461,6 +473,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   ggtitle(glue('Normal samples'))+
   scale_color_manual(values = c(col_normal_all_removed, col_normal_all, col_germline, col_other))+
   ylim(c(0, 0.75))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_normal_excludeCNGermline_show.pdf'), height=4, width=6)
 
@@ -471,6 +484,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   ggtitle(glue('Tumour samples'))+
   scale_color_manual(values = c(col_normal_all_removed, col_normal_all, col_germline, col_other))+
   ylim(c(0, 0.75))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour_excludeCNGermline_show.pdf'), height=4, width=6)
 
@@ -480,6 +494,7 @@ ggplot(twins_dt[f8_excludeCovThreshold == 0 & mut_ID %in% muts_included], aes(x 
   labs(x = 'Coverage (all samples)', y = 'VAF (all samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_normal_all, col_other))+
   ggtitle(glue('All samples'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_all_excludeCNGermline.pdf'), height=3.5, width=5.5)
 
@@ -489,6 +504,7 @@ ggplot(twins_dt[f8_excludeCovThreshold == 0 &mut_ID %in% muts_included], aes(x =
   labs(x = 'Coverage (normal samples)', y = 'VAF (normal samples)', col = 'Mutation category')+
   ggtitle(glue('Normal samples'))+
   scale_color_manual(values = c(col_normal_all, col_other))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_normal_excludeCNGermline.pdf'), height=3.5, width=5.5)
@@ -499,6 +515,7 @@ ggplot(twins_dt[f8_excludeCovThreshold == 0 & mut_ID %in% muts_included], aes(x 
   labs(x = 'Coverage (tumour samples)', y = 'VAF (tumour samples)', col = 'Mutation category')+
   ggtitle(glue('Tumour samples'))+
   scale_color_manual(values = c(col_normal_all, col_other))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour_excludeCNGermline.pdf'), height=3.5, width=5.5)
@@ -509,7 +526,7 @@ ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour_excludeCNGermline.pdf'),
 # The threshold is arbitrary - a given mutation may be less well mapped / sequence to a slightly lower coverage and just about meet the threshold
 
 # define a function to find clusters of mutations 
-find_clusters = function(numbers, range=20000, min_count = 10){
+find_clusters = function(numbers, range=50000, min_count = 10){
   numbers = sort(numbers)
   clusters = list()
   current_cluster = c()
@@ -534,17 +551,22 @@ find_clusters = function(numbers, range=20000, min_count = 10){
 muts_clusters = c()
 
 for (chr in twins_dt[, Chrom] %>% unique){
-  pos_chr = sort(twins_dt[mut_ID %in% muts_included & Chrom == chr, pos] %>% unlist())
+  pos_chr = sort(twins_dt[mut_ID %in% muts_normal_all & Chrom == chr, pos] %>% unlist())
   clusters_chr = find_clusters(pos_chr)
-  muts_clusters_chr = twins_dt[mut_ID %in% muts_included & Chrom == chr & pos > min(clusters_chr) & pos < max(clusters_chr), mut_ID] %>% unlist()
+  muts_clusters_chr = twins_dt[mut_ID %in% muts_normal_all & Chrom == chr & pos > min(clusters_chr) & pos < max(clusters_chr), mut_ID] %>% unlist()
   muts_clusters = c(muts_clusters, muts_clusters_chr)
 }
 
 muts_clusters = muts_clusters %>% unlist()
-paste('Number of mutations presents in clusters:', length(muts_clusters)) # 319
+paste('Number of mutations presents in clusters:', length(muts_clusters)) # 296
+paste('Fraction of mutations present in all normal samples located in clusters:', length(muts_clusters) / length(muts_normal_all)) # 0.468 
 
-paste('Number of mutations present in clusters with unusually high or low coverage:', length(Reduce(intersect, list(muts_clusters, muts_copynumber_exclude)))) # 229 
-paste('Number of mutations present in clusters or with unusually high or low coverage:', length(c(muts_clusters, muts_copynumber_exclude) %>% unique())) # 566 
+paste('Number of mutations present in clusters with unusually high or low coverage:', length(Reduce(intersect, list(muts_clusters, muts_copynumber_exclude)))) # 237 
+paste('Fraction of mutations present in all normal samples w/ unusual coverage located in clusters:', length(Reduce(intersect, list(muts_clusters, muts_copynumber_exclude))) / length(muts_clusters)) # 0.468 
+
+# mutations to exclude 
+paste('Number of mutations present in clusters or with unusually high or low coverage:', length(c(muts_clusters, muts_copynumber_exclude) %>% unique())) # 535 
+muts_exclude = c(muts_clusters, muts_copynumber_exclude) %>% unique()
 
 # Plot the distribution of mutations present in clusters across the genome 
 twins_dt[, mut_cat4 := factor(fcase(
@@ -625,6 +647,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   theme_classic(base_size = 12)+
   labs(x = 'Coverage (all samples)', y = 'VAF (all samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_germline, col_other, col_normal_all_removed, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ggtitle(glue('All samples'))+
   ylim(c(0, 0.75))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_all_excludeCNGermlineCluster_show.pdf'), height=4, width=6)
@@ -635,6 +658,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   labs(x = 'Coverage (normal samples)', y = 'VAF (normal samples)', col = 'Mutation category')+
   ggtitle(glue('Normal samples'))+
   scale_color_manual(values = c(col_germline, col_other, col_normal_all_removed, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_normal_excludeCNGermlineCluster_show.pdf'), height=4, width=6)
@@ -645,6 +669,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   labs(x = 'Coverage (tumour samples)', y = 'VAF (tumour samples)', col = 'Mutation category')+
   ggtitle(glue('Tumour samples'))+
   scale_color_manual(values = c(col_germline, col_other, col_normal_all_removed, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour_excludeCNGermlineCluster_show.pdf'), height=4, width=6)
@@ -655,6 +680,7 @@ ggplot(twins_dt[f8_excludeCovThreshold == 0 & f9_presenceInClusters == 0 & mut_I
   theme_classic(base_size = 12)+
   labs(x = 'Coverage (all samples)', y = 'VAF (all samples)', col = 'Mutation category')+
   scale_color_manual(values = c(col_other, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ggtitle(glue('All samples'))+
   ylim(c(0, 0.6))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_all_excludeCNGermlineClusters.pdf'), height=3.5, width=5.5)
@@ -665,6 +691,7 @@ ggplot(twins_dt[f8_excludeCovThreshold == 0 & f9_presenceInClusters == 0 & mut_I
   labs(x = 'Coverage (normal samples)', y = 'VAF (normal samples)', col = 'Mutation category')+
   ggtitle(glue('Normal samples'))+
   scale_color_manual(values = c(col_other, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_normal_excludeCNGermlineClusters.pdf'), height=3.5, width=5.5)
@@ -675,6 +702,7 @@ ggplot(twins_dt[f8_excludeCovThreshold == 0 & f9_presenceInClusters == 0 & mut_I
   labs(x = 'Coverage (tumour samples)', y = 'VAF (tumour samples)', col = 'Mutation category')+
   ggtitle(glue('Tumour samples'))+
   scale_color_manual(values = c(col_other, col_normal_all))+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.6))+
   xlim(c(0, 900))
 ggsave(glue('Results/20241114_p2_vaf_vs_dep_1134_tumour_excludeCNGermlineClusters.pdf'), height=3.5, width=5.5)
@@ -706,19 +734,19 @@ write.csv(twins_dt[, c('mut_ID', cols_filters), with=FALSE], 'Data/twins_dt_filt
 # OUTPUT 1: SAVE FILTERED MUTATIONS TO A TXT FILE
 muts_copynumber_clusters_exclude = twins_dt[f8_excludeCovThreshold==1 | f9_presenceInClusters==1, mut_ID] %>% unlist()
 muts_retained2 = setdiff(muts_included, muts_copynumber_clusters_exclude)
-paste('Number of mutations retained after excluding likely copy number mutations and mutations in clusters:', length(muts_retained2)) # 568
-write.table(muts_retained2, 'Data/mutations_include_20241114_568.txt', quote = FALSE, col.names = F, row.names = F)
+paste('Number of mutations retained after excluding likely copy number mutations and mutations in clusters:', length(muts_retained2)) # 599
+write.table(muts_retained2, 'Data/mutations_include_20241114_599.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
 # OUTPUT 2: SAVE THE DATAFRAME WITH DATA + FILTERS TO A FILE (INCUDING ALL CLASSES OF FILTERS)
-write.csv(twins_dt, 'Data/twins_dt_filters_20241114_568_full.csv', quote = FALSE, row.names = F)
+write.csv(twins_dt, 'Data/twins_dt_filters_20241114_599_full.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # OUTPUT 3: SAVE THE DATAFRAME WITH FILTERS TO A FILE (INCUDING ALL CLASSES OF FILTERS)
 cols_filters = c('f1_mappedY', 'f2_FailedIndelNearby30','f3_lowDepthNormal', 'f3_highDepthNormal', 
                  'f4_mtrAndVaf', 'f5_strandBiasMutOnly', 'f6_lowQualRatio',
                  'f7_likelyGermline_bothTwins', 'f8_excludeCovThreshold', 'f9_presenceInClusters')
-write.csv(twins_dt[, c('mut_ID', cols_filters), with=FALSE], 'Data/twins_dt_filters_20241114_568_filters.csv', quote = FALSE, row.names = F)
+write.csv(twins_dt[, c('mut_ID', cols_filters), with=FALSE], 'Data/twins_dt_filters_20241114_599_filters.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 ######################################################################################################
