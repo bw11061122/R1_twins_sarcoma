@@ -29,6 +29,7 @@ library(viridis)
 library(grid)
 library(pheatmap)
 library(ggrepel)
+library(RColorBrewer)
 
 ###################################################################################################################################
 # INPUT FILES 
@@ -42,8 +43,8 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Filter to only include mutations retained for filtering 
-muts = read.table('Data/mutations_include_20241114_568.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts)) # 568
+muts = read.table('Data/mutations_include_20241114_599.txt') %>% unlist()
+paste('Number of mutations that passed required filters:', length(muts)) # 599
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 # Import dataframe with purity estimates
@@ -175,6 +176,16 @@ twins_filtered_dt[, sum_tumour_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(
 twins_filtered_dt[, sum_normal_PD62341_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD62341_mtr', 'sum_normal_PD62341_vaf')]
 twins_filtered_dt[, sum_normal_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD63383_mtr', 'sum_normal_PD63383_vaf')]
 
+# Add a section for clean normal PD63383 samples (from script 2, evident that skin (PD63383bb) is contaminated)
+samples_normal_PD63383_clean = c("PD63383w", "PD63383t", "PD63383u", "PD63383ae", "PD63383ak")
+samples_normal_PD63383_clean_dep = paste(samples_normal_PD63383_clean, '_DEP')
+samples_normal_PD63383_clean_mtr = paste(samples_normal_PD63383_clean, '_MTR')
+samples_normal_PD63383_clean_vaf = paste(samples_normal_PD63383_clean, '_VAF')
+
+twins_filtered_dt[, sum_normal_PD63383_clean_mtr := apply(.SD, 1, function(x) min(x)), .SDcols = samples_normal_PD63383_mtr]
+twins_filtered_dt[, sum_normal_PD63383_clean_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = samples_normal_PD63383_vaf]
+twins_filtered_dt[, sum_normal_PD63383_clean_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD63383_clean_mtr', 'sum_normal_PD63383_clean_vaf')]
+
 ######################################################################################################
 # Identify groups of mutations of interest 
 
@@ -183,25 +194,280 @@ twins_filtered_dt[, sum_normal_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(
 # Present in only a single sample
 # Present in all normal samples 
 # Present in all tumour samples 
-# Present in 
+# Present in PD63383 tumour samples
 
 # Create lists of mutations 
 muts = twins_filtered_dt[, mut_ID] %>% unlist()
 muts_all_samples = twins_filtered_dt[sum_tumour_mtr_vaf==10 & sum_normal_mtr_vaf==12, mut_ID] %>% unlist()
+
 muts_all_normal = twins_filtered_dt[sum_normal_mtr_vaf==12, mut_ID] %>% unlist()
+muts_all_normal_nt = setdiff(muts_all_normal, muts_all_samples)
+
 muts_all_tumour = twins_filtered_dt[sum_tumour_mtr_vaf==10, mut_ID] %>% unlist()
+muts_all_tumour_nt = setdiff(muts_all_tumour, muts_all_samples)
+
 muts_only_normal = twins_filtered_dt[sum_tumour_mtr_vaf==0 & sum_normal_mtr_vaf>1, mut_ID] %>% unlist() # exclude mutations present in a single sample
+muts_only_normal_PD62341 = twins_filtered_dt[sum_tumour_mtr_vaf==0 & sum_normal_PD62341_mtr_vaf>1 & sum_normal_PD63383_mtr_vaf==0, mut_ID] %>% unlist() # exclude mutations present in a single sample
+muts_only_normal_PD63383 = twins_filtered_dt[sum_tumour_mtr_vaf==0 & sum_normal_PD62341_mtr_vaf==0 & sum_normal_PD63383_mtr_vaf>1, mut_ID] %>% unlist() # exclude mutations present in a single sample
+
 muts_only_tumour = twins_filtered_dt[sum_normal_mtr_vaf==0 & sum_tumour_mtr_vaf>1, mut_ID] %>% unlist()
+muts_only_tumour_cont = twins_filtered_dt[sum_normal_mtr_vaf<=3 & sum_normal_mtr_vaf>=1 & sum_tumour_mtr_vaf>5, mut_ID] %>% unlist()
+muts_tumour_PD63383 = twins_filtered_dt[sum_normal_PD63383_mtr_vaf<=1 & sum_normal_PD62341_mtr_vaf==0 & sum_tumour_PD63383_mtr_vaf==2, mut_ID] %>% unlist()
+muts_only_tumour_PD63383 = setdiff(muts_tumour_PD63383, c(muts_only_tumour, muts_only_tumour_cont)) # 48 
+muts_tumour_spec = c(muts_only_tumour, muts_only_tumour_cont, muts_only_tumour_PD63383) # 140
+
 muts_one_sample_normal = twins_filtered_dt[sum_tumour_mtr_vaf==0 & sum_normal_mtr_vaf==1, mut_ID] %>% unlist()
 muts_one_sample_tumour = twins_filtered_dt[sum_tumour_mtr_vaf==1 & sum_normal_mtr_vaf==0, mut_ID] %>% unlist()
+muts_one_sample = c(muts_one_sample_normal, muts_one_sample_tumour)
 
-paste('Mutations present in all samples:', length(muts_all_samples)) # 84
-paste('Number of muts present in all normal samples:', length(muts_all_normal)) # 103
-paste('Number of muts present in all tumour samples:', length(muts_all_tumour)) # 138
-paste('Number of muts present in only normal samples:', length(muts_only_normal)) # 18
-paste('Number of muts present in only tumour samples:', length(muts_only_tumour)) # 34
-paste('Number of muts present in a single sample (normal):', length(muts_one_sample_normal)) # 35 # makes sense since tumour is from normal
-paste('Number of muts present in a single sample (tumour):', length(muts_one_sample_tumour)) # 95 # makes sense since tumour is from normal
+muts_absent_PD63383 = twins_filtered_dt[sum_normal_PD63383_clean_mtr_vaf==0, mut_ID] %>% unlist()
+muts_absent_PD63383 = setdiff(muts_absent_PD63383, c(muts_only_normal, muts_tumour_spec, muts_one_sample))
+
+# Check number of mutations in each category 
+paste('Mutations present in all samples:', length(muts_all_samples)) # 78
+
+paste('Number of muts present in all normal samples:', length(muts_all_normal)) # 97 (632 - 535: makes sense)
+paste('Number of muts present in all tumour samples:', length(muts_all_tumour)) # 144
+paste('Number of muts present in all normal samples but not all tumour samples:', length(muts_all_normal_nt)) # (97 - 78 = 19)
+paste('Number of muts present in all tumour samples but not all normal samples:', length(muts_all_tumour_nt)) # (144 - 78 = 66)
+
+paste('Number of muts present in only normal samples:', length(muts_only_normal)) # 20
+paste('Number of muts present in only PD62341 normal samples:', length(muts_only_normal_PD62341)) # 1
+paste('Number of muts present in only PD63383 normal samples:', length(muts_only_normal_PD63383)) # 7
+
+paste('Number of muts present in only tumour samples:', length(muts_only_tumour)) # 35
+paste('Number of muts likely in only tumour samples:', length(muts_only_tumour_cont)) # 81
+paste('Number of muts present in PD63383 tumour only:', length(c(muts_only_tumour_cont, muts_only_tumour_PD63383))) # 24 
+paste('Number of muts likely to be tumour-specific:', length(c(muts_tumour_spec))) # 116
+
+paste('Number of muts present in a single sample (normal):', length(muts_one_sample_normal)) # 38 
+paste('Number of muts present in a single sample (tumour):', length(muts_one_sample_tumour)) # 99 
+paste('Number of muts present in only a single sample:', length(c(muts_one_sample))) # 137
+
+paste('Number of muts absent from PD63383 normal (not yet identified):', length(c(muts_absent_PD63383))) # 137
+
+# Create list with all mutations that have been assigned to a group (groups)
+muts_assigned = c(muts_all_samples, muts_all_normal_nt, muts_all_tumour_nt,
+                  muts_only_normal, muts_tumour_spec, muts_one_sample, muts_absent_PD63383) %>% unique()
+muts_unassigned = setdiff(muts, muts_assigned)
+
+paste('Number of mutations assigned to a group:', length(muts_assigned)) # 412
+paste('Number of mutations unassigned to a group:', length(muts_unassigned)) # 187 
+
+######################################################################################################
+# Heatmap to show all classes of mutations
+mut_all_dt = twins_filtered_dt[, c('mut_ID', samples_vaf), with=FALSE]
+mut_all_mat = as.matrix(mut_all_dt[, c(samples_vaf), with=FALSE])
+rownames(mut_all_mat) = mut_all_dt[,1] %>% unlist()  
+colnames(mut_all_mat) = tstrsplit(colnames(mut_all_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
+                            Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)),
+                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.5, 0.6, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
+rownames(col_annotation) = colnames(mut_all_mat)
+annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
+                         Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
+                         Purity = colorRampPalette(c('#f2e7e7', 'darkred'))(11))
+
+# heatmap
+pdf('Results/20241114_p4_heatmap_all_mutations599.pdf')
+pheatmap(mut_all_mat,
+         cellwidth=10, cellheight=0.4,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="All mutations (599)", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+# save larger format to be able to see mutation names
+pdf('Results/20241114_p4_heatmap_all_mutations599_large.pdf', height = 90)
+pheatmap(mut_all_mat,
+         cellwidth=10, cellheight=10,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="All mutations (599)", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = T, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+# Heatmap: mutations assigned to a group
+mut_assigned_dt = twins_filtered_dt[mut_ID %in% muts_assigned, c('mut_ID', samples_vaf), with=FALSE]
+mut_assigned_mat = as.matrix(mut_assigned_dt[, c(samples_vaf), with=FALSE])
+rownames(mut_assigned_mat) = mut_assigned_dt[,1] %>% unlist()  
+colnames(mut_assigned_mat) = tstrsplit(colnames(mut_assigned_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+pdf('Results/20241114_p4_heatmap_assigned_mutations436.pdf')
+pheatmap(mut_assigned_mat,
+         cellwidth=10, cellheight=0.4,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="Assigned mutations (436)", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+# Heatmap: mutations I didn't assign to any group
+mut_unassigned_dt = twins_filtered_dt[!mut_ID %in% muts_assigned, c('mut_ID', samples_vaf), with=FALSE]
+mut_unassigned_mat = as.matrix(mut_unassigned_dt[, c(samples_vaf), with=FALSE])
+rownames(mut_unassigned_mat) = mut_unassigned_dt[,1] %>% unlist()  
+colnames(mut_unassigned_mat) = tstrsplit(colnames(mut_unassigned_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+pdf('Results/20241114_p4_heatmap_unassigned_mutations163.pdf')
+pheatmap(mut_unassigned_mat,
+         cellwidth=10, cellheight=0.4,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="Unassigned mutations (163)", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+pdf('Results/20241114_p4_heatmap_unassigned_mutations163_large.pdf', height = 80)
+pheatmap(mut_unassigned_mat,
+         cellwidth=10, cellheight=10,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="Unassigned mutations (163)", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = T, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
+######################################################################################################
+# Can I identify further categories of mutations of interest?
+
+
+
+######################################################################################################
+# Inspect mutations identified in categories of interest 
+
+muts_all_samples 
+
+muts_all_normal_nt # 19
+# "chr10_79512492_C_G" # poor quality 
+# "chr13_38383628_T_C" # looks okay (some mis-mapping of minus strands and insertions) # 3 reads in PD63383aq
+# "chr16_20575297_A_G" # poor quality 
+# "chr16_88009831_A_G" # some insertions (VAF 0.09 in PD62341ap - has lots of insertion and only 3 reads with the mutation)
+# "chr18_56506391_G_C" # insertions + split reads 
+# "chr19_40853394_C_A" # poor quality mapping 
+# "chr19_50081651_T_C" # poor mapping of (-) strand reads, PD62341 has 5 reads (3 on better-mapping reads)
+# "chr1_103717717_G_A" # poor quality mapping 
+# "chr1_13269066_T_C"  # poor quality mapping
+# "chr1_21423048_C_A"  # poor quality mapping of (-) strand reads
+# "chr1_38827952_C_A"  # loss of chr1 copy in PD62341am, PD63383ap, PD63383aq
+# "chr1_47072883_A_T"  # poor quality mapping 
+# "chr2_1440752_T_C"   # looks okay - 5 reads in PD62341ak and VAF 0.09, likely presence in all samples 
+# "chr3_190409217_C_T" # looks okay - 0.064 in PD62341u, but high-quality reads, likely presence in all samples
+# "chr6_94069453_A_T"  # all likely due to insertions
+# "chr9_133062780_G_C" # poor mapping  
+# "chr9_77762599_A_T"  # poor mapping 
+# "chrX_140138202_C_T" # poor mapping of (-) strand reads (explains lower VAF in PD62341u)
+# "chrX_66502763_G_A" # looks good (3 reads in am and ap, likely due to lower coverage in those samples)
+
+muts_all_tumour_nt
+# "chr10_100754461_C_T" 
+# "chr11_114491131_C_T" 
+# "chr11_134158143_C_T" 
+# "chr11_4220977_T_C"   
+# "chr11_4594537_A_G"  
+# "chr13_42613199_A_G"  
+# "chr13_57286266_C_T"  
+# "chr13_60216504_A_C"  
+# "chr14_104500332_C_T" 
+# "chr14_105458006_C_A"
+# "chr15_23462705_C_A"  
+# "chr15_48353502_C_A"  
+# "chr15_49480646_T_A"  
+# "chr15_56691722_C_T"  
+# "chr16_32621521_C_A" 
+# "chr16_4003400_G_A"   
+# "chr16_5479739_C_T"   
+# "chr17_18402053_G_C"  
+# "chr17_21307477_G_A"  
+# "chr17_33422229_C_A" 
+# "chr17_36165401_A_G"  
+# "chr17_36209262_G_T"  
+# "chr17_36388753_C_G"  
+# "chr17_40061856_G_C"  
+# "chr17_78256883_C_T" 
+# "chr19_90678_G_A"     
+# "chr1_149223310_G_A"  
+# "chr1_153050724_T_C" 
+# "chr1_157363251_C_T"  
+# "chr1_213216928_T_C" 
+# "chr1_69984580_G_A"   
+# "chr21_10551234_A_C"  
+# "chr22_17774668_G_A"  
+# "chr22_30553442_G_T"  
+# "chr2_133311125_G_T" 
+# "chr2_199565129_G_A"  
+# "chr2_95662131_G_A"   
+# "chr3_50106043_C_T"   
+# "chr3_62055057_C_G"   
+# "chr3_62055077_G_C"  
+# "chr4_147908994_T_C"  
+# "chr4_178731458_A_G"  
+# "chr5_131368207_T_C"  
+# "chr5_136349883_C_T"  
+# "chr5_176771316_G_A" 
+# "chr5_176771327_T_A"  
+# "chr5_179514426_A_G"  
+# "chr5_37790015_G_A"   
+# "chr5_44907911_G_A"   
+# "chr6_101192680_A_G" 
+# "chr6_32384367_G_A"   
+# "chr6_95827754_C_A"   
+# "chr7_102544208_T_C"  
+# "chr7_24047089_G_C"   
+# "chr7_55402890_G_T"  
+# "chr7_64978551_T_C"   
+# "chr7_76580290_G_T"   
+# "chr7_76798258_T_C"   
+# "chr7_77510284_A_G"   
+# "chr8_142914761_A_G" 
+# "chr8_7418832_G_C"   
+# "chr9_11364991_T_A"   
+# "chr9_42329754_C_T"   
+# "chrX_66719643_C_G"   
+# "chrX_68803487_C_T"  
+# "chrX_798031_G_A" 
+
+muts_only_normal # 20
+# "chr11_34011887_C_T" # looks okay
+# "chr13_24392029_C_G" # poor quality 
+# "chr13_50815806_A_G" # looks okay
+# "chr17_20476029_C_T" # poor mapping 
+# "chr18_56262973_G_A" # poor quality (mapping reverse strands + indels)
+# "chr1_103587565_A_C" # looks real (3 PD63383 samples)
+# "chr21_28681933_A_C" # poor quality 
+# "chr21_40193588_G_A" # looks okay
+# "chr3_165901319_C_A" # to consider - mapping is quite okay but maps to several places on blat
+# "chr3_77633967_C_T" # looks okay
+# "chr4_15905566_C_T" # looks okay (present at low levels, but mapping is good quality, I do not note any insertions, no double-mapping on blat) 
+# "chr4_74625500_G_T" # looks okay 
+# "chr4_75704880_G_A" # looks okay
+# "chr6_159851462_T_C" # poor quality (deletions) 
+# "chr6_165179306_G_A" # looks okay
+# "chr7_110349267_G_A" # plausible (+ strand reads map with poor quality)
+# "chr7_143846161_G_A" # poor mapping 
+# "chr7_149688370_C_T" # looks okay
+# "chr7_73831920_C_T"  # looks okay
+# "chrX_115066661_C_T" # looks okay 
 
 ######################################################################################################
 # Accounting for contamination (use purity estimates)
