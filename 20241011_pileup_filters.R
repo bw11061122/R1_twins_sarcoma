@@ -364,6 +364,12 @@ muts_germline = twins_dt[sum_req_filters==1 & f7_likelyGermline_bothTwins==1, mu
 write.table(muts_germline, 'Data/mutations_putativeGermline_20241114.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
+# OUTPUT 1: SAVE PUTATIVE GERMLINE MUTATIONS TO A TXT FILE
+muts_passed_qc = c(muts_included, muts_germline)
+paste('Number of included mutations:', length(muts_passed_qc)) # 334,165 (333,031 + 1,134)
+write.table(muts_passed_qc, 'Data/mutations_passedQuality_20241114.txt', quote = FALSE, col.names = F, row.names = F)
+
+######################################################################################################
 # OUTPUT 2: SAVE THE DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS)
 write.csv(twins_dt, 'Data/twins_dt_20241114_1134.csv', quote = FALSE, row.names = F)
 
