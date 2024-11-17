@@ -14,7 +14,7 @@
 # these mutations will be used for phylogeny reconstruction
 
 # Script to identify regions of copy number alterations (deletions or duplications) in the germline
-# These regions can be small (several 100 kb) and would not be picked up by ASCAT 
+# These regions can be small (< 100 kb) and maybe would not be picked up by ASCAT 
 
 ###################################################################################################################################
 # LIBRARIES
