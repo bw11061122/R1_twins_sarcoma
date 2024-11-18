@@ -324,7 +324,7 @@ colnames(mut_all_binary) = tstrsplit(colnames(mut_all_binary), '_binary', fixed=
 
 col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
                             Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)),
-                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.5, 0.6, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
+                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.6, 0.5, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
 rownames(col_annotation) = colnames(mut_all_binary)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
                          Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
@@ -353,7 +353,7 @@ colnames(mut_all_mat) = tstrsplit(colnames(mut_all_mat), '_VAF', fixed=TRUE, kee
 
 col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
                             Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)),
-                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.5, 0.6, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
+                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.6, 0.5, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
 rownames(col_annotation) = colnames(mut_all_mat)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
                          Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
@@ -1092,7 +1092,7 @@ colnames(mut_tumour_nt_mat) = tstrsplit(colnames(mut_tumour_nt_mat), '_VAF', fix
 
 col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
                             Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)),
-                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.5, 0.6, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
+                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.6, 0.5, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
 rownames(col_annotation) = colnames(mut_tumour_nt_mat)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
                          Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
@@ -1259,7 +1259,7 @@ rownames(tumour_spec_mat) = tumour_spec[,1] %>% unlist()
 colnames(tumour_spec_mat) = tstrsplit(colnames(tumour_spec_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
 
 col_annotation = data.frame(Twin = c(rep('PD62341', 6), rep('PD63383', 2), rep('PD62341', 2)),
-                            Purity = c(0.9, 0.3, 0.5, 0.6, 0.8, 0.8,0.9, 0.9, 0.7, 0.5)) # fraction of tumour cells 
+                            Purity = c(0.9, 0.3, 0.6, 0.5, 0.8, 0.8, 0.9, 0.9, 0.7, 0.5)) # fraction of tumour cells 
 rownames(col_annotation) = colnames(tumour_spec_mat)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
                          Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
@@ -1417,7 +1417,7 @@ colnames(mut_all_qc) = tstrsplit(colnames(mut_all_qc), '_VAF', fixed=TRUE, keep=
 
 col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
                             Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)),
-                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.5, 0.6, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
+                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.6, 0.5, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
 rownames(col_annotation) = colnames(mut_all_qc)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
                          Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
@@ -1467,7 +1467,7 @@ colnames(mut_q_qc) = tstrsplit(colnames(mut_q_qc), '_VAF', fixed=TRUE, keep=1) %
 
 col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
                             Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)),
-                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.5, 0.6, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
+                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.6, 0.5, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
 rownames(col_annotation) = colnames(mut_q_qc)
 annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
                          Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
