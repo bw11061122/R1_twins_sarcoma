@@ -194,6 +194,24 @@ twins_filtered_dt[, sum_normal_PD63383_clean_mtr := rowSums(.SD>=4), .SDcols = s
 twins_filtered_dt[, sum_normal_PD63383_clean_vaf := rowSums(.SD>=0.1), .SDcols = samples_normal_PD63383_clean_vaf]
 twins_filtered_dt[, sum_normal_PD63383_clean_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD63383_clean_mtr', 'sum_normal_PD63383_clean_vaf')]
 
+twins_filtered_dt[, agg_normal_PD63383_clean_mtr := rowSums(.SD), .SDcols = samples_normal_PD63383_clean_mtr]
+twins_filtered_dt[, agg_normal_PD63383_clean_dep := rowSums(.SD), .SDcols = samples_normal_PD63383_clean_dep]
+twins_filtered_dt[, agg_normal_PD63383_clean_vaf := agg_normal_PD63383_clean_mtr / agg_normal_PD63383_clean_dep]
+
+# Add a section for clean normal PD62341 samples (exclude spleen which we know got transfusion)
+samples_normal_PD62341_clean = c("PD62341n", "PD62341h", "PD62341ad", "PD62341aa", "PD62341q")
+samples_normal_PD62341_clean_dep = paste0(samples_normal_PD62341_clean, '_DEP')
+samples_normal_PD62341_clean_mtr = paste0(samples_normal_PD62341_clean, '_MTR')
+samples_normal_PD62341_clean_vaf = paste0(samples_normal_PD62341_clean, '_VAF')
+
+twins_filtered_dt[, sum_normal_PD62341_clean_mtr := rowSums(.SD>=4), .SDcols = samples_normal_PD62341_clean_mtr]
+twins_filtered_dt[, sum_normal_PD62341_clean_vaf := rowSums(.SD>=0.1), .SDcols = samples_normal_PD62341_clean_vaf]
+twins_filtered_dt[, sum_normal_PD62341_clean_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD62341_clean_mtr', 'sum_normal_PD62341_clean_vaf')]
+
+twins_filtered_dt[, agg_normal_PD62341_clean_mtr := rowSums(.SD), .SDcols = samples_normal_PD62341_clean_mtr]
+twins_filtered_dt[, agg_normal_PD62341_clean_dep := rowSums(.SD), .SDcols = samples_normal_PD62341_clean_dep]
+twins_filtered_dt[, agg_normal_PD62341_clean_vaf := agg_normal_PD62341_clean_mtr / agg_normal_PD62341_clean_dep]
+
 ######################################################################################################
 # Identify groups of mutations of interest 
 
@@ -676,7 +694,6 @@ ggplot(data=mut_sign_counts3, aes(x=context, y=count, fill=mut_class)) +
   geom_hline(yintercept = 0, colour="black", size = 0.1)
 ggsave('Results/20241114_p4_mut_trins_tumourPD63383_muts.pdf', width = 7.5, height = 3.5)
 
-# PD63383 tumour specific 
 # Plot the trinucleotide context for unassigned mutations
 mybed4 = twins_dt[mut_ID %in% muts_one_sample,c('Chrom', 'Pos', 'Ref', 'Alt')]
 trins4 = get_trinucs(mybed4, BSgenome.Hsapiens.UCSC.hg38)
@@ -1235,6 +1252,34 @@ muts_assignment_dt[, assignment_2 := factor(fcase(
   !mut_ID %in% muts_all_tumour_nt, 'other'
 ))]
 
+# create a heatmap that shows mutations shared between PD62341 twin and the tumour
+mut_shared = twins_filtered_vaf[mut_ID %in% c("chr3_62055057_C_G", "chr3_62055077_G_C", "chr17_33422229_C_A", "chr14_105458006_C_A", "chr16_5479739_C_T",  "chr2_95662131_G_A", "chr3_50106043_C_T", "chr15_49480646_T_A"), c('mut_ID', samples_vaf), with=FALSE]
+mut_shared_mat = as.matrix(mut_shared[, c(samples_vaf), with=FALSE])
+rownames(mut_shared_mat) = mut_shared[,1] %>% unlist()  
+colnames(mut_shared_mat) = tstrsplit(colnames(mut_shared_mat), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+col_annotation = data.frame(Status = c(rep('normal', 4), rep('tumour', 6), rep('normal', 5), rep('tumour', 2), rep('normal', 1), c('tumour', 'normal', 'normal', 'tumour')), 
+                            Twin = c(rep('PD62341', 10), rep('PD63383', 8), rep('PD62341', 4)),
+                            Purity = c(0, 0.1, 0.2, 0, 0.9, 0.3, 0.6, 0.5, 0.8, 0.8, 0, 0, 0, 0, 0, 0.9, 0.9, 0.3, 0.7, 0.4, 0, 0.5)) # fraction of tumour cells 
+rownames(col_annotation) = colnames(mut_shared_mat)
+annotation_colors = list(Status = c(normal=col_normal, tumour=col_tumour), 
+                         Twin = c(PD62341=col_PD62341, PD63383=col_PD63383),
+                         Purity = colorRampPalette(c('#f2e7e7', 'darkred'))(11))
+
+# heatmap
+pdf('Results/20241114_p4_heatmap_shared_tumour_PD62341_8.pdf')
+pheatmap(mut_shared_mat,
+         cellwidth=10, cellheight=10,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="Tumour arose in PD62341", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = T, show_colnames = T,
+         fontsize=11, cexCol=2) 
+dev.off()
+
 ######################################################################################################
 # OUTPUT 1: write assignment dt to a file 
 write.csv(muts_assignment_dt, 'Results/20241114_599muts_assignment_dt.csv', quote = FALSE)
@@ -1486,7 +1531,112 @@ pheatmap(mut_q_qc,
 dev.off()
 
 ######################################################################################################
-# Patterns of sharing with normal samples 
+# Trinucleotide context plots for mutations which are in the final 599 set and 276 QC-validated
+
+# Plot the trinucleotide context for all 599 mutations 
+mybed_all = twins_dt[mut_ID %in% muts,c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins_all = get_trinucs(mybed_all, BSgenome.Hsapiens.UCSC.hg38)
+dt_all = twins_dt[mut_ID %in% muts]
+dt_all$trins_all=trins_all
+
+mut_sign_counts_all = data.table(table(dt_all[, trins_all]))
+setnames(mut_sign_counts_all, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts_all[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts_all[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts_all[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts_all, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'All mutations after filtering (599)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_599muts.pdf', width = 7.5, height = 3.5)
+
+# Plot the trinucleotide context for mutations which passed QC (Jbrowse == Y)
+muts_qc = data.table(read.csv('Data/20241114_599muts_QCJbrowse.csv', header = T))
+muts_passed_qc = muts_qc[Jbrowse.quality == 'Y', mut_ID] %>% unlist()
+paste('Number of mutations that passed QC:', length(muts_passed_qc)) # 276 
+
+mybed_pass = twins_dt[mut_ID %in% muts_passed_qc, c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins_pass = get_trinucs(mybed_pass, BSgenome.Hsapiens.UCSC.hg38)
+dt_pass = twins_dt[mut_ID %in% muts_passed_qc]
+dt_pass$trins_pass=trins_pass
+
+mut_sign_counts_pass = data.table(table(dt_pass[, trins_pass]))
+setnames(mut_sign_counts_pass, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts_pass[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts_pass[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts_pass[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts_pass, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  ylim(c(0, 25))+
+  labs(x = 'Context', y = 'Count', title = 'Mutations that passed QC (276)')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_276muts_pass.pdf', width = 7.5, height = 3.5)
+
+# Plot the trinucleotide context for mutations which failed QC (Jbrowse == N)
+muts_failed_qc = muts_qc[Jbrowse.quality == 'N', mut_ID] %>% unlist()
+paste('Number of mutations that failed QC:', length(muts_failed_qc)) # 267 
+
+mybed_fail = twins_dt[mut_ID %in% muts_failed_qc, c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins_fail = get_trinucs(mybed_fail, BSgenome.Hsapiens.UCSC.hg38)
+dt_fail = twins_dt[mut_ID %in% muts_failed_qc]
+dt_fail$trins_fail=trins_fail
+
+mut_sign_counts_fail = data.table(table(dt_fail[, trins_fail]))
+setnames(mut_sign_counts_fail, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts_fail[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts_fail[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts_fail[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts_fail, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'Mutations that failed QC (267)')+
+  theme_classic(base_size = 15) +
+  ylim(c(0, 25))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", size = 0.1)
+ggsave('Results/20241114_p4_mut_trins_267muts_fail.pdf', width = 7.5, height = 3.5)
+
+######################################################################################################
+# MISC STUFF I am not using anymore 
 
 ggplot(twins_tumour_agg[mut_ID %in% muts_mapped_tumour], aes(x = sum_tumour_dep, y = tumour_vaf, col = mut_class))+
   geom_point(size=2.5, alpha = 0.6)+
@@ -1563,7 +1713,6 @@ twins_filtered_vaf[mut_ID %in% muts_mapped_tumour & sum_normal_PD62341 == 1 & su
 # chr22_30553442_G_T # looks okay
 # chr2_199565129_G_A # looks okay
 
-######################################################################################################
 # Looking at tumour-clonal mutations
 
 twins_filtered_vaf[sum_tumour > 1 & sum_normal == 0] # 28
@@ -1771,7 +1920,7 @@ table(twins_filtered_vaf[mut_ID %in% muts_tumour_spec & sum_tumour == 4, present
 table(twins_filtered_vaf[mut_ID %in% muts_tumour_spec & sum_tumour == 3, present_tumour_sample])
 table(twins_filtered_vaf[mut_ID %in% muts_tumour_spec & sum_tumour == 2, present_tumour_sample])
 
-######################################################################################################
+
 # what about mutations present in all tumour but not all normal samples?
 muts_tumour_all_nt[muts_tumour_all_nt %in% muts_tumour_spec] # 24
 # makes sense as the other two are on chr3 G>C and C>G
@@ -1787,8 +1936,7 @@ twins_filtered_vaf[mut_ID %in% muts_tumour_all_nt & sum_normal_PD63383 %in% c(2,
 # chr17_18402053_G_C # poor mapping 
 # chrX_798031_G_A # looks okay 
 
-######################################################################################################
-
+# checking some mutations 
 twins_filtered_vaf[sum_normal == 1 & sum_tumour == 0] # 1
 # chr19_54746517_T_C Ql not terrible, 4 reads in PD63383t and generally low everywhere, wouldn't buy it 
 
@@ -1804,7 +1952,6 @@ twins_filtered_vaf[sum_normal == 0 & sum_tumour == 1] # 4
 # chr5_157248612_A_G  PD63383aq looks okay
 # chr8_91252357_A_C ak looks okay
 
-######################################################################################################
 # I think out of the ~60-70 mutations that are in all tumour but not all normal, we only placed 6 on the phylogenetic tree
 
 sum(muts_tumour_all_nt %in% muts_tumour_spec) # 24
@@ -1870,7 +2017,7 @@ twins_filtered_vaf[mut_ID %in% muts_tumour_all_nt_unplaced & sum_normal==11] # 1
 twins_filtered_vaf[mut_ID %in% muts_tumour_all_nt_unplaced & sum_normal==12]
 # 15 
 
-######################################################################################################
+
 # how many mutations do I have with VAF 0.1 - 0.2 in agg and 0.1 - 0.2 in both twins?
 muts_low_vaf_both = twins_agg_vaf[vaf_normal_all > 0.1 & vaf_normal_all < 0.2 & vaf_normal_PD62341 > 0.1 & vaf_normal_PD62341 < 0.2 & vaf_normal_PD63383 > 0.1 & vaf_normal_PD63383 < 0.2, mut_ID] %>% unlist() # 59 
 # wow there are actually 59 of those!

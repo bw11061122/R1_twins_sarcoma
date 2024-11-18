@@ -43,26 +43,27 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Create a dataframe that only includes mutations retained post filtering  
-muts = read.table('Data/mutations_include_20241114_568.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts)) # 568
+muts = read.table('Data/mutations_include_20241114_599.txt') %>% unlist()
+paste('Number of mutations that passed required filters:', length(muts)) # 599
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 ###################################################################################################################################
 # PLOT SETTINGS
 
 # Specify colors for plotting 
+# Specify colors for plotting 
 col_tumour = '#ad0505'
 col_normal = '#07a7d0'
-col_PD62341 = "#33dd89"
-col_PD63383 = "#c98ff7"
+col_PD62341 = "#0ac368"
+col_PD63383 = "#a249e8"
 col_tumour_PD62341 = "#099272"
 col_tumour_PD63383 = "#6F09D4"
 col_normal_PD62341 = "#71D99B"
 col_normal_PD63383 = "#C99DF6"
-col_PD62341_spleen = "#078757"
-col_PD63383_spleen = "#7208c6"
-col_PD63383_skin = '#d0bbe1'
 col_bar = '#e87811'
+col_PD62341_spleen = '#047247'
+col_PD63383_spleen = '#430970'
+col_PD63383_skin = '#c7b3d7'
 
 ######################################################################################################
 # SAMPLES
@@ -171,7 +172,6 @@ twins_filtered_dt[, sum_tumour_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(
 twins_filtered_dt[, sum_normal_PD62341_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD62341_mtr', 'sum_normal_PD62341_vaf')]
 twins_filtered_dt[, sum_normal_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(x)), .SDcols = c('sum_normal_PD63383_mtr', 'sum_normal_PD63383_vaf')]
 
-
 ######################################################################################################
 # Accounting for twin-twin transfusion (spleen samples) - I want to have quantitative estimates of how much transfer there is 
 
@@ -206,6 +206,8 @@ mut_PD62341_melt[, sample_type3 := as.factor(fcase(
   sample == 'PD63383w', 'PD63383 normal, spleen',
   sample == 'PD63383bb', 'PD63383 normal, skin',
   !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(twin, status, sep = ' ')))]
+mut_PD62341_melt[, sample_type2 := factor(sample_type2, levels = c('PD62341 normal', 'PD63383 normal',
+                                                                   'PD62341 normal, spleen', 'PD63383 normal, spleen'))]
 
 mut_PD63383_dt = twins_dt[mut_ID %in% muts_PD63383, c('mut_ID', samples_vaf), with=FALSE]
 mut_PD63383_melt = melt(mut_PD63383_dt, id.vars = 'mut_ID')
@@ -226,23 +228,29 @@ mut_PD63383_melt[, sample_type3 := as.factor(fcase( # identify skin (which is kn
   sample == 'PD63383w', 'PD63383 normal, spleen',
   sample == 'PD63383bb', 'PD63383 normal, skin',
   !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(twin, status, sep = ' ')))]
+mut_PD63383_melt[, sample_type2 := factor(sample_type2, levels = c('PD62341 normal', 'PD63383 normal',
+                                                                   'PD62341 normal, spleen', 'PD63383 normal, spleen'))]
 
 # Plot # jitter by twin but not by tissue 
-ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, colour=sample_type2))+
-  geom_point(size=2, alpha = 0.8)+
-  scale_color_manual(values = c(col_PD62341, col_PD62341_spleen, col_PD63383, col_PD63383_spleen))+
+ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, colour=sample_type2, alpha=sample_type2, order=sample_type2))+
+  geom_point(size=2)+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_PD62341_spleen, col_PD63383_spleen))+
   theme_classic(base_size = 14)+
+  scale_alpha_manual(values = c(0.4, 0.4, 0.9, 0.9))+
   labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
+  guides(alpha = "none")+
   ggtitle(glue('PD62341-specific mutations'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
 ggsave(glue('Results/20241114_p5_vaf_dist_PD62341_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
 
-ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2))+
-  geom_point(size=2, alpha = 0.8)+
-  scale_color_manual(values = c(col_PD62341, col_PD62341_spleen, col_PD63383, col_PD63383_spleen))+
+ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2, alpha=sample_type2, order=sample_type2))+
+  geom_point(size=2)+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_PD62341_spleen, col_PD63383_spleen))+
   theme_classic(base_size = 14)+
+  scale_alpha_manual(values = c(0.4, 0.4, 0.9, 0.9))+
   labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
+  guides(alpha = "none")+
   ggtitle(glue('PD63383-specific mutations'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
@@ -308,6 +316,16 @@ ggplot(means_PD62341muts_clean, aes(x=PD62341_nonspleen, y=PD62341_spleen))+
   xlim(c(0, 0.5))+
   ylim(c(0, 0.5))
 ggsave(glue('Results/20241114_p5_spleen_vs_nonspleen_PD62341.pdf'), width=4, height=4)
+
+ggplot(means_PD63383muts, aes(x=PD63383_spleen, y=PD62341_spleen))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'VAF (PD63383 spleen)', y = 'VAF (PD62341 spleen)')+
+  ggtitle(glue('PD63383-specific mutations'))+
+  coord_equal(ratio = 1)+
+  xlim(c(0, 0.5))+
+  ylim(c(0, 0.5))
+ggsave(glue('Results/20241114_p5_spleen_PD62341_vs_PD63383_PD63383muts.pdf'), width=4, height=4)
 
 # do the same for PD63383 specific mutations
 means_PD63383muts_spleen_PD62341 = mut_PD63383_melt[sample == 'PD62341v', c('mut_ID', 'value'), with=FALSE]
