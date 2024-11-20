@@ -2,7 +2,7 @@
 # SCRIPT 4
 
 # Script to analyse the pileup (high quality, run 15/10/2024)
-# 2024-11-06
+# 2024-11-19
 # Barbara Walkowiak bw18
 
 # INPUT: 
@@ -11,7 +11,8 @@
 
 # OUTPUT:
 # 1 lists of mutations in specific categories of interest for the phylogeny
-# 2 plots for each category of mutations of interest 
+# 2 plots for each category of mutations of interest
+# 3 Final reconstructed phylogeny 
 
 ###################################################################################################################################
 # LIBRARIES 
@@ -229,6 +230,108 @@ twins_filtered_dt[, sum_normal_contaminated_mtr_vaf := apply(.SD, 1, function(x)
 twins_filtered_dt[, agg_normal_contaminated_mtr := rowSums(.SD), .SDcols = samples_normal_contaminated_mtr]
 twins_filtered_dt[, agg_normal_contaminated_dep := rowSums(.SD), .SDcols = samples_normal_contaminated_dep]
 twins_filtered_dt[, agg_normal_contaminated_vaf := agg_normal_contaminated_mtr / agg_normal_contaminated_dep]
+
+######################################################################################################
+# Calculate confidence intervals for the values of VAF 
+
+# CI VAF for each sample separately 
+for (sample in samples_names){
+  sample_dep = paste0(sample, '_DEP')
+  sample_mtr = paste0(sample, '_MTR')
+  twins_filtered_dt[, glue('{sample}_VAF_lowerCI') := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, get(sample_dep), get(sample_mtr)/get(sample_dep))]
+  twins_filtered_dt[, glue('{sample}_VAF_upperCI') := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, get(sample_dep), get(sample_mtr)/get(sample_dep))]
+}
+
+# CI VAF for aggregate VAF values 
+twins_filtered_dt[, vaf_all_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all, mtr_all/dep_all)]
+twins_filtered_dt[, vaf_all_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all, mtr_all/dep_all)]
+
+twins_filtered_dt[, vaf_all_normal_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all_normal, mtr_all_normal/dep_all_normal)]
+twins_filtered_dt[, vaf_all_normal_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all_normal, mtr_all_normal/dep_all_normal)]
+twins_filtered_dt[, vaf_all_normal_PD62341_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all_normal_PD62341, mtr_all_normal_PD62341/dep_all_normal_PD62341)]
+twins_filtered_dt[, vaf_all_normal_PD62341_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all_normal_PD62341, mtr_all_normal_PD62341/dep_all_normal_PD62341)]
+twins_filtered_dt[, vaf_all_normal_PD63383_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all_normal_PD63383, mtr_all_normal_PD63383/dep_all_normal_PD63383)]
+twins_filtered_dt[, vaf_all_normal_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all_normal_PD63383, mtr_all_normal_PD63383/dep_all_normal_PD63383)]
+
+twins_filtered_dt[, vaf_all_tumour_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all_tumour, mtr_all_tumour/dep_all_tumour)]
+twins_filtered_dt[, vaf_all_tumour_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all_tumour, mtr_all_tumour/dep_all_tumour)]
+twins_filtered_dt[, vaf_all_tumour_PD62341_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all_tumour_PD62341, mtr_all_tumour_PD62341/dep_all_tumour_PD62341)]
+twins_filtered_dt[, vaf_all_tumour_PD62341_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all_tumour_PD62341, mtr_all_tumour_PD62341/dep_all_tumour_PD62341)]
+twins_filtered_dt[, vaf_all_tumour_PD63383_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all_tumour_PD63383, mtr_all_tumour_PD63383/dep_all_tumour_PD63383)]
+twins_filtered_dt[, vaf_all_tumour_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all_tumour_PD63383, mtr_all_tumour_PD63383/dep_all_tumour_PD63383)]
+
+twins_filtered_dt[, agg_normal_contaminated_vaf_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, agg_normal_contaminated_dep, agg_normal_contaminated_mtr/agg_normal_contaminated_dep)]
+twins_filtered_dt[, agg_normal_contaminated_vaf_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, agg_normal_contaminated_dep, agg_normal_contaminated_mtr/agg_normal_contaminated_dep)]
+twins_filtered_dt[, agg_normal_PD62341_clean_vaf_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, agg_normal_PD62341_clean_dep, agg_normal_PD62341_clean_mtr/agg_normal_PD62341_clean_dep)]
+twins_filtered_dt[, agg_normal_PD62341_clean_vaf_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, agg_normal_PD62341_clean_dep, agg_normal_PD62341_clean_mtr/agg_normal_PD62341_clean_dep)]
+twins_filtered_dt[, agg_normal_PD63383_clean_vaf_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, agg_normal_PD63383_clean_dep, agg_normal_PD63383_clean_mtr/agg_normal_PD63383_clean_dep)]
+twins_filtered_dt[, agg_normal_PD63383_clean_vaf_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, agg_normal_PD63383_clean_dep, agg_normal_PD63383_clean_mtr/agg_normal_PD63383_clean_dep)]
+
+######################################################################################################
+# Identifying mutations where VAF can be affected by PCR duplicates
+# Calculate the VAF for forward and reverse strand separately 
+
+# maybe first write column with mutant and wild type forward and reverse
+forward_cols = grep("_FAZ|_FCZ|_FTZ|_FGZ", names(twins_filtered_dt), value = TRUE) 
+reverse_cols = grep("_RAZ|_RCZ|_RTZ|_RGZ", names(twins_filtered_dt), value = TRUE) 
+
+samples_forward = c(paste0(samples_names, c('_FAZ', '_FCZ', '_FGZ', '_FTZ')))
+samples_reverse = c(paste0(samples_names, c('_RAZ', '_RCZ', '_RGZ', '_RTZ')))
+
+for (sample in samples_names){
+  
+  twins_filtered_dt[, glue('forward_mut_{sample}') := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+    alt = Alt[row]
+    cols_to_sum = paste0(sample, '_F', alt, 'Z')
+    sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+  twins_filtered_dt[, glue('reverse_mut_{sample}') := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+    alt = Alt[row]
+    cols_to_sum = paste0(sample, '_R', alt, 'Z')
+    sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+  
+  twins_filtered_dt[, glue('forward_wt_{sample}') := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+    ref = Ref[row]
+    cols_to_sum = paste0(sample, '_F', ref, 'Z')
+    sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+  twins_filtered_dt[, glue('reverse_wt_{sample}') := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+    ref = Ref[row]
+    cols_to_sum = paste0(sample, '_R', ref, 'Z')
+    sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+  
+  twins_filtered_dt[, glue('forward_vaf_{sample}') := get(glue('forward_mut_{sample}')) / (get(glue('forward_mut_{sample}')) + get(glue('forward_wt_{sample}')))]
+  twins_filtered_dt[, glue('reverse_vaf_{sample}') := get(glue('reverse_mut_{sample}')) / (get(glue('reverse_mut_{sample}')) + get(glue('reverse_wt_{sample}')))] 
+  
+  twins_filtered_dt[,  glue('forward_vaf_{sample}_lowerCI') := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, get(glue('forward_mut_{sample}'))+get(glue('forward_wt_{sample}')), get(glue('forward_mut_{sample}'))/(get(glue('forward_mut_{sample}'))+get(glue('forward_wt_{sample}'))))]
+  twins_filtered_dt[,  glue('forward_vaf_{sample}_upperCI') := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, get(glue('forward_mut_{sample}'))+get(glue('forward_wt_{sample}')), get(glue('forward_mut_{sample}'))/(get(glue('forward_mut_{sample}'))+get(glue('forward_wt_{sample}'))))]
+
+  twins_filtered_dt[,  glue('reverse_vaf_{sample}_lowerCI') := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, get(glue('reverse_mut_{sample}'))+get(glue('reverse_wt_{sample}')), get(glue('reverse_mut_{sample}'))/(get(glue('reverse_mut_{sample}'))+get(glue('reverse_wt_{sample}'))))]
+  twins_filtered_dt[,  glue('reverse_vaf_{sample}_upperCI') := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, get(glue('reverse_mut_{sample}'))+get(glue('reverse_wt_{sample}')), get(glue('reverse_mut_{sample}'))/(get(glue('reverse_mut_{sample}'))+get(glue('reverse_wt_{sample}'))))]
+}
+
+# aggregate tumour 
+samples_tumour_forward = c(paste0(samples_tumour, '_FAZ'), paste0(samples_tumour, '_FCZ'),
+                           paste0(samples_tumour, '_FGZ'), paste0(samples_tumour, '_FTZ'))
+samples_tumour_reverse = c(paste0(samples_tumour, '_RAZ'), paste0(samples_tumour, '_RCZ'),
+                           paste0(samples_tumour, '_RGZ'), paste0(samples_tumour, '_RTZ'))
+
+samples_normal_forward = c(paste0(samples_normal, '_FAZ'), paste0(samples_normal, '_FCZ'),
+                           paste0(samples_normal, '_FGZ'), paste0(samples_normal, '_FTZ'))
+samples_normal_reverse = c(paste0(samples_normal, '_RAZ'), paste0(samples_normal, '_RCZ'),
+                           paste0(samples_normal, '_RGZ'), paste0(samples_normal, '_RTZ'))
+
+samples_normal_PD62341_forward = c(paste0(samples_normal_PD62341, '_FAZ'), paste0(samples_normal_PD62341, '_FCZ'),
+                                   paste0(samples_normal_PD62341, '_FGZ'), paste0(samples_normal_PD62341, '_FTZ'))
+samples_normal_PD62341_reverse = c(paste0(samples_normal_PD62341, '_RAZ'), paste0(samples_normal_PD62341, '_RCZ'),
+                                   paste0(samples_normal_PD62341, '_RGZ'), paste0(samples_normal_PD62341, '_RTZ'))
+
+samples_normal_PD63383_forward = c(paste0(samples_normal_PD63383, '_FAZ'), paste0(samples_normal_PD63383, '_FCZ'),
+                                   paste0(samples_normal_PD63383, '_FGZ'), paste0(samples_normal_PD63383, '_FTZ'))
+samples_normal_PD63383_reverse = c(paste0(samples_normal_PD63383, '_RAZ'), paste0(samples_normal_PD63383, '_RCZ'),
+                                   paste0(samples_normal_PD63383, '_RGZ'), paste0(samples_normal_PD63383, '_RTZ'))
+
+
+twins_filtered_dt[, forward_mtr := rowSums(.SD), .SDcols = ]
+
 
 ######################################################################################################
 # Analysis of QC-validated mutations 
@@ -889,4 +992,11 @@ ggplot(twins_tumour_melt[status=='tumour'&cluster==5], aes(x = tumour_cell_fract
   scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans5_cluster4.pdf'), height = 3.5, width = 4.5)
+
+
+
+
+
+
+
 
