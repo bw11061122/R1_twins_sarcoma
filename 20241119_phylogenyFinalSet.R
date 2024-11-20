@@ -289,11 +289,11 @@ for (sample in samples_names){
     cols_to_sum = paste0(sample, '_R', alt, 'Z')
     sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
   
-  twins_filtered_dt[, glue('forward_wt_{sample}') := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  twins_filtered_dt[, glue('forward_wt_{sample}') := sapply(1:.N, function(row) { # identify forward strands which are wt 
     ref = Ref[row]
     cols_to_sum = paste0(sample, '_F', ref, 'Z')
     sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
-  twins_filtered_dt[, glue('reverse_wt_{sample}') := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  twins_filtered_dt[, glue('reverse_wt_{sample}') := sapply(1:.N, function(row) { # identify reverse strands which are wt  
     ref = Ref[row]
     cols_to_sum = paste0(sample, '_R', ref, 'Z')
     sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
@@ -308,30 +308,207 @@ for (sample in samples_names){
   twins_filtered_dt[,  glue('reverse_vaf_{sample}_upperCI') := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, get(glue('reverse_mut_{sample}'))+get(glue('reverse_wt_{sample}')), get(glue('reverse_mut_{sample}'))/(get(glue('reverse_mut_{sample}'))+get(glue('reverse_wt_{sample}'))))]
 }
 
-# aggregate tumour 
-samples_tumour_forward = c(paste0(samples_tumour, '_FAZ'), paste0(samples_tumour, '_FCZ'),
-                           paste0(samples_tumour, '_FGZ'), paste0(samples_tumour, '_FTZ'))
-samples_tumour_reverse = c(paste0(samples_tumour, '_RAZ'), paste0(samples_tumour, '_RCZ'),
-                           paste0(samples_tumour, '_RGZ'), paste0(samples_tumour, '_RTZ'))
+# Aggregate normal values 
+twins_filtered_dt[, forward_mut_normal_all := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_normal, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_normal_all := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_normal, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_normal_all := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_normal, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_normal_all := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_normal, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
 
-samples_normal_forward = c(paste0(samples_normal, '_FAZ'), paste0(samples_normal, '_FCZ'),
-                           paste0(samples_normal, '_FGZ'), paste0(samples_normal, '_FTZ'))
-samples_normal_reverse = c(paste0(samples_normal, '_RAZ'), paste0(samples_normal, '_RCZ'),
-                           paste0(samples_normal, '_RGZ'), paste0(samples_normal, '_RTZ'))
+twins_filtered_dt[, forward_vaf_normal_all := forward_mut_normal_all / (forward_mut_normal_all + forward_wt_normal_all)]
+twins_filtered_dt[, reverse_vaf_normal_all := reverse_mut_normal_all / (reverse_mut_normal_all + reverse_wt_normal_all)] 
+twins_filtered_dt[,  forward_vaf_normal_all_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_normal_all + forward_wt_normal_all, forward_vaf_normal_all)]
+twins_filtered_dt[,  forward_vaf_normal_all_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_normal_all + forward_wt_normal_all, forward_vaf_normal_all)]
+twins_filtered_dt[,  reverse_vaf_normal_all_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_normal_all + reverse_wt_normal_all, reverse_vaf_normal_all)]
+twins_filtered_dt[,  reverse_vaf_normal_all_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_normal_all + reverse_wt_normal_all, reverse_vaf_normal_all)]
 
-samples_normal_PD62341_forward = c(paste0(samples_normal_PD62341, '_FAZ'), paste0(samples_normal_PD62341, '_FCZ'),
-                                   paste0(samples_normal_PD62341, '_FGZ'), paste0(samples_normal_PD62341, '_FTZ'))
-samples_normal_PD62341_reverse = c(paste0(samples_normal_PD62341, '_RAZ'), paste0(samples_normal_PD62341, '_RCZ'),
-                                   paste0(samples_normal_PD62341, '_RGZ'), paste0(samples_normal_PD62341, '_RTZ'))
+# Aggregate PD62341 normal
+twins_filtered_dt[, forward_mut_normal_PD62341 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_normal, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_normal_PD62341 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_normal, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_normal_PD62341 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_normal, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_normal_PD62341 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_normal, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
 
-samples_normal_PD63383_forward = c(paste0(samples_normal_PD63383, '_FAZ'), paste0(samples_normal_PD63383, '_FCZ'),
-                                   paste0(samples_normal_PD63383, '_FGZ'), paste0(samples_normal_PD63383, '_FTZ'))
-samples_normal_PD63383_reverse = c(paste0(samples_normal_PD63383, '_RAZ'), paste0(samples_normal_PD63383, '_RCZ'),
-                                   paste0(samples_normal_PD63383, '_RGZ'), paste0(samples_normal_PD63383, '_RTZ'))
+twins_filtered_dt[, forward_vaf_normal_PD62341 := forward_mut_normal_PD62341 / (forward_mut_normal_PD62341 + forward_wt_normal_PD62341)]
+twins_filtered_dt[, reverse_vaf_normal_PD62341 := reverse_mut_normal_PD62341 / (reverse_mut_normal_PD62341 + reverse_wt_normal_PD62341)] 
+twins_filtered_dt[,  forward_vaf_normal_PD62341_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_normal_PD62341 + forward_wt_normal_PD62341, forward_vaf_normal_PD62341)]
+twins_filtered_dt[,  forward_vaf_normal_PD62341_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_normal_PD62341 + forward_wt_normal_PD62341, forward_vaf_normal_PD62341)]
+twins_filtered_dt[,  reverse_vaf_normal_PD62341_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_normal_PD62341 + reverse_wt_normal_PD62341, reverse_vaf_normal_PD62341)]
+twins_filtered_dt[,  reverse_vaf_normal_PD62341_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_normal_PD62341 + reverse_wt_normal_PD62341, reverse_vaf_normal_PD62341)]
 
+# Aggregate PD63383 normal
+twins_filtered_dt[, forward_mut_normal_PD63383 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_normal, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_normal_PD63383 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_normal, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_normal_PD63383 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_normal, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_normal_PD63383 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_normal, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
 
-twins_filtered_dt[, forward_mtr := rowSums(.SD), .SDcols = ]
+twins_filtered_dt[, forward_vaf_normal_PD63383 := forward_mut_normal_PD63383 / (forward_mut_normal_PD63383 + forward_wt_normal_PD63383)]
+twins_filtered_dt[, reverse_vaf_normal_PD63383 := reverse_mut_normal_PD63383 / (reverse_mut_normal_PD63383 + reverse_wt_normal_PD63383)] 
+twins_filtered_dt[,  forward_vaf_normal_PD63383_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_normal_PD63383 + forward_wt_normal_PD63383, forward_vaf_normal_PD63383)]
+twins_filtered_dt[,  forward_vaf_normal_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_normal_PD63383 + forward_wt_normal_PD63383, forward_vaf_normal_PD63383)]
+twins_filtered_dt[,  reverse_vaf_normal_PD63383_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_normal_PD63383 + reverse_wt_normal_PD63383, reverse_vaf_normal_PD63383)]
+twins_filtered_dt[,  reverse_vaf_normal_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_normal_PD63383 + reverse_wt_normal_PD63383, reverse_vaf_normal_PD63383)]
 
+# Aggregate tumour values  
+twins_filtered_dt[, forward_mut_tumour_all := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_tumour_all := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_tumour_all := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_tumour_all := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+
+twins_filtered_dt[, forward_vaf_tumour_all := forward_mut_tumour_all / (forward_mut_tumour_all + forward_wt_tumour_all)]
+twins_filtered_dt[, reverse_vaf_tumour_all := reverse_mut_tumour_all / (reverse_mut_tumour_all + reverse_wt_tumour_all)] 
+twins_filtered_dt[,  forward_vaf_tumour_all_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_tumour_all + forward_wt_tumour_all, forward_vaf_tumour_all)]
+twins_filtered_dt[,  forward_vaf_tumour_all_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_tumour_all + forward_wt_tumour_all, forward_vaf_tumour_all)]
+twins_filtered_dt[,  reverse_vaf_tumour_all_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_tumour_all + reverse_wt_tumour_all, reverse_vaf_tumour_all)]
+twins_filtered_dt[,  reverse_vaf_tumour_all_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_tumour_all + reverse_wt_tumour_all, reverse_vaf_tumour_all)]
+
+# Aggregate PD62341 tumour 
+twins_filtered_dt[, forward_mut_tumour_PD62341 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_tumour_PD62341 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_tumour_PD62341 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_tumour_PD62341 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+
+twins_filtered_dt[, forward_vaf_tumour_PD62341 := forward_mut_tumour_PD62341 / (forward_mut_tumour_PD62341 + forward_wt_tumour_PD62341)]
+twins_filtered_dt[, reverse_vaf_tumour_PD62341 := reverse_mut_tumour_PD62341 / (reverse_mut_tumour_PD62341 + reverse_wt_tumour_PD62341)] 
+twins_filtered_dt[,  forward_vaf_tumour_PD62341_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_tumour_PD62341 + forward_wt_tumour_PD62341, forward_vaf_tumour_PD62341)]
+twins_filtered_dt[,  forward_vaf_tumour_PD62341_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_tumour_PD62341 + forward_wt_tumour_PD62341, forward_vaf_tumour_PD62341)]
+twins_filtered_dt[,  reverse_vaf_tumour_PD62341_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_tumour_PD62341 + reverse_wt_tumour_PD62341, reverse_vaf_tumour_PD62341)]
+twins_filtered_dt[,  reverse_vaf_tumour_PD62341_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_tumour_PD62341 + reverse_wt_tumour_PD62341, reverse_vaf_tumour_PD62341)]
+
+# Aggregate PD63383 tumour 
+twins_filtered_dt[, forward_mut_tumour_PD63383 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_tumour_PD63383 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_tumour_PD63383 := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_tumour_PD63383 := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+
+twins_filtered_dt[, forward_vaf_tumour_PD63383 := forward_mut_tumour_PD63383 / (forward_mut_tumour_PD63383 + forward_wt_tumour_PD63383)]
+twins_filtered_dt[, reverse_vaf_tumour_PD63383 := reverse_mut_tumour_PD63383 / (reverse_mut_tumour_PD63383 + reverse_wt_tumour_PD63383)] 
+twins_filtered_dt[,  forward_vaf_tumour_PD63383_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_tumour_PD63383 + forward_wt_tumour_PD63383, forward_vaf_tumour_PD63383)]
+twins_filtered_dt[,  forward_vaf_tumour_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_tumour_PD63383 + forward_wt_tumour_PD63383, forward_vaf_tumour_PD63383)]
+twins_filtered_dt[,  reverse_vaf_tumour_PD63383_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_tumour_PD63383 + reverse_wt_tumour_PD63383, reverse_vaf_tumour_PD63383)]
+twins_filtered_dt[,  reverse_vaf_tumour_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_tumour_PD63383 + reverse_wt_tumour_PD63383, reverse_vaf_tumour_PD63383)]
+
+# In addition, do this for clean samples (possibly most useful for comparisons)
+
+# clean PD62341 (excluding PD62341v - spleen contaminated due to twin-twin transfusion)
+twins_filtered_dt[, forward_mut_normal_PD62341_clean := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_normal_PD62341_clean := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_normal_PD62341_clean := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_normal_PD62341_clean := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+
+twins_filtered_dt[, forward_vaf_normal_PD62341_clean := forward_mut_normal_PD62341_clean / (forward_mut_normal_PD62341_clean + forward_wt_normal_PD62341_clean)]
+twins_filtered_dt[, reverse_vaf_normal_PD62341_clean := reverse_mut_normal_PD62341_clean / (reverse_mut_normal_PD62341_clean + reverse_wt_normal_PD62341_clean)] 
+twins_filtered_dt[,  forward_vaf_normal_PD62341_clean_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_normal_PD62341_clean + forward_wt_normal_PD62341_clean, forward_vaf_normal_PD62341_clean)]
+twins_filtered_dt[,  forward_vaf_normal_PD62341_clean_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_normal_PD62341_clean + forward_wt_normal_PD62341_clean, forward_vaf_normal_PD62341_clean)]
+twins_filtered_dt[,  reverse_vaf_normal_PD62341_clean_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_normal_PD62341_clean + reverse_wt_normal_PD62341_clean, reverse_vaf_normal_PD62341_clean)]
+twins_filtered_dt[,  reverse_vaf_normal_PD62341_clean_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_normal_PD62341_clean + reverse_wt_normal_PD62341_clean, reverse_vaf_normal_PD62341_clean)]
+
+# clean PD63383 (excluding PD63383bb - skin contaminated by PD62341-derived tumour)
+twins_filtered_dt[, forward_mut_normal_PD63383_clean := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_F', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_mut_normal_PD63383_clean := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  alt = Alt[row]
+  cols_to_sum = paste0(samples_tumour, '_R', alt, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+twins_filtered_dt[, forward_wt_normal_PD63383_clean := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_F', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]  
+twins_filtered_dt[, reverse_wt_normal_PD63383_clean := sapply(1:.N, function(row) { # identify reverse strands carrying the mutation 
+  ref = Ref[row]
+  cols_to_sum = paste0(samples_tumour, '_R', ref, 'Z')
+  sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)})]
+
+twins_filtered_dt[, forward_vaf_normal_PD63383_clean := forward_mut_normal_PD63383_clean / (forward_mut_normal_PD63383_clean + forward_wt_normal_PD63383_clean)]
+twins_filtered_dt[, reverse_vaf_normal_PD63383_clean := reverse_mut_normal_PD63383_clean / (reverse_mut_normal_PD63383_clean + reverse_wt_normal_PD63383_clean)] 
+twins_filtered_dt[,  forward_vaf_normal_PD63383_clean_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, forward_mut_normal_PD63383_clean + forward_wt_normal_PD63383_clean, forward_vaf_normal_PD63383_clean)]
+twins_filtered_dt[,  forward_vaf_normal_PD63383_clean_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, forward_mut_normal_PD63383_clean + forward_wt_normal_PD63383_clean, forward_vaf_normal_PD63383_clean)]
+twins_filtered_dt[,  reverse_vaf_normal_PD63383_clean_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, reverse_mut_normal_PD63383_clean + reverse_wt_normal_PD63383_clean, reverse_vaf_normal_PD63383_clean)]
+twins_filtered_dt[,  reverse_vaf_normal_PD63383_clean_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, reverse_mut_normal_PD63383_clean + reverse_wt_normal_PD63383_clean, reverse_vaf_normal_PD63383_clean)]
 
 ######################################################################################################
 # Analysis of QC-validated mutations 
