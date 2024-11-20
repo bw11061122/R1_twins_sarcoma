@@ -44,6 +44,10 @@ twins_dt_filtered = twins_dt_subs[mut_ID %in% muts]
 twins_dt_indels = data.table(read.table('Data/3434_indels_20241112.txt')) # import dataset with indels 
 # to see how this file was generated, search README.txt under the data 12/11/2024
 
+# Import rearrangement calls (see README.txt for the data location on the farm and file transfer script) 
+rearrangements <- list.files("Data", full.names = TRUE, pattern = "removed_header.bedpe")
+rearr_calls <- rbindlist(lapply(rearrangements, fread), fill = TRUE)
+
 ###################################################################################################################################
 # PLOT SETTINGS
 # Specify colors for plotting 
@@ -250,4 +254,31 @@ twins_dt_filters[Gene %in% genes_muts_drivers & Effect == 'missense', c('mut_ID'
 # "chr9_95516658_C_G"   
 # "chrX_129511839_G_A"  
 # "chrX_41364334_G_A" 
+
+######################################################################################################
+# Get through rearrangement calls
+setnames(rearr_calls, paste0('V', 1:46), c('chr1',	'start1','end1',	'chr2', 'start2',	'end2',	'id/name',	'brass_score',
+  'strand1',	'strand2',	'sample',	'svclass',	'bkdist',	'assembly_score',	'readpair names',	'readpair count',	'bal_trans',	
+  'inv',	'occL',	'occH',	'copynumber_flag',	'range_blat',	'Brass Notation',	'non-template',	'micro-homology	assembled', 'readnames	assembled',
+  'read count',	'gene1',	'gene_id1', 'transcript_id1',	'strand1',	'end_phase1',	'region1',	'region_number1',	'total_region_count1',
+  'first/last1',	'gene2',	'gene_id2',	'transcript_id2',	'strand2',	'phase2',	'region2',	'region_number2', 'total_region_count2', 'first/last2', 'fusion_flag'))
+
+rearr_calls[gene1!='_', c('chr1', 'start1', 'end1', 'chr2', 'start2', 'end2', 'sample', 'svclass', 'gene1', 'gene2'), with=FALSE]
+
+rearr_calls[gene1=='MN1', c('sample', 'gene1', 'gene2'), with=FALSE] # why is there absolutely nothing in gene2??
+# all tumour samples + skin + liver + heart (weird? - there are 4 read pair counts in the heart for this, cf 23 in clean tumour sample)
+
+gene1 = rearr_calls[gene1!='_', c('gene1'), with=FALSE] %>% unlist() %>% unique()
+gene2 = rearr_calls[gene1!='_', c('gene2'), with=FALSE] %>% unlist() %>% unique()
+genes_rearr = c(gene1, gene2) %>% unique()
+paste('Number of genes involved in rearrangements:', length(genes_rearr)) # 43
+
+sum(genes_rearr %in% driver_genes) # 3 
+# MN1  
+# LRP1B # only PD62341b, 4 reads, with SCAF11, 200 Intron to something else fusion
+# PTPRD # only PD62341ak, 9 reads (both gene1 and gene2 is PTPRB), 840 5UTR to 5UTR fusion, same gene. Same orientation
+ 
+# this thing interprets MN1 as a deletion???? but we know from Nathan that there is a rearrangement 
+
+
 

@@ -415,9 +415,7 @@ for (mut in muts_all_normal){
   
 }
 
-
 ######################################################################################################
-# Heatmap 
 # create specific heatmaps for each class of mutation
 
 # Mutations present in all normal samples
@@ -487,3 +485,408 @@ pheatmap(mut_tumour,
          show_rownames = T, show_colnames = T,
          fontsize=10, cexCol=2) 
 dev.off()
+
+######################################################################################################
+# Tumour tree
+
+twins_filtered_tumour = twins_filtered_dt[mut_ID %in% c(muts_tumour, muts_tumour_PD62341, muts_tumour_PD63383)]
+twins_filtered_tumour[, mut_type := factor(fcase(
+                        mut_ID %in% muts_tumour_PD62341, 'PD62341 subclone',
+                        mut_ID %in% muts_tumour_PD63383, 'PD63383 subclone',
+                        sum_tumour_vaf >= 8, 'likely MRCA',
+                        sum_tumour_vaf < 8 & sum_tumour_vaf >= 3, 'likely subclonal'))]
+
+ggplot(twins_filtered_tumour, aes(x = dep_all_tumour, y = vaf_all_tumour, col = mut_type))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage', y = 'VAF', col = 'Mutation category')+
+  ylim(c(0, 0.6))+
+  ggtitle(glue('Tumour mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_byGroup.pdf'), height = 3, width = 6.5)
+
+ggplot(twins_filtered_tumour, aes(x = dep_all_tumour, y = vaf_all_tumour, col = factor(sum_tumour_vaf)))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'Coverage', y = 'VAF', col = 'Number of tumour samples')+
+  ylim(c(0, 0.5))+
+  ggtitle(glue('Tumour mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_byNrSamples.pdf'), height = 3, width = 6.5)
+
+# What is the distribution of number of tumour samples with mutation?
+table(twins_filtered_tumour[,sum_tumour_vaf])
+# 27 and 35 in 10 or 9 samples
+# conveniently you are using 27 mutations to estimate tumour purity
+# would be good to check if these are the same ones 
+
+# which tumour samples are mutations typically missing from?
+colSums(twins_filtered_tumour[sum_tumour_vaf==9, c(samples_tumour_vaf), with=FALSE] < 0.1) # 33
+# 32 missing from ak, 1 missing from b, 2 missing from ag 
+# 11 are at VAF 0 at ak, so likely they really are not there (not just contamination)
+
+colSums(twins_filtered_tumour[sum_tumour_vaf==8, c(samples_tumour_vaf), with=FALSE] < 0.1) # 4
+# 4 missing from ak, 3 missing from ag, 1 missing from u
+
+colSums(twins_filtered_tumour[sum_tumour_vaf==7, c(samples_tumour_vaf), with=FALSE] < 0.1) # 1
+# 1 missing from ag, ak and u
+
+colSums(twins_filtered_tumour[sum_tumour_vaf==6, c(samples_tumour_vaf), with=FALSE] < 0.1) # 6
+# all missing in ak and ag
+# 5 missing in u
+# 4 missing in ae
+# 3 missing in aj
+
+colSums(twins_filtered_tumour[sum_tumour_vaf==5, c(samples_tumour_vaf), with=FALSE] > 0.1) # 7
+# 0.4 in PD63383, 0.15 am, 0.1 ae, 0.16 b
+# 0.4 in PD63383, 0.15 am, 0.15 ae, 0.1 ap
+# 0.4 in PD63383, 0.15 am, 0.12 ae, 0.16 b
+# 0.3 ae, 0.16 ag, 0.19 aj, 0.15 b, 0.12 u
+# 0.3-0.4 in PD63383, 0.3 am, 0.2 b, 0.12 u
+# 0.4 in PD63383, 0.1 am, 0.17 b, 0.1 ae
+# 0.3 ae, 0.14 ag, 0.4 aj, 0.15 b, 0.1 u
+
+colSums(twins_filtered_tumour[sum_tumour_vaf==4, c(samples_tumour_vaf), with=FALSE] > 0.1) # 5
+# ae, aj, b, u (0.13 in b, 0.2 in the rest, 0.3 in ae), 0.7 in ag
+# am, b, PD63383 (0.1 in am, 0.15 in b, 0.4 in PD63383)
+# ae 0.4, ag 0.2, aj 0.2, 0.1 b, 0.09 in u
+# am 0.2, 0.5 in PD63383, 0.2 in b, 0.07 in u
+# am 0.14, 0.5 in PD63383, 0.13 in b, 0.08 in u
+
+colSums(twins_filtered_tumour[sum_tumour_vaf==3, c(samples_tumour_vaf), with=FALSE] > 0.1) # 2
+# ae, aj, ag (0.4 in ae, 0.2 in aj, 0.1 in ag)
+# ap, aq, am (> 0.1 in am, ~0.5 in ap and aq)
+
+ggplot(twins_filtered_tumour, aes(x = vaf_all_tumour, y = PD62341ak_VAF, col = factor(sum_tumour_vaf)))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'VAF across the tumour', y = 'VAF PD62341ak', col = 'Number of tumour samples')+
+  ylim(c(0, 0.5))+
+  xlim(c(0, 0.5))+
+  coord_equal(ratio=1)+
+  ggtitle(glue('Tumour mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+twins_filtered_tumour[, agg_tumour_ak_mtr := rowSums(.SD), .SDcols = samples_tumour_mtr[samples_tumour_mtr!='PD62341ak_MTR']]
+twins_filtered_tumour[, agg_tumour_ak_dep := rowSums(.SD), .SDcols = samples_tumour_dep[samples_tumour_mtr!='PD62341ak_DEP']]
+twins_filtered_tumour[, agg_tumour_ak_vaf := agg_tumour_ak_mtr / agg_tumour_ak_dep]
+
+ggplot(twins_filtered_tumour, aes(x = agg_tumour_ak_vaf, y = PD62341ak_VAF, col = factor(sum_tumour_vaf)))+
+  geom_point(size=2.5)+
+  theme_classic(base_size = 14)+
+  labs(x = 'VAF across the tumour\n(excluding PD62341ak)', y = 'VAF PD62341ak', col = 'Number of tumour samples')+
+  ylim(c(0, 0.5))+
+  xlim(c(0, 0.5))+
+  coord_equal(ratio=1)+
+  ggtitle(glue('Tumour mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# can I plot the VAF values for each sample for different nr of tumours
+twins_tumour_melt = melt(twins_filtered_tumour[, c('mut_ID', samples_vaf, 'sum_tumour_vaf'), with=FALSE], id.vars = c('mut_ID', 'sum_tumour_vaf'))
+twins_tumour_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+twins_tumour_melt[, status := factor(fcase(
+  sample %in% samples_normal, 'normal',
+  sample %in% samples_tumour, 'tumour'
+))]
+twins_tumour_melt[, twin := factor(fcase(
+  sample %in% samples_PD62341, 'PD62341',
+  sample %in% samples_PD63383, 'PD63383'
+))]
+twins_tumour_melt[, sample_type := paste(status, twin, sep = ', ')]
+
+for (num in seq(2:11)){
+  ggplot(twins_tumour_melt[status=='tumour' & sum_tumour_vaf==num], aes(x = sample, y = value))+
+    geom_point(size=1.5, alpha = 0.8)+
+    theme_classic(base_size = 14)+
+    labs(x = 'Sample', y = 'VAF')+
+    ylim(c(0, 0.7))+
+    ggtitle(glue('Number of samples with mutation = {num}'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave(glue('Results/20241119_p4_tumourMuts_vafDist_{num}samples.pdf'), height = 3, width = 7)
+}
+
+# add sample tumour cell fraction to this
+purity_dt[, sample := tstrsplit(sample, '_VAF', keep=1, fixed = TRUE)]
+twins_tumour_melt = merge(twins_tumour_melt, purity_dt[, c('sample', 'tumour_cell_fraction'), with=FALSE])
+
+for (num in seq(3:12)){
+  ggplot(twins_tumour_melt[status=='tumour' & sum_tumour_vaf==num], aes(x = tumour_cell_fraction, y = value))+
+    geom_point(size=1.5, alpha = 0.8)+
+    theme_classic(base_size = 11)+
+    labs(x = 'Tumour cell fraction', y = 'VAF')+
+    ylim(c(0, 0.7))+
+    ggtitle(glue('Mutations present in {num} samples'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_{num}samples.pdf'), height = 3, width = 3.5)
+}
+
+for (num in seq(3:12)){
+  ggplot(twins_tumour_melt[status=='tumour' & sum_tumour_vaf==num], aes(x = tumour_cell_fraction, y = value, col = factor(sample)))+
+    geom_point(size=1.5, alpha = 0.8)+
+    theme_classic(base_size = 10)+
+    labs(x = 'Tumour cell fraction', y = 'VAF', col = 'Sample')+
+    ylim(c(0, 0.7))+
+    ggtitle(glue('Mutations present in {num} samples'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))
+  ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_{num}samples_colSample.pdf'), height = 3.5, width = 4.5)
+}
+
+for (num in seq(3:12)){
+  ggplot(twins_tumour_melt[status=='tumour' & sum_tumour_vaf==num], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID)))+
+    geom_point(size=1.5, alpha = 0.8)+
+    guides(color = "none")+
+    geom_line()+
+    theme_classic(base_size = 10)+
+    labs(x = 'Tumour cell fraction', y = 'VAF', col = 'Sample')+
+    ylim(c(0, 0.7))+
+    ggtitle(glue('Mutations present in {num} samples'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_{num}samples_colSample_lines.pdf'), height = 3.5, width = 4.5)
+}
+
+ggplot(twins_tumour_melt[status=='tumour'], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID)))+
+  geom_point(size=1.5, alpha = 0.8)+
+  guides(color = "none")+
+  geom_line()+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF', col = 'Sample')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Mutations present in {num} samples'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# it feels like if you treated this as a time course you could deconvolve this to clones
+# okay first do heatmap and cluster rows 
+mut_tumour = as.matrix(twins_filtered_dt[mut_ID %in% c(muts_tumour, muts_tumour_PD62341, muts_tumour_PD63383), c(samples_vaf), with=FALSE])
+rownames(mut_tumour) = twins_filtered_dt[mut_ID %in% c(muts_tumour, muts_tumour_PD62341, muts_tumour_PD63383),1] %>% unlist()  
+colnames(mut_tumour) = tstrsplit(colnames(mut_all_qc), '_VAF', fixed=TRUE, keep=1) %>% unlist()
+
+pdf('Results/20241119_p4_heatmap_muts_alltumour.pdf', height = 25)
+pheatmap(mut_tumour,
+         cellwidth=10, cellheight=10,
+         annotation_col = col_annotation,
+         annotation_colors = annotation_colors,
+         main="Mutations specific to the tumour", 
+         legend = T, 
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = T, show_colnames = T,
+         fontsize=10, cexCol=2) 
+dev.off()
+
+# okay maybe reshape and do clustering on this
+twins_tumour_data = twins_filtered_tumour[, c('mut_ID', samples_vaf), with=FALSE]
+
+for (k in seq(from = 2, to = 10)){
+  
+  kmeans_clusters = kmeans(twins_tumour_data[, c(samples_vaf), with=FALSE], centers = k)
+  twins_tumour_data[, cluster := kmeans_clusters$cluster]
+  
+  twins_tumour_melt = melt(twins_tumour_data[, c('mut_ID', samples_vaf, 'cluster'), with=FALSE], id.vars = c('mut_ID', 'cluster'))
+  twins_tumour_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+  twins_tumour_melt[, status := factor(fcase(
+    sample %in% samples_normal, 'normal',
+    sample %in% samples_tumour, 'tumour'))]
+  twins_tumour_melt = merge(twins_tumour_melt, purity_dt[, c('sample', 'tumour_cell_fraction'), with=FALSE])
+  
+  ggplot(twins_tumour_melt[status=='tumour'], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = factor(cluster)))+
+    geom_point(size=1.5, alpha = 0.8)+
+    geom_line()+
+    theme_classic(base_size = 10)+
+    labs(x = 'Tumour cell fraction', y = 'VAF', col = 'Cluster')+
+    ylim(c(0, 0.7))+
+    ggtitle(glue('Tumour samples, k-means clustering with {k} clusters'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans_{k}.pdf'), height = 3.5, width = 4.5)
+}
+
+# plot clusters separately to see if they are different enough 
+kmeans_clusters = kmeans(twins_tumour_data[, c(samples_vaf), with=FALSE], centers = 2)
+twins_tumour_data[, cluster := kmeans_clusters$cluster]
+  
+twins_tumour_melt = melt(twins_tumour_data[, c('mut_ID', samples_vaf, 'cluster'), with=FALSE], id.vars = c('mut_ID', 'cluster'))
+twins_tumour_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+twins_tumour_melt[, status := factor(fcase(
+    sample %in% samples_normal, 'normal',
+    sample %in% samples_tumour, 'tumour'))]
+twins_tumour_melt = merge(twins_tumour_melt, purity_dt[, c('sample', 'tumour_cell_fraction'), with=FALSE])
+  
+ggplot(twins_tumour_melt[status=='tumour'&cluster==1], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID)))+
+    geom_point(size=1.5, alpha = 0.8)+
+    geom_line()+
+    theme_classic(base_size = 10)+
+    labs(x = 'Tumour cell fraction', y = 'VAF')+
+    ylim(c(0, 0.7))+
+    ggtitle(glue('Tumour samples, cluster 1 (kmeans 2)'))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans2_cluster1.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==2], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID)))+
+  geom_point(size=1.5, alpha = 0.8)+
+  geom_line()+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 2 (kmeans 2)'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans2_cluster2.pdf'), height = 3.5, width = 4.5)
+
+# do this for 3 clusters
+kmeans_clusters = kmeans(twins_tumour_data[, c(samples_vaf), with=FALSE], centers = 3)
+twins_tumour_data[, cluster := kmeans_clusters$cluster]
+
+twins_tumour_melt = melt(twins_tumour_data[, c('mut_ID', samples_vaf, 'cluster'), with=FALSE], id.vars = c('mut_ID', 'cluster'))
+twins_tumour_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+twins_tumour_melt[, status := factor(fcase(
+  sample %in% samples_normal, 'normal',
+  sample %in% samples_tumour, 'tumour'))]
+twins_tumour_melt = merge(twins_tumour_melt, purity_dt[, c('sample', 'tumour_cell_fraction'), with=FALSE])
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==1], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID)))+
+  geom_point(size=1.5, alpha = 0.8)+
+  geom_line()+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 1 (kmeans 3)'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans3_cluster1.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==2], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID)))+
+  geom_point(size=1.5, alpha = 0.8)+
+  geom_line()+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 2 (kmeans 3)'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans3_cluster2.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==3], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID)))+
+  geom_point(size=1.5, alpha = 0.8)+
+  geom_line()+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 3 (kmeans 3)'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans3_cluster3.pdf'), height = 3.5, width = 4.5)
+
+# do this for 4 clusters
+set.seed(10)
+kmeans_clusters = kmeans(twins_tumour_data[, c(samples_vaf), with=FALSE], centers = 4)
+twins_tumour_data[, cluster := kmeans_clusters$cluster]
+
+twins_tumour_melt = melt(twins_tumour_data[, c('mut_ID', samples_vaf, 'cluster'), with=FALSE], id.vars = c('mut_ID', 'cluster'))
+twins_tumour_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+twins_tumour_melt[, status := factor(fcase(
+  sample %in% samples_normal, 'normal',
+  sample %in% samples_tumour, 'tumour'))]
+twins_tumour_melt = merge(twins_tumour_melt, purity_dt[, c('sample', 'tumour_cell_fraction'), with=FALSE])
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==1], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 1 (kmeans 4)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans4_cluster1.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==2], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 2 (kmeans 4)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans4_cluster2.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==3], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 3 (kmeans 4)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans4_cluster3.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==4], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ylim(c(0, 0.7))+
+  ggtitle(glue('Tumour samples, cluster 4 (kmeans 4)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans4_cluster4.pdf'), height = 3.5, width = 4.5)
+
+# okay try 5 clusters but no more
+# do this for 4 clusters
+set.seed(10)
+kmeans_clusters = kmeans(twins_tumour_data[, c(samples_vaf), with=FALSE], centers = 5)
+twins_tumour_data[, cluster := kmeans_clusters$cluster]
+
+twins_tumour_melt = melt(twins_tumour_data[, c('mut_ID', samples_vaf, 'cluster'), with=FALSE], id.vars = c('mut_ID', 'cluster'))
+twins_tumour_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+twins_tumour_melt[, status := factor(fcase(
+  sample %in% samples_normal, 'normal',
+  sample %in% samples_tumour, 'tumour'))]
+twins_tumour_melt = merge(twins_tumour_melt, purity_dt[, c('sample', 'tumour_cell_fraction'), with=FALSE])
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==1], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ggtitle(glue('Tumour samples, cluster 1 (kmeans 5)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans5_cluster1.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==2], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ggtitle(glue('Tumour samples, cluster 2 (kmeans 5)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans5_cluster2.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==3], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ggtitle(glue('Tumour samples, cluster 3 (kmeans 5)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans5_cluster3.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==4], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ggtitle(glue('Tumour samples, cluster 4 (kmeans 5)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans5_cluster4.pdf'), height = 3.5, width = 4.5)
+
+ggplot(twins_tumour_melt[status=='tumour'&cluster==5], aes(x = tumour_cell_fraction, y = value, group = factor(mut_ID), col = sample))+
+  geom_line(col = 'grey')+
+  geom_point(size=2.5, alpha = 1)+
+  theme_classic(base_size = 10)+
+  labs(x = 'Tumour cell fraction', y = 'VAF')+
+  ggtitle(glue('Tumour samples, cluster 5 (kmeans 5)'))+
+  scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans5_cluster4.pdf'), height = 3.5, width = 4.5)
+
