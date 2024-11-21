@@ -1004,6 +1004,47 @@ for (mut in c(muts_all_normal, muts_PD62341_normal, muts_PD63383_normal)){
 
 }
 
+# Plot this but only for clean samples (not contaminated by cells from the other twin: exclude PD63383bb / skin and PD62341v / spleen)
+# also exclude skin and spleen from the other twin (for comparison purposes)
+twins_vaf_clean_melt = melt(twins_filtered_dt[, c('mut_ID', paste0(c('PD62341ad', 'PD62341h', 'PD62341n', 'PD62341q',
+  'PD63383ak', 'PD63383t', 'PD63383ae', 'PD63383u'), '_VAF')), with=FALSE], id.vars = 'mut_ID')
+twins_vaf_clean_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]
+twins_vaf_clean_melt[, sample := factor(sample, levels = c(
+  'PD62341ad', 'PD62341h', 'PD62341n', 'PD62341q',
+  'PD63383ak', 'PD63383t', 'PD63383ae', 'PD63383u'))]
+twins_vaf_clean_melt[, twin := factor(fcase(sample %in% samples_PD62341, 'PD62341', sample %in% samples_PD63383, 'PD63383'))]
+twins_vaf_clean_melt[, tissue := factor(fcase(
+  sample %in% c('PD62341ad', 'PD63383ak'), 'cerebellum',
+  sample %in% c('PD62341h', 'PD63383t'), 'liver',
+  sample %in% c('PD62341q', 'PD63383u'), 'pancreas',
+  sample %in% c('PD62341n', 'PD63383ae'), 'heart', 
+  sample %in% samples_tumour, 'tumour'))]
+twins_vaf_clean_melt[, tissue := factor(tissue, levels = c('heart', 'cerebellum', 'pancreas', 'liver'))]
+
+for (mut in c(muts_all_normal, muts_PD62341_normal, muts_PD63383_normal)){
+  
+  ggplot(twins_vaf_clean_melt[mut_ID==mut], aes(x = sample, y = value, col = twin))+
+    geom_point(size=2.5)+
+    theme_classic(base_size = 14)+
+    labs(x = 'Sample', y = 'VAF', col = 'Sample')+
+    ylim(c(0, 0.8))+
+    ggtitle(glue('{mut}'))+
+    scale_color_manual(values = c(col_PD62341, col_PD63383))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave(glue('Results/20241119_p4_allNormal_dist_samples_clean_{mut}.pdf'), height = 3, width = 6.5)
+  
+  ggplot(twins_vaf_clean_melt[mut_ID==mut], aes(x = tissue, y = value, col = twin))+
+    geom_point(size=2.5)+
+    theme_classic(base_size = 14)+
+    labs(x = 'Tissue', y = 'VAF', col = 'Twin')+
+    ggtitle(glue('{mut}'))+
+    scale_color_manual(values = c(col_PD62341, col_PD63383))+
+    ylim(c(0, 0.8))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave(glue('Results/20241119_p4_allNormal_dist_tissuse_clean_{mut}.pdf'), height = 3, width = 6.5)
+  
+}
+
 ######################################################################################################
 # Heatmap to visualize each class of mutations of interest 
 
@@ -1191,7 +1232,6 @@ ggplot(twins_vaf_melt[mut_ID %in% muts_PD63383_normal&status=='normal'], aes(x =
   xlim(c(0, 0.4))
 ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD63383_dotplot.pdf', height = 4.5, width = 5)
 
-
 # Mutations specific to PD62341 twin 
 mut_PD62341_normal = as.matrix(twins_filtered_dt[mut_ID %in% muts_PD62341_normal, c(samples_vaf), with=FALSE])
 rownames(mut_PD62341_normal) = twins_filtered_dt[mut_ID %in% muts_PD62341_normal,1] %>% unlist()  
@@ -1226,26 +1266,28 @@ pheatmap(mut_PD63383_normal,
          fontsize=10, cexCol=2) 
 dev.off()
 
-# Mutations specific to the tumour 
+######################################################################################################
+# Tumour tree
+
+# First, plot a heatmap to show tumour-specific mutations 
+
 mut_tumour = as.matrix(twins_filtered_dt[mut_ID %in% c(muts_tumour, muts_tumour_PD62341, muts_tumour_PD63383), c(samples_vaf), with=FALSE])
 rownames(mut_tumour) = twins_filtered_dt[mut_ID %in% c(muts_tumour, muts_tumour_PD62341, muts_tumour_PD63383),1] %>% unlist()  
 colnames(mut_tumour) = tstrsplit(colnames(mut_all_qc), '_VAF', fixed=TRUE, keep=1) %>% unlist()
-pdf('Results/20241119_p4_heatmap_muts_alltumour.pdf', height = 25)
+pdf('Results/20241119_p4_heatmap_muts_alltumour.pdf')
 pheatmap(mut_tumour,
-         cellwidth=10, cellheight=10,
+         cellwidth=10, cellheight=2,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
          main="Mutations specific to the tumour", 
          legend = T, 
          treeheight_row = 0,
          cluster_rows = T, cluster_cols = T, 
-         show_rownames = T, show_colnames = T,
+         show_rownames = F, show_colnames = T,
          fontsize=10, cexCol=2) 
 dev.off()
 
-######################################################################################################
-# Tumour tree
-
+# Plot coverage vs VAF to identify possible subclones 
 twins_filtered_tumour = twins_filtered_dt[mut_ID %in% c(muts_tumour, muts_tumour_PD62341, muts_tumour_PD63383)]
 twins_filtered_tumour[, mut_type := factor(fcase(
                         mut_ID %in% muts_tumour_PD62341, 'PD62341 subclone',
