@@ -50,7 +50,7 @@ twins_dt[, c(twins_PDv38is) := NULL]
 # Load QC-validated mutations (final set of mutations to be used)
 muts_dt = data.table(read.csv('Data/20241114_599muts_QCJbrowse.csv', header = T))
 muts = muts_dt[Jbrowse.quality == 'Y', mut_ID] %>% unlist()
-paste('Number of mutations that passed QC:', length(muts)) # 257 
+paste('Number of mutations that passed QC:', length(muts)) # 256 
 
 # Create a dataframe with mutations of interested retained
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
@@ -917,7 +917,40 @@ ggplot(data=mut_sign_counts_pass, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", linewidth = 0.1)
-ggsave('Results/20241119_p4_mut_trins_256muts_pass.pdf', width = 7.5, height = 3.5)
+ggsave('Results/20241119_p4_mut_trins_256muts_pass.pdf', width = 8, height = 2.5)
+
+# show mutations which were excluded by removing germline mutations on copy number change-regions and artefacts
+muts1134_dt = data.table(read.table('Data/mutations_include_20241114_1134.txt'))
+muts1134 = muts1134_dt[,V1] %>% unlist()
+mybed = twins_dt[mut_ID %in% setdiff(muts_1134, muts), c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins = get_trinucs(mybed, BSgenome.Hsapiens.UCSC.hg38)
+dt = twins_dt[mut_ID %in% setdiff(muts_1134, muts)]
+dt$trins=trins
+
+mut_sign_counts = data.table(table(dt[, trins]))
+setnames(mut_sign_counts, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'n = 878')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", linewidth = 0.1)
+ggsave('Results/20241119_p4_mut_trins_excluded_1134.pdf', width = 8, height = 2.5)
 
 ######################################################################################################
 # Identify classes of mutations of interest 

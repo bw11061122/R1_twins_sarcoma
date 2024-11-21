@@ -555,7 +555,7 @@ ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Results/20241114_p1_mut_trins_allmuts.pdf', width = 7.5, height = 3.5)
+ggsave('Results/20241114_p1_mut_trins_allmuts.pdf', width = 8, height = 2.5)
 
 # plot tri-nucleotide context for the filtered set of mutations  
 dtf = twins_dt[sum_req_filters==0]
@@ -586,7 +586,7 @@ ggplot(data=mut_sign_counts2, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Results/20241114_p1_mut_trins_finalset.pdf', width = 7.5, height = 3.5)
+ggsave('Results/20241114_p1_mut_trins_finalset.pdf', width = 8, height = 2.5)
 
 # Create a series of plots that show what happens when you progressively apply different filters
 # filters in the order of which removes the most mutations first 
@@ -626,7 +626,7 @@ for (f in filters){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Results/202411014_p1_mut_trins_allmuts_{f}.pdf'), width = 7.5, height = 3.5)
+  ggsave(glue('Results/202411019_p1_mut_trins_allmuts_{f}.pdf'), width = 8, height = 2.5)
 }
 
 # show how signatures change after consecutive filters are applied
@@ -663,8 +663,50 @@ for (i in seq_along(filters)){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Results/20241114_p1_mut_trins_allmuts_filters_{i}.pdf'), width = 7.5, height = 3.5)
+  ggsave(glue('Results/20241114_p1_mut_trins_allmuts_filters_{i}.pdf'), width = 8, height = 2.5)
 }
+
+# show the type of mutations that are thrown away by each filter 
+for (i in seq_along(filters)){
+  
+  if (i > 1){
+    
+    previous_filters = filters[1:i-1]
+    current_filter=filters[i]
+    cond = paste(paste(previous_filters, '!= 1', collapse = ' & '), '&', paste(current_filter, '==1'))
+    print(cond)
+    twins_dt_f = twins_dt[eval(parse(text = cond))]
+    mut_nr = dim(twins_dt_f)[1]
+    mybed = twins_dt[eval(parse(text = cond)), c('Chrom', 'Pos', 'Ref', 'Alt')]
+    trins = get_trinucs(mybed, BSgenome.Hsapiens.UCSC.hg38)
+    twins_dt_f$trins=trins
+    
+    # plot the distribution of different mutations across different contexts 
+    mut_sign_counts = data.table(table(twins_dt_f[, trins]))
+    setnames(mut_sign_counts, c('V1', 'N'), c('trins', 'count'))
+    mut_sign_counts[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+    mut_sign_counts[, mut_class := gsub("\\.", ">", mut_class)]
+    mut_sign_counts[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+    
+    # aggregate by mutation class and context 
+    ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
+      geom_bar(stat = 'identity')+
+      scale_fill_manual(values = colors_sign)+
+      facet_grid(~mut_class, scales = "free_x")+
+      guides(fill="none")+ # remove legend
+      labs(x = 'Context', y = 'Count', title = glue('n = {mut_nr}'))+
+      theme_classic(base_size = 15) +
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+      theme(axis.title.x=element_blank(),
+            axis.text.x=element_blank(),
+            axis.ticks.x=element_blank())+
+      theme( strip.background = element_blank())+ 
+      theme(panel.spacing = unit(0, "lines"))+
+      theme(strip.text.x = element_text(size = 13))+
+      geom_hline(yintercept = 0, colour="black", size = 0.1)
+    ggsave(glue('Results/20241114_p1_mut_trins_allmuts_filters_removed_{i}.pdf'), width = 8, height = 2.5) }
+}
+
 
 ######################################################################################################
 ######################################################################################################
