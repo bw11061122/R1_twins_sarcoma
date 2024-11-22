@@ -1722,10 +1722,17 @@ ggplot(twins_tumour_melt[status=='tumour'&cluster==5], aes(x = tumour_cell_fract
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans5_cluster4.pdf'), height = 3.5, width = 4.5)
 
+# Can PCR duplicates specifically on the mutant strand in chr1_388 explain the inflated VAF?
+qbinom(0.05, 174, 104/174)/174
+# this is agg from 5 samples
+# say each sample has 2 duplicate reads 
+qbinom(0.05, 164, 94/164)/164
+# okay this does actually get us to a reasonable number 
+# but you would kind of require > 2 duplicates per sample and your VAF is still really high  
 
-
-
-
+qbinom(0.05, 199, 56/199)/199
+qbinom(0.05, 179, 36/179)/179
+# this would be 0.15 so still too high 
 
 
 
