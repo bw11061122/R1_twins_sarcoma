@@ -552,7 +552,6 @@ twins_filtered_dt[abs(log2_forward_reverse)>1, mut_ID] %>% unlist()
 
 sum(twins_filtered_dt[abs(log2_forward_reverse)>1, mut_ID] %>% unlist() %in% muts_all_normal) # 2
 sum(twins_filtered_dt[abs(log2_forward_reverse)>1.5, mut_ID] %>% unlist() %in% muts_all_normal) # 2
-# "chr1_105242258_T_C"
 sum(twins_filtered_dt[abs(log2_forward_reverse)>1, mut_ID] %>% unlist() %in% muts_PD62341_normal) # 0
 sum(twins_filtered_dt[abs(log2_forward_reverse)>1, mut_ID] %>% unlist() %in% muts_PD63383_normal) # 1
 sum(twins_filtered_dt[abs(log2_forward_reverse)>1.5, mut_ID] %>% unlist() %in% muts_PD63383_normal) # 1
@@ -564,29 +563,7 @@ sum(twins_filtered_dt[abs(log2_forward_reverse)>1.5, mut_ID] %>% unlist() %in% m
 # "chr10_72139813_C_T" "chr5_58182780_T_A"  "chrX_9804641_G_A" 
 sum(twins_filtered_dt[abs(log2_forward_reverse)>1, mut_ID] %>% unlist() %in% muts_tumour_PD63383) # 2
 sum(twins_filtered_dt[abs(log2_forward_reverse)>1.5, mut_ID] %>% unlist() %in% muts_tumour_PD63383) # 0
-# "chr10_100308403_C_T" "chr2_82147172_T_C"
-
-sum(twins_filtered_dt[abs(log2_forward_reverse)>1, mut_ID] %>% unlist() %in% muts_one_sample) # 34
-sum(twins_filtered_dt[abs(log2_forward_reverse)>1.5, mut_ID] %>% unlist() %in% muts_one_sample) # 18
-# "chr17_80277186_T_C"  "chr1_235840303_G_A"  "chr6_69947837_C_A"   "chr9_73082175_A_T"  
-# "chrX_117464414_T_A"  "chrX_133165030_C_T"  "chr11_40533414_G_A"  "chr12_107856321_G_C"
-# "chr13_44946817_G_A"  "chr14_45559607_C_G"  "chr17_13272486_C_T"  "chr17_9364113_A_G"  
-# "chr18_71009596_A_G"  "chr1_176534328_T_C"  "chr1_54705115_A_T"   "chr2_115850754_T_A" 
-# "chr3_120709195_C_T"  "chr3_151140954_G_A"  "chr3_189240074_C_A"  "chr3_95558569_G_A"  
-# "chr4_113176071_C_G"  "chr4_121184837_C_T"  "chr4_136992379_C_T"  "chr4_140955256_T_A" 
-# "chr4_72527805_G_A"   "chr5_11068681_C_T"   "chr6_73820983_A_G"   "chr7_119484134_G_A" 
-# "chr7_88743129_G_C"   "chr8_10321347_C_T"   "chr8_24725403_G_A"   "chrX_51637443_C_T"  
-# "chrX_6606485_A_T"    "chrX_96266634_A_G"
-
-# Specific mutations we are looking at 
-twins_filtered_dt[mut_ID == 'chr1_38827952_C_A', c('forward_vaf_all', 'reverse_vaf_all', 'forward_vaf_all_lowerCI', 'forward_vaf_all_upperCI', 'reverse_vaf_all_lowerCI', 'reverse_vaf_all_upperCI'), with=FALSE]
-twins_filtered_dt[mut_ID == 'chr1_105242258_T_C', c('forward_vaf_all', 'reverse_vaf_all', 'forward_vaf_all_lowerCI', 'forward_vaf_all_upperCI', 'reverse_vaf_all_lowerCI', 'reverse_vaf_all_upperCI'), with=FALSE]
-
-# Normal samples
-twins_filtered_dt[mut_ID == 'chr1_38827952_C_A', c('forward_vaf_normal_PD62341_clean', 'reverse_vaf_normal_PD62341_clean', 'forward_vaf_normal_PD62341_clean_lowerCI', 'forward_vaf_normal_PD62341_clean_upperCI', 'reverse_vaf_normal_PD62341_clean_lowerCI', 'reverse_vaf_normal_PD62341_clean_upperCI',
-                                                   'forward_vaf_normal_PD63383_clean', 'reverse_vaf_normal_PD63383_clean', 'forward_vaf_normal_PD63383_clean_lowerCI', 'forward_vaf_normal_PD63383_clean_upperCI', 'reverse_vaf_normal_PD63383_clean_lowerCI', 'reverse_vaf_normal_PD63383_clean_upperCI'), with=FALSE]
-twins_filtered_dt[mut_ID == 'chr1_105242258_T_C', c('forward_vaf_normal_PD62341_clean', 'reverse_vaf_normal_PD62341_clean', 'forward_vaf_normal_PD62341_clean_lowerCI', 'forward_vaf_normal_PD62341_clean_upperCI', 'reverse_vaf_normal_PD62341_clean_lowerCI', 'reverse_vaf_normal_PD62341_clean_upperCI',
-                                                    'forward_vaf_normal_PD63383_clean', 'reverse_vaf_normal_PD63383_clean', 'forward_vaf_normal_PD63383_clean_lowerCI', 'forward_vaf_normal_PD63383_clean_upperCI', 'reverse_vaf_normal_PD63383_clean_lowerCI', 'reverse_vaf_normal_PD63383_clean_upperCI'), with=FALSE]
+# "chr2_82147172_T_C"
 
 # Show distribution of VAF values on a histogram
 pdf('Results/20241119_p4_hist_reverse_forward_vaf_chr1_388.pdf', height = 8)
@@ -595,14 +572,6 @@ hist(twins_filtered_dt[mut_ID == 'chr1_38827952_C_A', c(paste0('forward_vaf_', s
      breaks=10, xlab = 'VAF on forward strand (aggregate samples)', main = 'chr1_38827952_C_A, forward', xlim = c(0, 1))
 hist(twins_filtered_dt[mut_ID == 'chr1_38827952_C_A', c(paste0('reverse_vaf_', samples_names)), with=FALSE] %>% unlist(), 
      breaks=10, xlab = 'VAF on reverse strand (aggregate samples)', main = 'chr1_38827952_C_A, reverse', xlim = c(0, 1))
-dev.off()
-
-pdf('Results/20241119_p4_hist_reverse_forward_vaf_chr1_105.pdf', height = 8)
-par(mfrow = c(2,1))
-hist(twins_filtered_dt[mut_ID == 'chr1_105242258_T_C', c(paste0('forward_vaf_', samples_names)), with=FALSE] %>% unlist(), 
-     breaks=10, xlab = 'VAF on forward strand (aggregate samples)', main = 'chr1_105242258_T_C, forward', xlim = c(0, 1))
-hist(twins_filtered_dt[mut_ID == 'chr1_105242258_T_C', c(paste0('reverse_vaf_', samples_names)), with=FALSE] %>% unlist(), 
-     breaks=10, xlab = 'VAF on reverse strand (aggregate samples)', main = 'chr1_105242258_T_C, reverse', xlim = c(0, 1))
 dev.off()
 
 # Plot VAF distribution for each sample individually (VAF from forward + reverse strands)
@@ -640,16 +609,6 @@ ggplot(twins_vaf_melt[mut_ID=='chr1_38827952_C_A'], aes(x = sample, y = value, c
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_VAF_chr1_388_agg.pdf'), height = 3, width = 6.5)
 
-ggplot(twins_vaf_melt[mut_ID=='chr1_105242258_T_C'], aes(x = sample, y = value, col = sample_type))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Sample', y = 'F+R VAF', col = 'Sample')+
-  ggtitle(glue('Mutation: chr1:105242258, T>C'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
-  ylim(c(0, 0.8))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241119_p4_VAF_chr1_105.pdf'), height = 3, width = 6.5)
-
 # Plots by tissue 
 ggplot(twins_vaf_melt[mut_ID=='chr1_38827952_C_A'&status=='normal'], aes(x = tissue, y = value, col = twin))+
   geom_point(size=2.5)+
@@ -660,16 +619,6 @@ ggplot(twins_vaf_melt[mut_ID=='chr1_38827952_C_A'&status=='normal'], aes(x = tis
   ylim(c(0, 0.8))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_VAF_chr1_388_tissue_agg.pdf'), height = 3, width = 6.5)
-
-ggplot(twins_vaf_melt[mut_ID=='chr1_105242258_T_C'&status=='normal'], aes(x = tissue, y = value, col = twin))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Tissue', y = 'F+R VAF', col = 'Twin')+
-  ggtitle(glue('Mutation: chr1:105242258, T>C'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383))+
-  ylim(c(0, 0.8))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241119_p4_VAF_chr1_105_tissue_agg.pdf'), height = 3, width = 6.5)
 
 # Plot distribution for each sample individually (VAF from forward strand)
 twins_vaf_forward_melt = melt(twins_filtered_dt[, c('mut_ID', paste0('forward_vaf_', samples_names)), with=FALSE], id.vars = 'mut_ID')
@@ -705,16 +654,6 @@ ggplot(twins_vaf_forward_melt[mut_ID=='chr1_38827952_C_A'], aes(x = sample, y = 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_forwardVAF_chr1_388.pdf'), height = 3, width = 6.5)
 
-ggplot(twins_vaf_forward_melt[mut_ID=='chr1_105242258_T_C'], aes(x = sample, y = value, col = sample_type))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Sample', y = 'forward VAF', col = 'Sample')+
-  ggtitle(glue('Mutation: chr1:105242258, T>C'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
-  ylim(c(0, 0.8))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241119_p4_forwardVAF_chr1_105.pdf'), height = 3, width = 6.5)
-
 # Plots by tissue 
 ggplot(twins_vaf_forward_melt[mut_ID=='chr1_38827952_C_A'&status=='normal'], aes(x = tissue, y = value, col = twin))+
   geom_point(size=2.5)+
@@ -726,15 +665,6 @@ ggplot(twins_vaf_forward_melt[mut_ID=='chr1_38827952_C_A'&status=='normal'], aes
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_forwardVAF_chr1_388_tissue.pdf'), height = 3, width = 6.5)
 
-ggplot(twins_vaf_forward_melt[mut_ID=='chr1_105242258_T_C'&status=='normal'], aes(x = tissue, y = value, col = twin))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Tissue', y = 'forward VAF', col = 'Twin')+
-  ggtitle(glue('Mutation: chr1:105242258, T>C'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383))+
-  ylim(c(0, 0.8))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241119_p4_forwardVAF_chr1_105_tissue.pdf'), height = 3, width = 6.5)
 
 # Plot distribution for each sample individually (VAF from reverse strand)
 twins_vaf_reverse_melt = melt(twins_filtered_dt[, c('mut_ID', paste0('reverse_vaf_', samples_names)), with=FALSE], id.vars = 'mut_ID')
@@ -770,16 +700,6 @@ ggplot(twins_vaf_reverse_melt[mut_ID=='chr1_38827952_C_A'], aes(x = sample, y = 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_reverseVAF_chr1_388.pdf'), height = 3, width = 6.5)
 
-ggplot(twins_vaf_reverse_melt[mut_ID=='chr1_105242258_T_C'], aes(x = sample, y = value, col = sample_type))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Sample', y = 'reverse VAF', col = 'Sample')+
-  ggtitle(glue('Mutation: chr1:105242258, T>C'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
-  ylim(c(0, 0.8))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241119_p4_reverseVAF_chr1_105.pdf'), height = 3, width = 6.5)
-
 # Plots by tissue 
 ggplot(twins_vaf_reverse_melt[mut_ID=='chr1_38827952_C_A'&status=='normal'], aes(x = tissue, y = value, col = twin))+
   geom_point(size=2.5)+
@@ -790,16 +710,6 @@ ggplot(twins_vaf_reverse_melt[mut_ID=='chr1_38827952_C_A'&status=='normal'], aes
   ylim(c(0, 0.8))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggsave(glue('Results/20241119_p4_reverseVAF_chr1_388_tissue.pdf'), height = 3, width = 6.5)
-
-ggplot(twins_vaf_reverse_melt[mut_ID=='chr1_105242258_T_C'&status=='normal'], aes(x = tissue, y = value, col = twin))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Tissue', y = 'reverse VAF', col = 'Twin')+
-  ggtitle(glue('Mutation: chr1:105242258, T>C'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383))+
-  ylim(c(0, 0.8))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241119_p4_reverseVAF_chr1_105_tissue.pdf'), height = 3, width = 6.5)
 
 ######################################################################################################
 # Analysis of QC-validated mutations 
@@ -818,12 +728,12 @@ annotation_colors = list('Tumour.cell.fraction' = colorRampPalette(c('#f2e7e7', 
                          Twin = c(PD62341=col_PD62341, PD63383=col_PD63383))
                         
 # heatmap
-pdf('Results/20241119_p4_heatmap_all_mutations_val256.pdf')
+pdf('Results/20241119_p4_heatmap_all_mutations_val255.pdf')
 pheatmap(mut_all_qc,
          cellwidth=10, cellheight=0.4,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="All mutations, QC validated (256)", 
+         main="All mutations, QC validated (255)", 
          legend = T, 
          treeheight_row = 0,
          cluster_rows = T, cluster_cols = T, 
@@ -831,12 +741,12 @@ pheatmap(mut_all_qc,
          fontsize=10, cexCol=2) 
 dev.off()
 
-pdf('Results/20241119_p4_heatmap_all_mutations_val256_large.pdf', height = 45)
+pdf('Results/20241119_p4_heatmap_all_mutations_val255_large.pdf', height = 45)
 pheatmap(mut_all_qc,
          cellwidth=10, cellheight=10,
          annotation_col = col_annotation,
          annotation_colors = annotation_colors,
-         main="All mutations, QC validated (256)", 
+         main="All mutations, QC validated (255)", 
          legend = T, 
          treeheight_row = 0,
          cluster_rows = T, cluster_cols = T, 
@@ -845,7 +755,7 @@ pheatmap(mut_all_qc,
 dev.off()
 
 ######################################################################################################
-# Trinucleotide context plots for mutations which are in the final 256 QC-validated set
+# Trinucleotide context plots for mutations which are in the final 255 QC-validated set
 
 # Function to identify the trinucleotide context of a given mutation, knowing its genomic cooordinates 
 get_trinucs <- function(mybed, genome) {
@@ -907,7 +817,7 @@ ggplot(data=mut_sign_counts_pass, aes(x=context, y=count, fill=mut_class)) +
   facet_grid(~mut_class, scales = "free_x")+
   guides(fill="none")+ # remove legend
   ylim(c(0, 25))+
-  labs(x = 'Context', y = 'Count', title = 'Final set of mutations (256)')+
+  labs(x = 'Context', y = 'Count', title = 'Final set of mutations (255)')+
   theme_classic(base_size = 15) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   theme(axis.title.x=element_blank(),
@@ -917,14 +827,17 @@ ggplot(data=mut_sign_counts_pass, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", linewidth = 0.1)
-ggsave('Results/20241119_p4_mut_trins_256muts_pass.pdf', width = 8, height = 2.5)
+ggsave('Results/20241119_p4_mut_trins_255muts_pass.pdf', width = 8, height = 2.5)
 
 # show mutations which were excluded by removing germline mutations on copy number change-regions and artefacts
 muts1134_dt = data.table(read.table('Data/mutations_include_20241114_1134.txt'))
 muts1134 = muts1134_dt[,V1] %>% unlist()
-mybed = twins_dt[mut_ID %in% setdiff(muts_1134, muts), c('Chrom', 'Pos', 'Ref', 'Alt')]
+muts599_dt = data.table(read.table('Data/mutations_include_20241114_599.txt'))
+muts599 = muts599_dt[,V1] %>% unlist()
+
+mybed = twins_dt[mut_ID %in% setdiff(muts1134, muts599), c('Chrom', 'Pos', 'Ref', 'Alt')]
 trins = get_trinucs(mybed, BSgenome.Hsapiens.UCSC.hg38)
-dt = twins_dt[mut_ID %in% setdiff(muts_1134, muts)]
+dt = twins_dt[mut_ID %in% setdiff(muts1134, muts599)]
 dt$trins=trins
 
 mut_sign_counts = data.table(table(dt[, trins]))
@@ -940,7 +853,7 @@ ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
   scale_fill_manual(values = colors_sign)+
   facet_grid(~mut_class, scales = "free_x")+
   guides(fill="none")+ # remove legend
-  labs(x = 'Context', y = 'Count', title = 'n = 878')+
+  labs(x = 'Context', y = 'Count', title = 'n = 535')+
   theme_classic(base_size = 15) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   theme(axis.title.x=element_blank(),
@@ -950,7 +863,37 @@ ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", linewidth = 0.1)
-ggsave('Results/20241119_p4_mut_trins_excluded_1134.pdf', width = 8, height = 2.5)
+ggsave('Results/20241119_p4_mut_trins_excluded_535_germline.pdf', width = 8, height = 2.5)
+
+mybed = twins_dt[mut_ID %in% setdiff(muts599, muts), c('Chrom', 'Pos', 'Ref', 'Alt')]
+trins = get_trinucs(mybed, BSgenome.Hsapiens.UCSC.hg38)
+dt = twins_dt[mut_ID %in% setdiff(muts599, muts)]
+dt$trins=trins
+
+mut_sign_counts = data.table(table(dt[, trins]))
+setnames(mut_sign_counts, c('V1', 'N'), c('trins', 'count'))
+mut_sign_counts[, mut_class := tstrsplit(trins, '.in', fixed=TRUE, keep=1)]
+mut_sign_counts[, mut_class := gsub("\\.", ">", mut_class)]
+mut_sign_counts[, context := tstrsplit(trins, '.', fixed=TRUE, keep=4)]
+
+# aggregate by mutation class and context 
+colors_sign = c('blue', 'black', 'red', 'grey', 'green', 'pink') # blue black red grey green pink 
+ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
+  geom_bar(stat = 'identity')+
+  scale_fill_manual(values = colors_sign)+
+  facet_grid(~mut_class, scales = "free_x")+
+  guides(fill="none")+ # remove legend
+  labs(x = 'Context', y = 'Count', title = 'n = 344')+
+  theme_classic(base_size = 15) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  theme( strip.background = element_blank())+ 
+  theme(panel.spacing = unit(0, "lines"))+
+  theme(strip.text.x = element_text(size = 13))+
+  geom_hline(yintercept = 0, colour="black", linewidth = 0.1)
+ggsave('Results/20241119_p4_mut_trins_excluded_344_qc.pdf', width = 8, height = 2.5)
 
 ######################################################################################################
 # Identify classes of mutations of interest 
@@ -958,7 +901,7 @@ ggsave('Results/20241119_p4_mut_trins_excluded_1134.pdf', width = 8, height = 2.
 # Mutations present in all normal samples
 muts_all_normal = twins_filtered_dt[sum_normal_mtr_vaf>=9, mut_ID] %>% unlist()
 twins_filtered_dt[mut_ID %in% muts_all_normal, c('mut_ID', samples_vaf, 'agg_normal_PD62341_clean_vaf', 'agg_normal_PD63383_clean_vaf', 'vaf_all_tumour'), with=FALSE]
-paste('Number of mutations present in all normal samples:', length(muts_all_normal)) # 2
+paste('Number of mutations present in all normal samples:', length(muts_all_normal)) # 1
 
 # Mutations specific to PD62341 twin 
 muts_PD62341_normal = twins_filtered_dt[sum_normal_PD63383_clean_mtr_vaf==0 & sum_normal_PD62341_mtr_vaf >= 4, mut_ID] %>% unlist()
@@ -1100,7 +1043,7 @@ dev.off()
 
 # Mutations present in all normal samples (show normal + tumour samples)
 # keep order the same as on the previous heatmap 
-mut_order = c('chr1_105242258_T_C', 'chr1_38827952_C_A', 
+mut_order = c('chr1_38827952_C_A', 
               'chr3_77633967_C_T', 'chr4_74625500_G_T', 'chr13_50815806_A_G', 'chr7_149688370_C_T',
               'chr1_103587565_A_C', 'chr21_40193588_G_A', 'chr7_73831920_C_T', 'chr4_75704880_G_A',
               'chr6_165179306_G_A', 'chr11_34011887_C_T', 'chrX_115066661_C_T',
@@ -1142,19 +1085,18 @@ agg_vaf_dt_PD63383 = twins_filtered_dt[, c('mut_ID', 'agg_normal_PD63383_clean_v
 agg_vaf_dt_PD63383[,twin := 'PD63383']
 setnames(agg_vaf_dt_PD63383, c('agg_normal_PD63383_clean_vaf', 'agg_normal_PD63383_clean_vafLowerCI','agg_normal_PD63383_clean_vafUpperCI'), c('vaf', 'lowerCI', 'upperCI'))
 agg_vaf_dt = rbind(agg_vaf_dt_PD62341, agg_vaf_dt_PD63383)
-ggplot(agg_vaf_dt[mut_ID %in% muts_all_normal], aes(x = twin, y = vaf, color = twin, group = twin))+
+ggplot(agg_vaf_dt[mut_ID %in% muts_all_normal], aes(x = twin, y = vaf, color = twin))+
   geom_point(size = 2.5) + 
-  facet_grid(~mut_ID) + 
-  theme_classic(base_size = 12)+
+  theme_classic(base_size = 14)+
   labs(x = 'Twin', y = 'VAF', col = 'Twin')+
-  ggtitle(glue('Mutations shared between twins'))+
+  ggtitle(glue('chr1_38827952_C_A'))+
   scale_color_manual(values = c(col_PD62341, col_PD63383))+
   ylim(c(0, 0.8))+
   theme(legend.position = 'None')+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   geom_errorbar(aes(ymin = lowerCI, ymax = upperCI, width = 0),
                 position = position_dodge(width = 0.90))
-ggsave('Results/20241119_aggvaf_withCI_earlyMuts.pdf', height = 4, width = 4)
+ggsave('Results/20241119_aggvaf_withCI_earlyMuts.pdf', height = 3, width = 3)
 
 ggplot(agg_vaf_dt[mut_ID %in% muts_PD62341_normal], aes(x = twin, y = vaf, color = twin, group = twin))+
   geom_point(size = 2.5) + 
@@ -1298,6 +1240,22 @@ pheatmap(mut_PD63383_normal,
          show_rownames = T, show_colnames = T,
          fontsize=10, cexCol=2) 
 dev.off()
+
+# Are PD63383-specific mutations really absent from PD62341?
+for (mut in muts_PD63383_normal){
+  ggplot(agg_vaf_dt[mut_ID == mut], aes(x = twin, y = vaf, color = twin))+
+    geom_point(size = 2.5) + 
+    theme_classic(base_size = 12)+
+    labs(x = 'Twin', y = 'VAF', col = 'Twin')+
+    ggtitle(glue('{mut}'))+
+    scale_color_manual(values = c(col_PD62341, col_PD63383))+
+    ylim(c(0, 0.3))+
+    theme(legend.position = 'None')+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    geom_errorbar(aes(ymin = lowerCI, ymax = upperCI, width = 0),
+                  position = position_dodge(width = 0.90))
+  ggsave(glue('Results/20241119_aggvaf_withCI_earlyMutsPD63383_{mut}.pdf'), height = 3, width = 3)
+}
 
 ######################################################################################################
 # Tumour tree
@@ -1728,11 +1686,13 @@ qbinom(0.05, 174, 104/174)/174
 # say each sample has 2 duplicate reads 
 qbinom(0.05, 164, 94/164)/164
 # okay this does actually get us to a reasonable number 
-# but you would kind of require > 2 duplicates per sample and your VAF is still really high  
+# but you would require > 2 duplicates per sample and your VAF is still really high  
 
 qbinom(0.05, 199, 56/199)/199
-qbinom(0.05, 179, 36/179)/179
+qbinom(0.05, 189, 46/189)/189
 # this would be 0.15 so still too high 
+# again, you would have to have > 2 duplicates per sample for this to be viable
+
 
 
 
