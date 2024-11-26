@@ -754,6 +754,25 @@ write.csv(twins_dt[, c('mut_ID', cols_filters), with=FALSE], 'Data/twins_dt_filt
 ######################################################################################################
 # ALL DONE  
 
+######################################################################################################
+# DO THIS VIA PURPLE 
+
+# Load purple files (run PURPLE on the farm)
+
+purple = data.table()
+for (sample in samples_names){
+  purple_dt = data.table(read.table(paste0('PURPLE/', sample, '.purple.cnv.somatic.tsv'), sep='\t', fill = TRUE, header=TRUE))
+  purple_dt[, sample := sample]
+  purple = rbind(purple, purple_dt)
+}
+
+# What I want to find out is regions which are copy number-changed in normal samples
+# Then, exclude somatic mutations that are located on those coordinates 
+purple_normal = purple[sample %in% samples_normal]
+hist(purple_normal[, copyNumber] %>% unlist()) # plot a histogram for copy number 
+sum(purple_normal)
+
+
 
 
 

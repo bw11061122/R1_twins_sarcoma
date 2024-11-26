@@ -250,7 +250,6 @@ twins_dt[, significance_mut := as.factor(fcase(
   p_val_mut >= 0.01/dim(twins_dt)[1], 'not_significant' # no support for H1: no strand bias identified  
 ))] # really want to minimize false positives because there is a risk of throwing away high-quality mutations
 
-
 # 2 Strand bias across all reads  
 twins_dt[, sum_FAZ := rowSums(.SD), .SDcols = patterns("_FAZ", cols = names(twins_dt))]
 twins_dt[, sum_FTZ := rowSums(.SD), .SDcols = patterns("_FTZ", cols = names(twins_dt))]

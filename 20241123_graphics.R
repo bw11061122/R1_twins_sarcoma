@@ -102,13 +102,15 @@ create_pie_chart(33, col_normal, 'shared_33')
 create_pie_chart(67, col_normal, 'shared_67')
 create_pie_chart(40, col_normal, 'shared_40')
 create_pie_chart(20, col_normal, 'shared_20')
-create_pie_chart(10, col_normal, 'shared_20')
+create_pie_chart(10, col_normal, 'shared_10')
+create_pie_chart(53, col_normal, 'shared_53')
 
 create_pie_chart(100, col_PD63383, 'PD63383_100')
 create_pie_chart(80, col_PD63383, 'PD63383_80')
 create_pie_chart(40, col_PD63383, 'PD63383_40')
 create_pie_chart(20, col_PD63383, 'PD63383_20')
 create_pie_chart(10, col_PD63383, 'PD63383_10')
+create_pie_chart(53, col_PD63383, 'PD63383_53')
 
 create_pie_chart_border = function(percent, color, col_border, name){
   pie_data = data.frame(
