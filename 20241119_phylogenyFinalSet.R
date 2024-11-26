@@ -1185,7 +1185,8 @@ twins_vaf_melt[, mut_ID := factor(mut_ID, levels =
                                     summarize(mean_x = mean(value)) %>% 
                                     arrange(mean_x) %>% 
                                     pull(mut_ID))]
-                 
+
+# Mutation on the y axis 
 ggplot(twins_vaf_melt[mut_ID %in% muts_PD62341_normal&status=='normal'], aes(x = value, y = mut_ID, color = twin, group = twin))+
   geom_point(size = 2.5, alpha = 0.6) +
   theme_classic(base_size = 12)+
@@ -1206,6 +1207,138 @@ ggplot(twins_vaf_melt[mut_ID %in% muts_PD63383_normal&status=='normal'], aes(x =
   guides(color = guide_legend(override.aes = list(alpha = 1)))+
   xlim(c(0, 0.4))
 ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD63383_dotplot.pdf', height = 4.5, width = 5)
+
+# Mutation on the x axis
+ggplot(twins_vaf_melt[mut_ID %in% muts_PD62341_normal&status=='normal'], aes(x = mut_ID, y = value, color = twin, group = twin))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  theme_classic(base_size = 14)+
+  labs(x = 'Mutation', y = 'VAF', col = 'Twin')+
+  ggtitle(glue('Mutations enriched in PD62341'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.8))+
+  geom_hline(yintercept = 0.4, colour="black", size = 0.2)+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 5))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD62341_dotplot_xaxis.pdf', height = 3, width = 6.5)
+
+ggplot(twins_vaf_melt[mut_ID %in% muts_PD63383_normal&status=='normal'], aes(x = mut_ID, y = value, color = twin, group = twin))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  theme_classic(base_size = 14)+
+  labs(x = 'Mutation', y = 'VAF', col = 'Twin')+
+  ggtitle(glue('Mutations enriched in PD63383'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.4))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 5))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD63383_dotplot_xaxis.pdf', height = 3, width = 6.5)
+
+# Plots to compare VAFs across tissues (can this tell us anything about the contribution to different tissues later on?)
+ggplot(twins_vaf_melt[mut_ID %in% muts_PD63383_normal&status=='normal'&twin=='PD63383'], aes(x = tissue, y = value, color = mut_ID, group = mut_ID))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_line()+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'VAF', col = 'Mutation')+
+  ggtitle(glue('Mutations enriched in PD63383'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.4))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD63383_acrossTissues.pdf', height = 3.5, width = 6.5)
+
+twins_vaf_melt[, tissue_twin := paste0(twin, '_', tissue)]
+ggplot(twins_vaf_melt[mut_ID %in% muts_PD63383_normal&status=='normal'], aes(x = tissue_twin, y = value, color = mut_ID, group = mut_ID))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_line()+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'VAF', col = 'Mutation')+
+  ggtitle(glue('Mutations enriched in PD63383'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.4))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD63383_acrossTissues_bothTwins.pdf', height = 3.6, width = 6.5)
+
+ggplot(twins_vaf_melt[mut_ID %in% muts_PD62341_normal&status=='normal'&twin=='PD62341'], aes(x = tissue, y = value, color = mut_ID, group = mut_ID))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_line()+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'VAF', col = 'Mutation')+
+  ggtitle(glue('Mutations enriched in PD62341'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.8))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD62341_acrossTissues.pdf', height = 3.5, width = 6.5)
+
+ggplot(twins_vaf_melt[mut_ID %in% c(muts_PD63383_normal, 'chr1_38827952_C_A') &status=='normal'&twin=='PD63383'], aes(x = tissue, y = value, color = mut_ID, group = mut_ID))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_line()+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'VAF', col = 'Mutation')+
+  ggtitle(glue('Mutations enriched in PD63383'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.8))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD63383_acrossTissues_pluschr1.pdf', height = 3.5, width = 6.5)
+
+ggplot(twins_vaf_melt[mut_ID %in% c(muts_PD62341_normal, 'chr1_38827952_C_A') &status=='normal'&twin=='PD62341'], aes(x = tissue, y = value, color = mut_ID, group = mut_ID))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_line()+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'VAF', col = 'Mutation')+
+  ggtitle(glue('Mutations enriched in PD62341'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.8))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD62341_acrossTissues_pluschr1.pdf', height = 3.5, width = 6.5)
+
+ggplot(twins_vaf_melt[mut_ID %in% c(muts_PD63383_normal) &status=='normal'&twin=='PD62341'], aes(x = tissue, y = value, color = mut_ID, group = mut_ID))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_line()+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'VAF', col = 'Mutation')+
+  ggtitle(glue('PD62341 samples'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.3))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave('Results/20241119_aggvaf_withCI_earlyMutsPD63383_acrossTissues_inPD62341.pdf', height = 3.5, width = 6.5)
+
+for (mut in c(muts_PD63383_normal)){
+  ggplot(twins_vaf_melt[mut_ID ==mut &status=='normal'&twin=='PD63383'], aes(x = tissue, y = value, group=mut_ID))+
+    geom_point(size = 2.5, alpha = 0.6) +
+    geom_line()+
+    theme_classic(base_size = 14)+
+    labs(x = 'Tissue', y = 'VAF')+
+    ggtitle(glue('{mut}'))+
+    guides(color = guide_legend(override.aes = list(alpha = 1)))+
+    ylim(c(0, 0.4))+
+    theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+  ggsave(glue('Results/20241119_aggvaf_withCI_earlyMutsPD63383_acrossTissues_{mut}.pdf'), height = 3.5, width = 6.5)
+  
+}
+
+ggplot(twins_vaf_melt[mut_ID =='chr1_38827952_C_A' &status=='normal'&twin=='PD63383'], aes(x = tissue, y = value, group=mut_ID))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_line()+
+  theme_classic(base_size = 14)+
+  labs(x = 'Tissue', y = 'VAF')+
+  ggtitle(glue('chr1_38827952_C_A'))+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  ylim(c(0, 0.8))+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave(glue('Results/20241119_aggvaf_withCI_earlyMutsPD63383_acrossTissues_chr1_388.pdf'), height = 3.5, width = 6.5)
+
+
+for (mut in c(muts_PD62341_normal, 'chr1_38827952_C_A')){
+  ggplot(twins_vaf_melt[mut_ID ==mut &status=='normal'&twin=='PD62341'], aes(x = tissue, y = value, group=mut_ID))+
+    geom_point(size = 2.5, alpha = 0.6) +
+    geom_line()+
+    theme_classic(base_size = 14)+
+    labs(x = 'Tissue', y = 'VAF')+
+    ggtitle(glue('{mut}'))+
+    guides(color = guide_legend(override.aes = list(alpha = 1)))+
+    ylim(c(0, 0.8))+
+    theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+  ggsave(glue('Results/20241119_aggvaf_withCI_earlyMutsPD62341_acrossTissues_{mut}.pdf'), height = 3.5, width = 6.5)
+  
+}
 
 # Mutations specific to PD62341 twin 
 mut_PD62341_normal = as.matrix(twins_filtered_dt[mut_ID %in% muts_PD62341_normal, c(samples_vaf), with=FALSE])

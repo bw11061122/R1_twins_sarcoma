@@ -13,6 +13,8 @@
 # 1 lists of mutations in specific categories of interest for the phylogeny
 # 2 plots for each category of mutations of interest 
 
+# Rough script (all analysis, not cleaned up)
+
 ###################################################################################################################################
 # LIBRARIES 
 
