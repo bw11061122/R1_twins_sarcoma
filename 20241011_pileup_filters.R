@@ -195,7 +195,8 @@ for (sample in samples_normal){
 }
 
 # Identify mutations close to indels present on each chromosome
-# Use threshold of copy number 2.9 to remove mutations present on regions of 3 copies 
+# Use threshold of copy number 2.5 to remove mutations present on copy number regions 
+# Require the copy number region to be identified in at least one normal sample 
 germline_cn = c()
 for (chr in twins_coord[, Chrom] %>% unlist() %>% unique()){
   tc = twins_coord[Chrom==chr] # extract the data for each chromosome 
