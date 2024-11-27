@@ -18,24 +18,81 @@
 # LIBRARIES
 library(Seurat)
 library(ggplot2)
-library(kableExtra)
+library(plyr)
+library(dplyr)
+library(reshape2)
 
 ###################################################################################################################################
 # INPUT DATA 
 
 setwd('/Users/bw18/Desktop/1SB')
 
-experiment_name = "Covid Example"
-dataset_loc <- "./"
-ids <- c("PBMC2", "PBMC3", "T021PBMC", "T022PBMC")
+# Read the input data 
+twins.data = Read10X(data.dir = "scRNAseq/NB13760628/filtered_feature_bc_matrix/")
 
-d10x.metrics <- lapply(ids, function(i){
-  # remove _Counts is if names don't include them
-  metrics <- read.csv(file.path(dataset_loc,paste0(i,"_Counts/outs"),"metrics_summary.csv"), colClasses = "character")
-})
-experiment.metrics <- do.call("rbind", d10x.metrics)
-rownames(experiment.metrics) <- ids
+# Initialize the Seurat object with the raw (non-normalized data).
+twins = CreateSeuratObject(counts = data, project = "twins.sarcoma", min.cells = 3, min.features = 200)
+twins
 
-sequencing_metrics <- data.frame(t(experiment.metrics[,c(4:17,1,18,2,3,19,20)]))
+###################################################################################################################################
+# BASIC QC AND PRE-PROCESSING
 
-row.names(sequencing_metrics) <- gsub("\\."," ", rownames(sequencing_metrics))
+# Examine a few genes in this set (select 3 genes, look across the first 30 cells), this uses the direct output of Read10X
+twins.data[c("CD14", "CD68", "PAX7"), 1:30] # active assay: RNA (3 features, 0 variable features)
+twins.data[c("CD3D", "TCL1A", "MS4A1"), 1:30] # none of the features provided found in this assay 
+
+# Okay let's try and do QC now 
+head(twins@meta.data)
+# orig.ident - this is the name of out project 
+# nCount_RNA - this is the number of RNA counts 
+# nFeature_RNA - this is the number of features that these counts map to (ie genes)
+
+# add a column that shows content of mitochondria
+# for this package, we add a column using '[[]]'
+twins[["percent.mt"]] <- PercentageFeatureSet(twins, pattern = "^MT-")
+twins@meta.data %>% head() # added mitochondrial content correctly 
+
+# QC plots one can obtain 
+VlnPlot(twins, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+# standard QC plots to do 
+# nFeature_RNA number of genes / transcripts identified 
+# nCount_RNA number of mapped reads
+# percent.mt proportion of mitochondrial reads 
+
+# Based on this, cut-off of 15% should be reasonable 
+twins = subset(twins, subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & percent.mt < 15)
+
+# Data normalization
+# from GitHub tutorial: By default, we employ a global-scaling normalization method “LogNormalize” 
+# that normalizes the feature expression measurements for each cell by the total expression, 
+# multiplies this by a scale factor (10,000 by default), and log-transforms the result
+# There is a different method implemented in Seurat: SCTransform (which one is better and why?)
+twins = NormalizeData(twins, normalization.method = "LogNormalize", scale.factor = 10000)
+
+# Feature selection 
+twins = FindVariableFeatures(twins, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 = head(VariableFeatures(twins), 10)
+
+# plot variable features with and without labels
+plot1 = VariableFeaturePlot(twins) # quite a lot of the variable count - do we believe this?
+plot2 = LabelPoints(plot = plot1, points = top10, repel = TRUE)
+# what it picks up: COL8A1, MT1G, ELN, HBB, PTGDS, POSTN, COL11A1, HBA2, HBA1 
+# HBA1/2 are a bit awkward - this is literally encoding for haemoglobin?
+# COL11A1 / COL8A1 - collagen genes 
+
+# Scaling the data 
+# apply a linear transformation (‘scaling’), standard pre-processing before dimensional reduction.
+# we do this so that: (1) mean expression of each gene across all cells is 0
+# (2) the variance in expression across cells is 1 
+# in this way, the standardized data has mean expression 0 and variance 1
+# therefore, highly expressed genes do not dominate all the data
+
+all.genes = rownames(twins)
+twins = ScaleData(twins, features = all.genes)
+
+twins[["RNA"]]@counts[1:6, 1:6]
+twins[["RNA"]]@data[1:6, 1:6]
+
+
