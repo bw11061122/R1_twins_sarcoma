@@ -175,20 +175,9 @@ twins_filtered_dt[, sum_normal_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(
 ######################################################################################################
 # Accounting for twin-twin transfusion (spleen samples) - I want to have quantitative estimates of how much transfer there is 
 
-# Create lists of mutations which are present only in one twin, or at a significantly higher VAF in one of the twins
-muts_PD62341 = c("chr14_105458006_C_A", "chr17_33422229_C_A", "chr15_49480646_T_A",
-                 "chr16_5479739_C_T", "chr2_95662131_G_A", "chr3_50106043_C_T",
-                 "chr3_62055057_C_G", "chr3_62055077_G_C", "chr20_44114996_C_T") 
-muts_PD63383 = c("chr11_34011887_C_T", "chr13_50815806_A_G", "chr1_103587565_A_C", "chr21_40193588_G_A",
-                 "chr3_165901319_C_A", "chr3_77633967_C_T", "chr4_15905566_C_T", "chr4_74625500_G_T", 
-                 "chr4_75704880_G_A", "chr7_149688370_C_T", "chrX_115066661_C_T", "chr7_73831920_C_T")
-
-paste('Number of PD62341-enriched mutations:', length(muts_PD62341)) # 9 
-paste('Number of PD63383-enriched mutations:', length(muts_PD63383)) # 12 
-
 # Subset the dataframe to look at twin-specific / twin-enriched mutations 
-mut_PD62341_dt = twins_dt[mut_ID %in% muts_PD62341, c('mut_ID', samples_vaf), with=FALSE]
-mut_PD62341_melt = melt(mut_PD62341_dt, id.vars = 'mut_ID')
+mut_PD62341_dt = twins_dt[mut_ID %in% muts_PD62341_normal, c('mut_ID', samples_vaf), with=FALSE]
+mut_PD62341_melt = data.table::melt(mut_PD62341_dt, id.vars = 'mut_ID')
 mut_PD62341_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
 mut_PD62341_melt[, status := as.factor(fcase( 
   sample %in% samples_normal, 'normal', 
@@ -209,8 +198,8 @@ mut_PD62341_melt[, sample_type3 := as.factor(fcase(
 mut_PD62341_melt[, sample_type2 := factor(sample_type2, levels = c('PD62341 normal', 'PD63383 normal',
                                                                    'PD62341 normal, spleen', 'PD63383 normal, spleen'))]
 
-mut_PD63383_dt = twins_dt[mut_ID %in% muts_PD63383, c('mut_ID', samples_vaf), with=FALSE]
-mut_PD63383_melt = melt(mut_PD63383_dt, id.vars = 'mut_ID')
+mut_PD63383_dt = twins_dt[mut_ID %in% muts_PD63383_normal, c('mut_ID', samples_vaf), with=FALSE]
+mut_PD63383_melt = data.table::melt(mut_PD63383_dt, id.vars = 'mut_ID')
 mut_PD63383_melt[, sample := tstrsplit(variable, '_', fixed=TRUE, keep = 1)]
 mut_PD63383_melt[, status := as.factor(fcase( 
   sample %in% samples_normal, 'normal', 
@@ -230,7 +219,6 @@ mut_PD63383_melt[, sample_type3 := as.factor(fcase( # identify skin (which is kn
   !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(twin, status, sep = ' ')))]
 mut_PD63383_melt[, sample_type2 := factor(sample_type2, levels = c('PD62341 normal', 'PD63383 normal',
                                                                    'PD62341 normal, spleen', 'PD63383 normal, spleen'))]
-
 # Plot # jitter by twin but not by tissue 
 ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, colour=sample_type2, alpha=sample_type2, order=sample_type2))+
   geom_point(size=2)+
@@ -255,6 +243,32 @@ ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_t
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
 ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
+
+# Mutation on the y axis
+ggplot(mut_PD62341_melt[status=='normal'], aes(x=value, y=mut_ID, colour=sample_type2, alpha=sample_type2, order=sample_type2))+
+  geom_point(size=2)+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_PD62341_spleen, col_PD63383_spleen))+
+  theme_classic(base_size = 14)+
+  scale_alpha_manual(values = c(0.4, 0.4, 0.9, 0.9))+
+  labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
+  guides(alpha = "none")+
+  ggtitle(glue('PD62341-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  xlim(c(0, 0.8))
+ggsave(glue('Results/20241114_p5_vaf_dist_PD62341_muts_samples_normal_labelspleen_yaxis.pdf'), width=5.5, height=2.5)
+
+ggplot(mut_PD63383_melt[status=='normal'], aes(x=value, y=mut_ID, color=sample_type2, alpha=sample_type2, order=sample_type2))+
+  geom_point(size=2)+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_PD62341_spleen, col_PD63383_spleen))+
+  theme_classic(base_size = 14)+
+  scale_alpha_manual(values = c(0.4, 0.4, 0.9, 0.9))+
+  labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
+  guides(alpha = "none")+
+  ggtitle(glue('PD63383-specific mutations'))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  xlim(c(0, 0.8))
+ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_normal_labelspleen_yaxis.pdf'), width=5.5, height=3.5)
+
 
 # show correlation between PD62341v for PD63383 specific mutations 
 # perhaps an easier way of showing this is to compare VAFs on a sample-by-sample basis 

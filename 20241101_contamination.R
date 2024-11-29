@@ -263,7 +263,7 @@ for (sample in samples_normal){
   dt = data.frame(cbind(vaf_tumour, vaf_normal))
   ggplot(dt %>% arrange(col_mut_both), aes(x=vaf_all_tumour, y=vaf_normal, col=col_mut_both, alpha=col_mut_both, order=col_mut_both))+
     geom_point()+
-    theme_classic(base_size=15)+
+    theme_classic(base_size=17)+
     scale_color_manual(values = c(col_normal, col_tumour))+
     scale_alpha_discrete(range = c(0.6, 0.9))+
     guides(alpha = "none")+
@@ -272,13 +272,13 @@ for (sample in samples_normal){
     labs(x = 'VAF (total tumour)', y = glue('VAF ({sample})'), col = 'Mutation category')+
     ggtitle(glue('{sample}'))+
     coord_equal(ratio=1)
-  ggsave(glue('Results/20241114_p3_vaf_tumour_vs_normal_{sample}_col_both_27.pdf'), width=6, height=4.5)
+  ggsave(glue('Results/20241114_p3_vaf_tumour_vs_normal_{sample}_col_both_27.pdf'), width=6, height=4)
 }
 
 # Plot histogram of VAF for selected mutations in each tumour sample 
 for (sample in samples_tumour){
   s_vaf = paste0(sample, '_VAF')
-  sample_vaf_all = twins_filtered_vaf[mut_ID %in% muts_tumour_specific, ..s_vaf] %>% unlist()
+  sample_vaf_all = twins_filtered_dt[mut_ID %in% muts_tumour_specific, ..s_vaf] %>% unlist()
   
   pdf(glue('Results/20241114_p3_hist_tumour_vaf_all_{sample}_27muts.pdf'), width=4.5, height=3.5)
   hist(sample_vaf_all, xlab = 'VAF', main = glue('{sample}'), xlim = c(0, 1))
@@ -288,6 +288,7 @@ for (sample in samples_tumour){
 }
 
 # Based on median VAF of 27 tumour-specific mutations, determine fraction of normal and tumour cells in each sample 
+twins_filtered_vaf = twins_filtered_dt[, c('mut_ID', samples_vaf), with=FALSE]
 median_VAFs = sapply(twins_filtered_vaf[mut_ID %in% muts_tumour_specific, 2:23], median) 
 median_VAFs_dt = data.frame(median_VAFs)
 median_VAFs_dt = data.table(median_VAFs_dt %>% rownames_to_column('sample'))
@@ -316,7 +317,7 @@ mean_VAFs_dt[, purity := fcase(
 mean_VAFs_dt[, purity_est := round(purity, 1)]
 
 # Barchart to show tumour and normal cell fraction for each sample
-median_VAFs_melt = melt(median_VAFs_dt[, c('sample', 'tumour_cell_fraction', 'normal_cell_fraction'), with=FALSE], id.vars = 'sample')
+median_VAFs_melt = data.table::melt(median_VAFs_dt[, c('sample', 'tumour_cell_fraction', 'normal_cell_fraction'), with=FALSE], id.vars = 'sample')
 median_VAFs_melt[, sample2 := tstrsplit(sample, '_VAF', fixed = TRUE, keep = 1)]
 median_VAFs_melt[, status := factor(fcase(
   sample2 %in% samples_normal, 'normal',
@@ -331,11 +332,11 @@ ggplot(median_VAFs_melt, aes(x=sample2, y=value, fill=composition))+
   geom_bar(stat = 'identity')+
   theme_classic(base_size=15)+
   scale_fill_manual(values = c(col_normal, col_tumour))+
-  facet_grid(~status, scales = 'free')+
+  facet_wrap(~status, scales = 'free', nrow=2)+
   labs(x = 'Sample', y = glue('Cell fraction'), col = 'Cell type')+
   ggtitle(glue('Estimates of tumour and normal cell fraction for each sample'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Results/20241114_p3_tumour_normal_content_est_27.pdf'), width=10, height=5)
+ggsave(glue('Results/20241114_p3_tumour_normal_content_est_27.pdf'), width=6, height=6.5)
 
 ######################################################################################################
 # OUTPUT 1: SAVE TABLES WITH ESTIMATES OF NORMAL + TUMOUR CELL FRACTION AND PURITY
