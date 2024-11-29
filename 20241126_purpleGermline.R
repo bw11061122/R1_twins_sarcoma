@@ -6,7 +6,7 @@
 # Barbara Walkowiak bw18
 
 # INPUT: 
-# 1 PILEUP dt (.cnv.segment) for each sample 
+# 1 PURPE dt (.cnv.segment) for each sample 
 
 # OUTPUT:
 # 1 list of mutations to exclude based on presence in copy number germline variants 
@@ -153,12 +153,30 @@ twins_dt[, vaf_all := mtr_all / dep_all]
 
 ######################################################################################################
 # Load purple data 
+
+# Load purple.segment data 
+purple_segment = data.table()
+for (sample in samples_normal){
+  purple_dt = data.table(read.table(paste0('PURPLE/', sample, '.purple.segment.tsv'), sep='\t', fill = TRUE, header=TRUE))
+  purple_dt[, sample := sample]
+  purple_segment = rbind(purple_segment, purple_dt)
+}
+
+# Number of segments identified across each sample
+table(purple_segment[, sample]) # not the same number, but reasonable 
+hist(purple_segment[, fittedTumorCopyNumber]) # only 0 values here?
+
+# Load purple.cnv.somatic data
+# The copy number file TUMOR.purple.cnv.somatic.tsv contains the copy number profile of all (contiguous) segments of the tumor sample
+# copyNumber = fitted absolute copy number of segment adjusted for purity and ploidy
 purple = data.table()
 for (sample in samples_normal){
   purple_dt = data.table(read.table(paste0('PURPLE/', sample, '.purple.cnv.somatic.tsv'), sep='\t', fill = TRUE, header=TRUE))
   purple_dt[, sample := sample]
   purple = rbind(purple, purple_dt)
 }
+
+paste('Total number of copy number regions identified across all normal samples:', dim(purple)[1])
 
 # Basic checks 
 # What are the copy number values reported in PURPLE?
@@ -183,20 +201,20 @@ table(purple[copyNumber > 2.5, sample])
 # Which regions are called as copy number germline in each sample?
 
 # Samples with a single copy number germline change
-purple[copyNumber > 2.1 & sample=='PD62341n'] # chr4 124138001 124341000
-purple[copyNumber > 2.1 & sample=='PD62341q'] # chr4 124145001 124341000
-purple[copyNumber > 2.1 & sample=='PD62341v'] # chr4 124138001 124342000
-purple[copyNumber > 2.1 & sample=='PD63383ak'] # chr4 124138001 124342000
-purple[copyNumber > 2.1 & sample=='PD63383u'] # chr4 124138001 124342000
+purple[copyNumber > 2.5 & sample=='PD62341n'] # chr4 124138001 124341000
+purple[copyNumber > 2.5 & sample=='PD62341q'] # chr4 124145001 124341000
+purple[copyNumber > 2.5 & sample=='PD62341v'] # chr4 124138001 124342000
+purple[copyNumber > 2.5 & sample=='PD63383ak'] # chr4 124138001 124342000
+purple[copyNumber > 2.5 & sample=='PD63383u'] # chr4 124138001 124342000
 
-purple[copyNumber > 2.1 & sample=='PD63383w'] # 2 copy number changes 
+purple[copyNumber > 2.5 & sample=='PD63383w'] # 2 copy number changes 
 # chr4 124138001 124341000
 # chr14 106075001 106349000
 # this is not called in PURPLE in other samples but it is very clear that this region has a higher coverage
 # note that PURPLE also calls a loss in this sample next to this gain 
 
 # other clean samples
-purple[copyNumber > 2.1 & sample=='PD63383t'] # 10
+purple[copyNumber > 2.5 & sample=='PD63383t'] # 6
 # chr12  31849001  31911000 # clear coverage change across all normal samples 
 # chr4 124138001 124341000
 # chr5  69561001  71157000 # clear coverage change across all normal samples 
@@ -204,7 +222,7 @@ purple[copyNumber > 2.1 & sample=='PD63383t'] # 10
 # chr7 100959001 100976000 # clear coverage change across all normal samples
 # chr9  33794001  33805000 # doesn't look like a difference in coverage to me
 
-purple[copyNumber > 2.1 & sample=='PD62341ad']
+purple[copyNumber > 2.5 & sample=='PD62341ad']
 # chr16  32004001  34210000 # coverage change across all samples 
 # chr16  34210001  34917000 # coverage change across all samples
 # chr16  34917001  34957000 # coverage change across all samples
@@ -232,16 +250,26 @@ table(purple[copyNumber < 1.5, sample])
 # PD63383bb - 13
 # PD63383t - 102
 # PD63383w - 1
+# PD63383ak, u - 0, PD62341ad, n, v, q - 0
 
-purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD62341aa'] # 5 regions  
+purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD62341aa'] # 26 regions  
+# 13 regions on chromosome 10, all ~lost - likely tumour infiltration
+# 5 regions on chromosome 18 - likely tumour infiltration
+# 3 regions lost on chromosome X, 2 chr5, 1 chr10, 1 chr16, 1 chr17 - tumour?
 purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD62341h'] # 2 regions  
-# maps to chr1 and chr18 - liekly represents tumour contamination 
+# maps to chr1 and chr18 - likely tumour infiltration
+purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383bb'] # 10 regions  
+# 5 losses on chr1, 1 on chr18, 1 on chr17 and chr20, 2 on X
+# I could believe this is tumour infiltration 
 
-purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383ae'] # 5 regions  
-purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383bb'] # 5 regions  
-purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383t'] # 5 regions  
-purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383w'] # 5 regions  
+# Samples which I am quite sure are clean and not tumour infiltrated 
+purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383w'] # 1 region  
 # chr14 105865501-106075000
+purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383ae'] # 180 regions  
+# cannot explain what happened with this sample 
+# reported losses across most chromosomes 
+purple[copyNumber > 0 & copyNumber < 1.5 & sample=='PD63383t'] # 93 regions  
+# reported losses across most chromosomes
 
 # Identify regions considered as copy number germline in all samples 
 # Use threshold of copy number 2.5 to remove mutations present on regions of 3 copies 

@@ -65,7 +65,7 @@ tumourPD63383.2n = Read10X(data.dir = "data/CG_SB_NB14599069/filtered_feature_bc
 tumourPD63383.3n = Read10X(data.dir = "data/CG_SB_NB14599070/filtered_feature_bc_matrix/") # lane 3
 
 ###################################################################################################################################
-# BASIC QC AND PRE-PROCESSING
+# BASIC QC AND PRE-PROCESSING: trial for one sample
 
 # run manual analysis on one sample to decide what kinds of thresholds are based to use for nr counts, nr features and mt content
 
@@ -122,7 +122,7 @@ tPD62341.1_filtered = subset(tPD62341.1, subset = CellID %in% cellids_keep) # se
 keep_features=rownames(tPD62341.1_filtered) 
 tPD62341.1_filtered <- subset(tPD62341.1_filtered, features=keep_features)
 # I could exclude heat shock or ribosomal genes - variable takes in literature as to whether one should do this or not?
-# for now, I won't do that (but Nathan to ask - Venetia said she did this)
+# I won't do this in this dataset but I will run separate analysis excluding those genes
 
 # run standard Seurat pipeline 
 tPD62341.1_filtered = NormalizeData(object = tPD62341.1_filtered, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
@@ -132,7 +132,7 @@ tPD62341.1_filtered = RunPCA(tPD62341.1_filtered, npcs = 70, features=VariableFe
 
 # Determine how many PCs to include in downstream analysis 
 pdf('Results/20241127_elbowPlot_PD62341tumour.pdf', height = 4, width = 8)
-ElbowPlot(tPD62341.1_filtered, ndims = 70) # used 70 PCs above (very unlikely you would ever want to use this many)
+ElbowPlot(tPD62341.1_filtered, ndims = 50) # use 50 PCs 
 dev.off()
 
 # plot variance explained (scree plot)
@@ -165,6 +165,16 @@ pdf('Results/20241127_pca_PD62341tumour.pdf', height = 4, width = 4)
 DimPlot(tPD62341.1_filtered, reduction = "pca", label = TRUE)
 dev.off()
 
+# Can I try clustering with different resolution parameter
+for (res in seq(0.1, 1.2, by = 0.1)){
+  tPD62341.1_filtered = FindClusters(tPD62341.1_filtered, resolution = res, verbose = T)
+  tPD62341.1_filtered = RunUMAP(tPD62341.1_filtered, dims = 1:20, verbose = T, min.dist = 0.5, n.neighbors = 30)
+  pdf(glue('Results/20241127_umap_PD62341tumour_{res}_res.pdf'), height = 4, width = 4)
+  plot = DimPlot(tPD62341.1_filtered, reduction = "umap", label = TRUE)
+  print(plot)
+  dev.off() 
+} # After this I'm quite inclined to go with resolution 0.2-0.4 
+
 # Identify features and look at markers 
 tPD62341.1_filtered.markers <- FindAllMarkers(tPD62341.1_filtered, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 
@@ -186,7 +196,6 @@ DotPlot(object = tPD62341.1_filtered, features = genes_of_interest)
 dev.off()
 
 # Dotplot of cluster markers
-
 
 # Score by cell cycle expression (S and G2M genes accessed according to https://satijalab.org/seurat/articles/cell_cycle_vignette.html from October 2023)
 s.genes = cc.genes$s.genes
@@ -232,9 +241,9 @@ pdf('Results/20241127_umap_PD62341tumour_rmGenes_cellCycle.pdf', height = 4, wid
 DimPlot(tPD62341.1_filtered2, reduction = "umap", label = TRUE, by='Phase')
 dev.off() # that actually looks reasonable!
 
-# 
+###################################################################################################################################
 
-# write a function that takes the Seurat Object and carries out basic pre-processing, clustering etc.
+# A function that takes the Seurat Object and carries out basic pre-processing, clustering etc.
 sc_preprocessing = function(data, sample_name, mt_threshold, feature_min, count_min, n_pcs, n_clusters, resolution, min_dist, nn){
   
   # Required arguments
@@ -285,40 +294,14 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_min, count_
   data_filtered = CellCycleScoring(data_filtered, s.features = s.genes, 
                                    g2m.features = g2m.genes, set.ident = TRUE)
   
-  ## Add Metadata ##
-  colnames(cart_index)[2] <- "orig.ident"
-  data_filtered_meta <- data_filtered@meta.data
-  getindex <- join(data_filtered_meta, cart_index, by="orig.ident")
-  data_filtered@meta.data$Patient <- getindex$Patient
-  data_filtered@meta.data$TCR_Sample <- getindex$TCR_Sample
-  data_filtered@meta.data$Sort <- getindex$Sort
-  data_filtered@meta.data$Source <- getindex$Source
-  data_filtered@meta.data$Timepoint <- getindex$Timepoint
-  data_filtered@meta.data$Timepoint_bin <- getindex$Timepoint_bin
-  
-  data_filtered@meta.data$CellType1 <- sapply(1:nrow(data_filtered_meta), function(x) ifelse(nrow(barcode_metadata[barcode_metadata$CellID == data_filtered_meta$CellID[x],])>0,
-                                                                                             barcode_metadata[barcode_metadata$CellID == data_filtered_meta$CellID[x],]$CellType1,
-                                                                                             NA))
-  
-  data_filtered@meta.data$CellType2 <- sapply(1:nrow(data_filtered_meta), function(x) ifelse(nrow(barcode_metadata[barcode_metadata$CellID == data_filtered_meta$CellID[x],])>0,
-                                                                                             barcode_metadata[barcode_metadata$CellID == data_filtered_meta$CellID[x],]$CellType2,
-                                                                                             NA))
-  
-  data_filtered@meta.data$CARTcell <- sapply(1:nrow(data_filtered_meta), function(x) ifelse(nrow(barcode_metadata[barcode_metadata$CellID == data_filtered_meta$CellID[x],])>0,
-                                                                                            barcode_metadata[barcode_metadata$CellID == data_filtered_meta$CellID[x],]$CARTcell,
-                                                                                            NA))
-  
-  Idents(data_filtered) <- data_filtered@meta.data$seurat_clusters
-  if(saverds == "YES"){
-    saveRDS(data_filtered, file=paste(sep=".", ID, nFeature_RNA_min, percentmt, nCountRNA_min, npcs1,"rds"))
-    return(data_filtered)
-  } else {
-    return(data_filtered)
-  }
-}
-
   }
 
+# run for all your samples
+sc_preprocessing(tumourPD62341.1)
+
+# at what point should I integrate samples from different lanes?
+
+# how do I do cell type annotation?
 
 
 ###################################################################################################################################
