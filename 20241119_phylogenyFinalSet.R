@@ -518,6 +518,21 @@ pheatmap(mut_ee,
          fontsize=10, cexCol=2) 
 dev.off()
 
+# The same heatmap, but without rownames (mutation IDs)
+pdf('Results/20241119_p4_heatmap_muts_earlyDev_noRowNames.pdf')
+pheatmap(mut_ee,
+         cellwidth=10, cellheight=10,
+         annotation_col = col_annotation_normal,
+         annotation_colors = annotation_colors_normal,
+         main="Early embryonic mutations", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = T, cluster_cols = T, 
+         show_rownames = F, show_colnames = T,
+         fontsize=10, cexCol=2) 
+dev.off()
+
+
 # Plot VAF values for each mutation 
 twins_vaf_melt = data.table::melt(twins_filtered_dt[, c('mut_ID', samples_vaf), with=FALSE], id.vars = 'mut_ID')
 twins_vaf_melt[, sample := tstrsplit(variable, '_VAF', fixed = TRUE, keep = 1)]

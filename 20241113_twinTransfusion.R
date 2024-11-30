@@ -58,11 +58,9 @@ col_PD62341 = "#0ac368"
 col_PD63383 = "#a249e8"
 col_tumour_PD62341 = "#099272"
 col_tumour_PD63383 = "#6F09D4"
-col_normal_PD62341 = "#71D99B"
-col_normal_PD63383 = "#C99DF6"
 col_bar = '#e87811'
 col_PD62341_spleen = '#047247'
-col_PD63383_spleen = '#430970'
+col_PD63383_spleen = '#8c0392'
 col_PD63383_skin = '#c7b3d7'
 
 ######################################################################################################
@@ -197,6 +195,8 @@ mut_PD62341_melt[, sample_type3 := as.factor(fcase(
   !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(twin, status, sep = ' ')))]
 mut_PD62341_melt[, sample_type2 := factor(sample_type2, levels = c('PD62341 normal', 'PD63383 normal',
                                                                    'PD62341 normal, spleen', 'PD63383 normal, spleen'))]
+mut_PD62341_melt[, mut_ID := factor(mut_ID, levels = {
+  mut_PD62341_melt[, .(mean_col = mean(value)), by = mut_ID][order(mean_col), mut_ID]})]
 
 mut_PD63383_dt = twins_dt[mut_ID %in% muts_PD63383_normal, c('mut_ID', samples_vaf), with=FALSE]
 mut_PD63383_melt = data.table::melt(mut_PD63383_dt, id.vars = 'mut_ID')
@@ -218,7 +218,11 @@ mut_PD63383_melt[, sample_type3 := as.factor(fcase( # identify skin (which is kn
   sample == 'PD63383bb', 'PD63383 normal, skin',
   !sample %in% c('PD62341v', 'PD63383w', 'PD63383bb'), paste(twin, status, sep = ' ')))]
 mut_PD63383_melt[, sample_type2 := factor(sample_type2, levels = c('PD62341 normal', 'PD63383 normal',
-                                                                   'PD62341 normal, spleen', 'PD63383 normal, spleen'))]
+                                                                  'PD62341 normal, spleen', 'PD63383 normal, spleen'))]
+
+mut_PD63383_melt[, mut_ID := factor(mut_ID, levels = {
+  mut_PD63383_melt[, .(mean_col = mean(value)), by = mut_ID][order(mean_col), mut_ID]})]
+
 # Plot # jitter by twin but not by tissue 
 ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, colour=sample_type2, alpha=sample_type2, order=sample_type2))+
   geom_point(size=2)+
@@ -248,35 +252,32 @@ ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_normal_labelsplee
 ggplot(mut_PD62341_melt[status=='normal'], aes(x=value, y=mut_ID, colour=sample_type2, alpha=sample_type2, order=sample_type2))+
   geom_point(size=2)+
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_PD62341_spleen, col_PD63383_spleen))+
-  theme_classic(base_size = 14)+
-  scale_alpha_manual(values = c(0.4, 0.4, 0.9, 0.9))+
-  labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
+  theme_classic(base_size = 12)+
+  scale_alpha_manual(values = c(0.2, 0.2, 1, 1))+
+  labs(x = 'VAF', y = 'Mutation', col = 'Sample category')+
   guides(alpha = "none")+
   ggtitle(glue('PD62341-specific mutations'))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   xlim(c(0, 0.8))
-ggsave(glue('Results/20241114_p5_vaf_dist_PD62341_muts_samples_normal_labelspleen_yaxis.pdf'), width=5.5, height=2.5)
+ggsave(glue('Results/20241114_p5_vaf_dist_PD62341_muts_samples_normal_labelspleen_yaxis.pdf'), width=6.5, height=2.5)
 
 ggplot(mut_PD63383_melt[status=='normal'], aes(x=value, y=mut_ID, color=sample_type2, alpha=sample_type2, order=sample_type2))+
   geom_point(size=2)+
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_PD62341_spleen, col_PD63383_spleen))+
-  theme_classic(base_size = 14)+
-  scale_alpha_manual(values = c(0.4, 0.4, 0.9, 0.9))+
-  labs(x = 'Mutation', y = 'VAF', col = 'Sample category')+
+  theme_classic(base_size = 12)+
+  scale_alpha_manual(values = c(0.2, 0.2, 1, 1))+
+  labs(x = 'VAF', y = 'Mutation', col = 'Sample category')+
   guides(alpha = "none")+
   ggtitle(glue('PD63383-specific mutations'))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   xlim(c(0, 0.8))
-ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_normal_labelspleen_yaxis.pdf'), width=5.5, height=3.5)
-
+ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_normal_labelspleen_yaxis.pdf'), width=6.5, height=3.5)
 
 # show correlation between PD62341v for PD63383 specific mutations 
 # perhaps an easier way of showing this is to compare VAFs on a sample-by-sample basis 
 
-PD63383_vafs = twins_filtered_dt[mut_ID %in% muts_PD63383, 'vaf_all_normal_PD63383', with=FALSE] %>% unlist()
+PD63383_vafs = twins_filtered_dt[mut_ID %in% muts_PD63383_normal, 'vaf_all_normal_PD63383', with=FALSE] %>% unlist()
 for (sample_name in samples_normal_PD62341){
   sample = paste0(sample_name, '_VAF')
-  PD62341_vaf = twins_filtered_dt[mut_ID %in% muts_PD63383, ..sample] %>% unlist()
+  PD62341_vaf = twins_filtered_dt[mut_ID %in% muts_PD63383_normal, ..sample] %>% unlist()
   dt = data.table(cbind(PD62341_vaf, PD63383_vafs))
   ggplot(dt, aes(x=PD63383_vafs, y=PD62341_vaf))+
     geom_point(size=2.5, alpha = 0.8)+
@@ -289,10 +290,10 @@ for (sample_name in samples_normal_PD62341){
   ggsave(glue('Results/20241114_p5_vaf_dist_PD63383_muts_samples_PD63383agg_vs_{sample_name}.pdf'), width=3, height=3)
 }
 
-PD62341_vafs = twins_filtered_dt[mut_ID %in% muts_PD62341, 'vaf_all_normal_PD62341', with=FALSE] %>% unlist()
+PD62341_vafs = twins_filtered_dt[mut_ID %in% muts_PD62341_normal, 'vaf_all_normal_PD62341', with=FALSE] %>% unlist()
 for (sample_name in samples_normal_PD63383){
   sample = paste0(sample_name, '_VAF')
-  PD63383_vaf = twins_filtered_dt[mut_ID %in% muts_PD62341, ..sample] %>% unlist()
+  PD63383_vaf = twins_filtered_dt[mut_ID %in% muts_PD62341_normal, ..sample] %>% unlist()
   dt = data.table(cbind(PD63383_vaf, PD62341_vafs))
   ggplot(dt, aes(x=PD62341_vafs, y=PD63383_vaf))+
     geom_point(size=2.5, alpha = 0.8)+
@@ -314,32 +315,31 @@ means_PD62341muts = merge(merge(means_PD62341muts_spleen_PD62341, means_PD62341m
                           merge(means_PD62341muts_spleen_PD63383, means_PD62341muts_nonspleen_PD63383, by = 'mut_ID'), by = 'mut_ID')
 setnames(means_PD62341muts, c('value.x', 'V1.x', 'value.y', 'V1.y'), c('PD62341_spleen', 'PD62341_nonspleen', 'PD63383_spleen', 'PD63383_nonspleen'))
 
-# I would do the calculations for mutations where VAF in PD63383 non-spleen is 0 for now
-# VAF_PD62341_spleen = VAF_PD62341_spleen * fraction_PD62341_spleen + VAF_PD63383 * fraction_PD63383 
-# VAF_PD63383_spleen = VAF_PD62341 * fraction_PD62341 + VAF_PD63383_spleen * fraction_PD63383_spleen
-means_PD62341muts_clean = means_PD62341muts[PD63383_nonspleen==0]
-means_PD62341muts_clean[, PD62341_spleen_fPD62341 := PD62341_spleen / PD62341_nonspleen]
-means_PD62341muts_clean[, PD63383_spleen_fPD62341 := PD63383_spleen / PD62341_nonspleen]
+# observed VAF_PD62341_spleen = VAF_PD62341_spleen * fraction_PD62341_spleen + VAF_PD63383 * fraction_PD63383 
+# observed VAF_PD63383_spleen = VAF_PD62341 * fraction_PD62341 + VAF_PD63383_spleen * fraction_PD63383_spleen
+means_PD62341muts[, PD62341_spleen_fPD62341 := PD62341_spleen / PD62341_nonspleen] # assume true VAF in PD63383 = 0
+means_PD62341muts[, PD63383_spleen_fPD62341 := PD63383_spleen / PD62341_nonspleen] 
 
-ggplot(means_PD62341muts_clean, aes(x=PD62341_nonspleen, y=PD62341_spleen))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'mean VAF PD62341 (non-spleen)', y = 'VAF PD62341 (spleen)')+
+ggplot(means_PD62341muts, aes(x=PD62341_nonspleen, y=PD62341_spleen))+
+  geom_point(size=2.5)+ 
+  theme_classic(base_size = 12)+
+  labs(x = 'VAF PD62341 (non-spleen)', y = 'VAF PD62341 (spleen)')+
   ggtitle(glue('PD62341-specific mutations'))+
   coord_equal(ratio = 1)+
   xlim(c(0, 0.5))+
   ylim(c(0, 0.5))
-ggsave(glue('Results/20241114_p5_spleen_vs_nonspleen_PD62341.pdf'), width=4, height=4)
+ggsave(glue('Results/20241114_p5_spleen_vs_nonspleen_PD62341.pdf'), width=3, height=3)
 
-ggplot(means_PD63383muts, aes(x=PD63383_spleen, y=PD62341_spleen))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'VAF (PD63383 spleen)', y = 'VAF (PD62341 spleen)')+
-  ggtitle(glue('PD63383-specific mutations'))+
+ggplot(means_PD62341muts, aes(x=PD62341_nonspleen, y=PD62341_spleen))+
+  geom_point(size=2.5)+ 
+  geom_smooth(method='lm')+
+  theme_classic(base_size = 12)+
+  labs(x = 'VAF PD62341 (non-spleen)', y = 'VAF PD62341 (spleen)')+
+  ggtitle(glue('PD62341-specific mutations'))+
   coord_equal(ratio = 1)+
   xlim(c(0, 0.5))+
   ylim(c(0, 0.5))
-ggsave(glue('Results/20241114_p5_spleen_PD62341_vs_PD63383_PD63383muts.pdf'), width=4, height=4)
+ggsave(glue('Results/20241114_p5_spleen_vs_nonspleen_PD62341_bestFit.pdf'), width=3, height=3)
 
 # do the same for PD63383 specific mutations
 means_PD63383muts_spleen_PD62341 = mut_PD63383_melt[sample == 'PD62341v', c('mut_ID', 'value'), with=FALSE]
@@ -352,6 +352,31 @@ setnames(means_PD63383muts, c('value.x', 'V1.x', 'value.y', 'V1.y'), c('PD62341_
 means_PD63383muts[, PD62341_spleen_fPD63383 := PD62341_spleen / PD63383_nonspleen] # contamination
 means_PD63383muts[, PD63383_spleen_fPD63383 := PD63383_spleen / PD63383_nonspleen] # purity 
 
+ggplot(means_PD63383muts, aes(x=PD63383_nonspleen, y=PD62341_spleen))+
+  geom_point(size=2.5)+ 
+  theme_classic(base_size = 12)+
+  labs(x = 'VAF PD63383 (non-spleen)', y = 'VAF PD62341 (spleen)')+
+  ggtitle(glue('PD63383-specific mutations'))+
+  coord_equal(ratio = 1)+
+  xlim(c(0, 0.3))+
+  ylim(c(0, 0.3))
+ggsave(glue('Results/20241114_p5_spleen_vs_nonspleen_PD63383.pdf'), width=3, height=3)
+
+ggplot(means_PD63383muts, aes(x=PD63383_nonspleen, y=PD62341_spleen))+
+  geom_point(size=2.5)+ 
+  geom_smooth(method='lm')+
+  theme_classic(base_size = 12)+
+  labs(x = 'VAF PD63383 (non-spleen)', y = 'VAF PD62341 (spleen)')+
+  ggtitle(glue('PD63383-specific mutations'))+
+  coord_equal(ratio = 1)+
+  xlim(c(0, 0.3))+
+  ylim(c(0, 0.3))
+ggsave(glue('Results/20241114_p5_spleen_vs_nonspleen_PD63383_bestFit.pdf'), width=3, height=3)
+
+lm(means_PD62341muts[,PD62341_spleen] ~ means_PD62341muts[,PD62341_nonspleen]) # 0.04 + 0.135x
+lm(means_PD63383muts[,PD62341_spleen] ~ means_PD63383muts[,PD63383_nonspleen]) # 0.04 + 0.425x
+
+# Plot each mutation separately 
 mut_PD62341_melt[, sample := factor(sample, levels = 
                                       c('PD62341ad', 'PD62341n', 'PD62341q', 'PD62341h', 'PD62341aa', 'PD62341v',
                                         'PD63383w', 'PD63383u', 'PD63383t', 'PD63383ae', 'PD63383ak', 'PD63383bb',
@@ -365,25 +390,25 @@ mut_PD63383_melt[, sample := factor(sample, levels =
 
 
 # plot VAF for each mutation across samples so we can see samples separately
-for (mut in muts_PD62341){
+for (mut in muts_PD62341_normal){
   dt = mut_PD62341_melt[mut_ID == mut]
   ggplot(dt %>% arrange(sample_type), aes(x=sample, y=value, col = sample_type))+
     geom_point(size=2.5)+
     theme_classic(base_size = 14)+
     labs(x = 'sample', y = 'VAF')+
-    scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour, col_tumour_PD62341))+
+    scale_color_manual(values = c(col_PD62341, col_tumour_PD62341, col_PD63383, col_tumour_PD63383))+
     ggtitle(glue('{mut}'))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   ggsave(glue('Results/20241114_p5_PD62341_spec_by_mut_{mut}.pdf'), width=6, height=3.5)
 }
 
-for (mut in muts_PD63383){
+for (mut in muts_PD63383_normal){
   dt = mut_PD63383_melt[mut_ID == mut]
   ggplot(dt %>% arrange(sample_type), aes(x=sample, y=value, col = sample_type))+
     geom_point(size=2.5)+
     theme_classic(base_size = 14)+
     labs(x = 'sample', y = 'VAF')+
-    scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour, col_tumour_PD62341))+
+    scale_color_manual(values = c(col_PD62341, col_tumour_PD62341, col_PD63383, col_tumour_PD63383))+
     ggtitle(glue('{mut}'))+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   ggsave(glue('Results/20241114_p5_PD63383_spec_by_mut_{mut}.pdf'), width=6, height=3.5)
