@@ -64,10 +64,13 @@ tumourPD63383.1n = Read10X(data.dir = "data/CG_SB_NB14599068/filtered_feature_bc
 tumourPD63383.2n = Read10X(data.dir = "data/CG_SB_NB14599069/filtered_feature_bc_matrix/") # lane 2
 tumourPD63383.3n = Read10X(data.dir = "data/CG_SB_NB14599070/filtered_feature_bc_matrix/") # lane 3
 
+# Genes that can be excluded from clustering (e.g., ribosomal genes)
+genes_to_exclude = read.csv('Data/excludeGenes.tsv', sep='\t', header = F) %>% unlist()
+
 ###################################################################################################################################
 # BASIC QC AND PRE-PROCESSING: trial for one sample
 
-# run manual analysis on one sample to decide what kinds of thresholds are based to use for nr counts, nr features and mt content
+# manual analysis on one sample to figure out thresholds and see how this works 
 
 # read the data into the Seurat object 
 tPD62341.1 = CreateSeuratObject(counts = tumourPD62341.1, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
@@ -101,7 +104,7 @@ dev.off() # 1000 sounds reasonable based on the hist
 pdf('Results/20241127_hist_nFeatureRNA_PD62341tumour.pdf', height = 4, width = 8)
 nfeatures_rna = as.numeric(tPD62341.1[["nFeature_RNA"]] %>% unlist())
 par(mfrow=c(1,2))
-hist(nfeatures_rna[ncounts_rna < 2000], xlab = 'nFeatureRNA', main = 'PD62341 tumour', breaks = 100)
+hist(nfeatures_rna[nfeatures_rna < 2000], xlab = 'nFeatureRNA', main = 'PD62341 tumour', breaks = 100)
 hist(nfeatures_rna, xlab = 'nFeatureRNA', main = 'PD62341 tumour', breaks = 100)
 dev.off() # 300 sounds reasonable based on the hist 
 
@@ -120,7 +123,7 @@ tPD62341.1_filtered = subset(tPD62341.1, subset = CellID %in% cellids_keep) # se
 
 # which genes to keep?
 keep_features=rownames(tPD62341.1_filtered) 
-tPD62341.1_filtered <- subset(tPD62341.1_filtered, features=keep_features)
+tPD62341.1_filtered = subset(tPD62341.1_filtered, features=keep_features)
 # I could exclude heat shock or ribosomal genes - variable takes in literature as to whether one should do this or not?
 # I won't do this in this dataset but I will run separate analysis excluding those genes
 
@@ -136,9 +139,9 @@ ElbowPlot(tPD62341.1_filtered, ndims = 50) # use 50 PCs
 dev.off()
 
 # plot variance explained (scree plot)
-mat <- tPD62341.1_filtered[["RNA"]]$scale.data 
-pca <- tPD62341.1_filtered[["pca"]]
-total_variance <- sum(matrixStats::rowVars(mat))
+mat = tPD62341.1_filtered[["RNA"]]$scale.data 
+pca = tPD62341.1_filtered[["pca"]]
+total_variance = sum(matrixStats::rowVars(mat))
 eigValues = (pca@stdev)^2 
 varExplained = eigValues / total_variance
 varExplained %>% enframe(name = "PC", value = "varExplained" ) %>%
@@ -150,7 +153,7 @@ ggsave(glue('Results/20241127_varianceExplained_tumourPD62341_1.pdf'), height = 
 
 # Clustering 
 tPD62341.1_filtered = FindNeighbors(tPD62341.1_filtered, dims = 1:20, verbose = T)
-tPD62341.1_filtered = FindClusters(tPD62341.1_filtered, resolution = 0.6, verbose = T)
+tPD62341.1_filtered = FindClusters(tPD62341.1_filtered, resolution = 0.2, verbose = T)
 tPD62341.1_filtered = RunUMAP(tPD62341.1_filtered, dims = 1:20, verbose = T, min.dist = 0.5, n.neighbors = 30)
 tPD62341.1_filtered = RunTSNE(tPD62341.1_filtered) # might as well run it but tSNE doesn't seem to be popular 
 
@@ -176,7 +179,7 @@ for (res in seq(0.1, 1.2, by = 0.1)){
 } # After this I'm quite inclined to go with resolution 0.2-0.4 
 
 # Identify features and look at markers 
-tPD62341.1_filtered.markers <- FindAllMarkers(tPD62341.1_filtered, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+tPD62341.1_filtered.markers = FindAllMarkers(tPD62341.1_filtered, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 
 # include genes that take part in the fusion, early embryonic, CD markers, synaptophysin, stuff Nathan looked at (to see if I am getting sth vaguely similar)
 genes_of_interest = c('MYOD1', 'PAX3', 'PAX7', 'CYP11A1', 'CD14', 'CD68', 'SYP', 'MN1', 'ZNF341', 'NR5A1', 'KCNQ1', 'TP53') # MYOG is 0 for all so I got rid of this
@@ -186,16 +189,20 @@ dev.off()
 
 # Heatmap of markers 
 top10 = tPD62341.1_filtered.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
-pdf(glue('Results/20241127_heatmapTop10_PD62341tumour.pdf'), width=12, height=8)
+pdf(glue('Results/20241127_heatmapTop10_PD62341tumour.pdf'), width=12, height=10)
 DoHeatmap(tPD62341.1_filtered, features = top10$gene) + NoLegend()
+dev.off()
+
+# Dotplot of cluster markers (4 for each cluster)
+top4 = tPD62341.1_filtered.markers %>% group_by(cluster) %>% top_n(n = 4, wt = avg_log2FC)
+pdf(glue('Results/20241127_dotPlotTop4_PD62341tumour.pdf'), width=10, height=6)
+DotPlot(tPD62341.1_filtered, features = top4$gene) + coord_flip()
 dev.off()
 
 # Dotplot of genes of interest 
 pdf(glue('Results/20241127_dotPlot_PD62341tumour_GOI.pdf'), width=10, height=6)
 DotPlot(object = tPD62341.1_filtered, features = genes_of_interest)
 dev.off()
-
-# Dotplot of cluster markers
 
 # Score by cell cycle expression (S and G2M genes accessed according to https://satijalab.org/seurat/articles/cell_cycle_vignette.html from October 2023)
 s.genes = cc.genes$s.genes
@@ -216,7 +223,7 @@ dev.off() # kind of separate but not very clear? not sure if I should do anythin
 genes_to_exclude = read.csv('Data/excludeGenes.tsv', sep='\t', header = F) %>% unlist()
 keep_features2=rownames(tPD62341.1_filtered)[which(!rownames(tPD62341.1_filtered) %in% genes_to_exclude)]
 
-tPD62341.1_filtered2 <- subset(tPD62341.1_filtered, features=keep_features2)
+tPD62341.1_filtered2 = subset(tPD62341.1_filtered, features=keep_features2)
 tPD62341.1_filtered2 = NormalizeData(object = tPD62341.1_filtered2, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
 tPD62341.1_filtered2 = FindVariableFeatures(tPD62341.1_filtered2, selection.method = "vst", nfeatures = 2000) # default 2k 
 tPD62341.1_filtered2 = ScaleData(tPD62341.1_filtered2, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
@@ -230,7 +237,7 @@ tPD62341.1_filtered2 = CellCycleScoring(tPD62341.1_filtered2, s.features = s.gen
 # Plot outcomes of clustering (it doesn't look massively different to me!)
 pdf('Results/20241127_umap_PD62341tumour_rmGenes.pdf', height = 4, width = 4)
 DimPlot(tPD62341.1_filtered2, reduction = "umap", label = TRUE)
-dev.off() # that actually looks reasonable!
+dev.off() 
 pdf('Results/20241127_tsne_PD62341tumour_rmGenes.pdf', height = 4, width = 4)
 DimPlot(tPD62341.1_filtered2, reduction = "tsne", label = TRUE)
 dev.off()
@@ -238,13 +245,14 @@ pdf('Results/20241127_pca_PD62341tumour_rmGenes.pdf', height = 4, width = 4)
 DimPlot(tPD62341.1_filtered2, reduction = "pca", label = TRUE)
 dev.off()
 pdf('Results/20241127_umap_PD62341tumour_rmGenes_cellCycle.pdf', height = 4, width = 4)
-DimPlot(tPD62341.1_filtered2, reduction = "umap", label = TRUE, by='Phase')
-dev.off() # that actually looks reasonable!
+DimPlot(tPD62341.1_filtered2, reduction = "umap", label = TRUE, group.by = 'Phase')
+dev.off() 
 
 ###################################################################################################################################
+# BASIC QC, PREPROCESSING, CLUSTERING - FOR EACH SAMPLE SEPARATELY 
 
-# A function that takes the Seurat Object and carries out basic pre-processing, clustering etc.
-sc_preprocessing = function(data, sample_name, mt_threshold, feature_min, count_min, n_pcs, n_clusters, resolution, min_dist, nn){
+# Create a function that takes the Seurat Object and carries out basic pre-processing, clustering etc.
+sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, count_threshold, n_pcs, resolution, min_dist, nn){
   
   # Required arguments
   # data = obtained with Read10X function
@@ -255,53 +263,647 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_min, count_
   # Optional settings when reading in the file: 
   # min.cells = Include features detected in at least this many cells
   # min.features = Include cells where at least this many features are detected
-  # I guess this can be a useful filtering step but we can leave that for now and do it w/ default (not setting more stringent thresholds)
-  seurat = CreateSeuratObject(counts = data, project = "twins.sarcoma",names.field = 1, names.delim = "_", meta.data = NULL)
+  # read the data into the Seurat object 
+  seurat = CreateSeuratObject(counts = data, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
   
-  # QC: calculate fraction of mitochondrial reads (high indicates poor-quality cells)
-  # plot histogram to see if the threshold used makes sense
+  # calculate the percentage mt content 
   seurat[["percent.mt"]] = PercentageFeatureSet(seurat, pattern = "^MT-")
   
-  pdf(glue('Results/20241127_hist_mt_content_{sample_name}.pdf'), height = 4.5, width = 4.5)
-  hist(tPD62341.1[["percent.mt"]] %>% unlist(), xlab = '% mt content', main = sample_name, breaks = 100)
-  abline(v = mt_threshold, col = 'red', lwd = 2.5)   
+  # plot the distribution of the mt content in each sample 
+  # 10 sounds like a reasonable threshold and should give you most of the cells of interest 
+  pdf(glue('Results/20241201_hist_mt_content_{sample_name}.pdf'), height = 4.5, width = 4.5)
+  hist(seurat[["percent.mt"]] %>% unlist(), xlab = '% mt content', main = glue('{sample_name}'), breaks = 100)
+  abline(v = 10, col = 'red', lwd = 2.5)   
   dev.off()
   
+  # add CellID to the metadata 
   seurat@meta.data$CellID = rownames(seurat@meta.data) # add the cellID to the metadata
   meta = seurat@meta.data # create a dt with all the metadata of interest, including cell ID 
   
-  keeprows = meta[meta$nCount_RNA > nCountRNA_min,] # require number of UMIs to be higher than minimum 
-  keeprows = keeprows[keeprows$nFeature_RNA > nFeature_RNA_min,] # require number of features to be higher than minimum 
-  keeprows = keeprows[keeprows$percent.mt <= mt_threshold,] # exclude cells with mitochondrial content above a threshold
+  # plot histograms of nCount_RNA_min and nFeature_RNA_min to decide the thresholds
+  # usually (from a few papers I looked at), cells with fewer than 300 genes or fewer than 1000 UMIs are removed 
   
-  cellids_keep = rownames(keeprows)
-  seurat_filtered = subset(seurat, subset = CellID %in% cellids_keep) # select cells of interest 
+  # nCountRNA is the total number of molecules detected in each cell 
+  pdf(glue('Results/20241201_hist_nCountRNA_{sample_name}.pdf'), height = 4, width = 8)
+  ncounts_rna = as.numeric(seurat[["nCount_RNA"]] %>% unlist())
+  par(mfrow=c(1,2))
+  hist(ncounts_rna[ncounts_rna < 2500], xlab = 'nCountRNA', main = sample_name, breaks = 100)
+  hist(ncounts_rna, xlab = 'nCountRNA', main = sample_name, breaks = 100)
+  dev.off() # 1000 sounds reasonable based on the hist 
   
-  #Exclude Ribosomal, Mitochondrial and other unimportant Genes
-  keep_features=rownames(data_seurat)[which(!rownames(data_seurat)%in%excludeGenes)]
-  data_filtered <- subset(data_filtered, features=keep_features)
-  data_filtered = NormalizeData(object = data_filtered, normalization.method = "LogNormalize", scale.factor = 1e4)
-  data_filtered = FindVariableFeatures(data_filtered, selection.method = "vst", nfeatures = 2000)
-  data_filtered = ScaleData(data_filtered, verbose = T) #Memory issues if we scale using all genes. 
-  data_filtered = RunPCA(data_filtered, npcs = npcs1, features=VariableFeatures(object = data_filtered), verbose = F)
+  # nFeatureRNA is the number of genes detected in each cell 
+  pdf(glue('Results/20241201_hist_nFeatureRNA_{sample_name}.pdf'), height = 4, width = 8)
+  nfeatures_rna = as.numeric(seurat[["nFeature_RNA"]] %>% unlist())
+  par(mfrow=c(1,2))
+  hist(nfeatures_rna[nfeatures_rna < 2000], xlab = 'nFeatureRNA', main = sample_name, breaks = 100)
+  hist(nfeatures_rna, xlab = 'nFeatureRNA', main = sample_name, breaks = 100)
+  dev.off() # 300 sounds reasonable based on the hist 
+
+  # we can also plot those 3 QC parameters and save them to results files
+  pdf(glue('Results/20241201_vlnPlotQC_{sample_name}.pdf'), height = 4, width = 8)
+  print(VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3))
+  dev.off() # I don't see how those plots would help anyone choose the lower threshold for counts and features 
   
-  data_filtered = FindNeighbors(data_filtered, dims = 1:npcs1, verbose = T)
-  data_filtered = FindClusters(data_filtered, resolution = clustres, verbose = T)
-  data_filtered = RunUMAP(data_filtered, dims = 1:npcs1, verbose = T, min.dist = finalMinDist, n.neighbors = finalNN)
+  # which cells to keep?
+  keeprows = meta[meta$nCount_RNA > count_threshold,] # require number of UMIs to be higher than minimum (1000 UMIs)
+  keeprows = keeprows[keeprows$nFeature_RNA > feature_threshold,] # require number of features to be higher than minimum (300 genes)
+  keeprows = keeprows[keeprows$percent.mt <= mt_threshold,] # exclude cells with mitochondrial content above a threshold (10%)
+  cellids_keep = rownames(keeprows) # which CellIDs to keep 
+  seurat_filtered = subset(seurat, subset = CellID %in% cellids_keep) # select cells of interest
   
-  s.genes = cc.genes.updated.2019$s.genes
-  g2m.genes = cc.genes.updated.2019$g2m.genes
-  data_filtered = CellCycleScoring(data_filtered, s.features = s.genes, 
-                                   g2m.features = g2m.genes, set.ident = TRUE)
+  # which genes to keep?
+  keep_features=rownames(seurat_filtered) 
+  seurat_filtered = subset(seurat_filtered, features=keep_features)
+  # I could exclude heat shock or ribosomal genes - variable takes in literature as to whether one should do this or not?
+  # I won't do this in this dataset but I will run separate analysis excluding those genes
   
-  }
+  # run standard Seurat pipeline 
+  seurat_filtered = NormalizeData(object = seurat_filtered, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
+  seurat_filtered = FindVariableFeatures(seurat_filtered, selection.method = "vst", nfeatures = 2000) # default 2k 
+  seurat_filtered = ScaleData(seurat_filtered, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
+  seurat_filtered = RunPCA(seurat_filtered, npcs = n_pcs, features=VariableFeatures(object =seurat_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
+  
+  # Determine how many PCs to include in downstream analysis 
+  pdf(glue('Results/20241201_elbowPlot_{sample_name}.pdf'), height = 4, width = 8)
+  print(ElbowPlot(seurat_filtered, ndims = 50)) # use 50 PCs 
+  dev.off()
+  
+  # plot variance explained (scree plot)
+  mat = seurat_filtered[["RNA"]]$scale.data 
+  pca = seurat_filtered[["pca"]]
+  total_variance = sum(matrixStats::rowVars(mat))
+  eigValues = (pca@stdev)^2 
+  varExplained = eigValues / total_variance
+  varExplained %>% enframe(name = "PC", value = "varExplained" ) %>%
+    ggplot(aes(x = PC, y = varExplained)) + 
+    geom_bar(stat = "identity") +
+    theme_classic() +
+    ggtitle(glue("scree plot {sample_name}"))
+  ggsave(glue('Results/20241201_varianceExplained_{sample_name}.pdf'), height = 4, width = 4)
+  
+  # Clustering 
+  seurat_filtered = FindNeighbors(seurat_filtered, dims = 1:20, verbose = T)
+  seurat_filtered = FindClusters(seurat_filtered, resolution = resolution, verbose = T)
+  seurat_filtered = RunUMAP(seurat_filtered, dims = 1:20, verbose = T, min.dist = min_dist, n.neighbors = nn)
+  
+  # Plot outcomes of clustering 
+  pdf(glue('Results/20241201_umap_{sample_name}.pdf'), height = 4, width = 4)
+  print(DimPlot(seurat_filtered, reduction = "umap", label = TRUE))
+  dev.off() 
+  
+  pdf(glue('Results/20241201_pca_{sample_name}.pdf'), height = 4, width = 4)
+  print(DimPlot(seurat_filtered, reduction = "pca", label = TRUE))
+  dev.off()
+  
+  # Identify features and look at markers 
+  seurat_filtered.markers = FindAllMarkers(seurat_filtered, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+  
+  # Show distirbution of cluster markers
+  top4 = seurat_filtered.markers %>% group_by(cluster) %>% top_n(n = 4, wt = avg_log2FC)
+  pdf(glue('Results/20241127_dotPlotTop4_{sample_name}.pdf'), width=10, height=6)
+  print(DotPlot(tPD62341.1_filtered, features = top4$gene) + coord_flip())
+  dev.off()
+  
+  # include genes that take part in the fusion, early embryonic, CD markers, synaptophysin, stuff Nathan looked at (to see if I am getting sth vaguely similar)
+  genes_of_interest = c('MYOD1', 'PAX3', 'PAX7', 'CYP11A1', 'CD14', 'CD68', 'SYP', 'MN1', 'ZNF341', 'NR5A1', 'KCNQ1', 'TP53') # MYOG is 0 for all so I got rid of this
+  pdf(glue('Results/20241201_featurePlot_{sample_name}.pdf'), width=12, height=8)
+  print(FeaturePlot(seurat_filtered, features = genes_of_interest, order=TRUE))
+  dev.off()
+  
+  # Heatmap of markers 
+  top10 = seurat_filtered.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+  pdf(glue('Results/20241201_heatmapTop10_{sample_name}.pdf'), width=12, height=8)
+  print(DoHeatmap(seurat_filtered, features = top10$gene) + NoLegend())
+  dev.off()
+  
+  # Dotplot of genes of interest 
+  pdf(glue('Results/20241201_dotPlot_{sample_name}_GOI.pdf'), width=10, height=6)
+  print(DotPlot(object = seurat_filtered, features = genes_of_interest))
+  dev.off()
+  
+  # Dotplot of cluster markers
+  
+  # Score by cell cycle expression (S and G2M genes accessed according to https://satijalab.org/seurat/articles/cell_cycle_vignette.html from October 2023)
+  s.genes = cc.genes$s.genes
+  g2m.genes = cc.genes$g2m.genes
+  seurat_filtered = CellCycleScoring(seurat_filtered, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+  # set.ident = TRUE sets the identity of the Seurat object to the cell-cycle phase
+  
+  # Color UMAP by cell cycle phase (based on expression of cell cycle genes)
+  pdf(glue('Results/20241201_umap_{sample_name}_cellCycle.pdf'), height = 4, width = 4)
+  print(DimPlot(seurat_filtered, reduction = "umap", label = TRUE, group.by = 'Phase'))
+  dev.off() # don't see a separate clusters of proliferating cells :(
+  pdf(glue('Results/20241201_pca_{sample_name}_cellCycle.pdf'), height = 4, width = 4)
+  print(DimPlot(seurat_filtered, reduction = "pca", label = TRUE, group.by = 'Phase'))
+  dev.off() # kind of separate but not very clear? not sure if I should do anything about this 
+  # I guess that means that we don't need to regress out the variation related to cell cycle phase 
+  
+  # Run analysis and clustering on dataset with removed ribosomal and heatshock genes
+  keep_features2=rownames(seurat_filtered)[which(!rownames(seurat_filtered) %in% genes_to_exclude)]
+  
+  seurat_filtered2 = subset(seurat_filtered, features=keep_features2)
+  seurat_filtered2 = NormalizeData(object = seurat_filtered2, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
+  seurat_filtered2 = FindVariableFeatures(seurat_filtered2, selection.method = "vst", nfeatures = 2000) # default 2k 
+  seurat_filtered2 = ScaleData(seurat_filtered2, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
+  seurat_filtered2 = RunPCA(seurat_filtered2, npcs = 70, features=VariableFeatures(object = seurat_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
+  seurat_filtered2 = FindNeighbors(seurat_filtered2, dims = 1:20, verbose = T)
+  seurat_filtered2 = FindClusters(seurat_filtered2, resolution = resolution, verbose = T)
+  seurat_filtered2 = RunUMAP(seurat_filtered2, dims = 1:20, verbose = T, min.dist = 0.5, n.neighbors = 30)
+ 
+  # Plot outcomes of clustering   
+  pdf(glue('Results/20241201_umap_{sample_name}_rmGenes.pdf'), height = 4, width = 4)
+  print(DimPlot(seurat_filtered2, reduction = "umap", label = TRUE))
+  dev.off()
+  pdf(glue('Results/20241201_pca_{sample_name}_rmGenes.pdf'), height = 4, width = 4)
+  print(DimPlot(seurat_filtered2, reduction = "pca", label = TRUE))
+  dev.off()
+  
+  # Add cell cycle scoring
+  seurat_filtered2 = CellCycleScoring(seurat_filtered2, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+  pdf(glue('Results/20241201_umap_{sample_name}_rmGenes_cellCycle.pdf'), height = 4, width = 4)
+  print(DimPlot(seurat_filtered2, reduction = "umap", label = TRUE, group.by = 'Phase'))
+  dev.off() 
+  
+}
 
 # run for all your samples
-sc_preprocessing(tumourPD62341.1)
+sc_preprocessing(tumourPD62341.1, 'tPD62341.1', 10, 300, 1000, 20, 0.4, 0.5, 30) # 20 PCs seems reasonable, resolution 0.4-1.2 is recommende 
+sc_preprocessing(tumourPD62341.2, 'tPD62341.2', 10, 300, 1000, 20, 0.4, 0.5, 30)
+sc_preprocessing(tumourPD62341.3, 'tPD62341.3', 10, 300, 1000, 20, 0.4, 0.5, 30)
+sc_preprocessing(tumourPD63383.1, 'tPD63383.1', 10, 300, 1000, 20, 0.4, 0.5, 30)
+sc_preprocessing(tumourPD63383.2, 'tPD63383.2', 10, 300, 1000, 20, 0.4, 0.5, 30)
+sc_preprocessing(tumourPD63383.3, 'tPD63383.3', 10, 300, 1000, 20, 0.4, 0.5, 30)
+
+###################################################################################################################################
+# NUCLEAR RNA-seq 
+
+# manual analysis on one nuclear sample to figure out thresholds and see how this works 
+
+# read the data into the Seurat object 
+tPD63383.nucl.1 = CreateSeuratObject(counts = tumourPD63383.1n, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
+
+# calculate the percentage mt content 
+tPD63383.nucl.1[["percent.mt"]] = PercentageFeatureSet(tPD63383.nucl.1, pattern = "^MT-")
+
+# plot the distribution of the mt content in each sample 
+# there is a LOT of mitochondria in some sample actually ???? 
+# not sure what the procedure is for dealing with those 
+pdf('Results/20241127_hist_mt_content_PD63383ntumour.pdf', height = 4.5, width = 4.5)
+hist(tPD63383.nucl.1[["percent.mt"]] %>% unlist(), xlab = '% mt content', main = 'PD63383n tumour', breaks = 100)
+abline(v = 10, col = 'red', lwd = 2.5)   
+dev.off()
+
+# add CellID to the metadata 
+tPD63383.nucl.1@meta.data$CellID = rownames(tPD63383.nucl.1@meta.data) # add the cellID to the metadata
+meta = tPD63383.nucl.1@meta.data # create a dt with all the metadata of interest, including cell ID 
+
+# plot histograms of nCount_RNA_min and nFeature_RNA_min to decide the thresholds
+# usually (from a few papers I looked at), cells with fewer than 300 genes or fewer than 1000 UMIs are removed 
+
+# nCountRNA is the total number of molecules detected in each cell 
+pdf('Results/20241127_hist_nCountRNA_PD63383ntumour.pdf', height = 4, width = 8)
+ncounts_rna = as.numeric(tPD63383.nucl.1[["nCount_RNA"]] %>% unlist())
+par(mfrow=c(1,2))
+hist(ncounts_rna[ncounts_rna < 2500], xlab = 'nCountRNA', main = 'PD63383n tumour', breaks = 100)
+hist(ncounts_rna, xlab = 'nCountRNA', main = 'PD63383n tumour', breaks = 100)
+dev.off() # 1000 sounds reasonable based on the hist 
+
+# nFeatureRNA is the number of genes detected in each cell 
+pdf('Results/20241127_hist_nFeatureRNA_PD63383ntumour.pdf', height = 4, width = 8)
+nfeatures_rna = as.numeric(tPD63383.nucl.1[["nFeature_RNA"]] %>% unlist())
+par(mfrow=c(1,2))
+hist(nfeatures_rna[nfeatures_rna < 2000], xlab = 'nFeatureRNA', main = 'PD63383n tumour', breaks = 100)
+hist(nfeatures_rna, xlab = 'nFeatureRNA', main = 'PD63383n tumour', breaks = 100)
+dev.off() # > 100 and < 1000 sounds reasonable based on the hist 
+
+# we can also plot those 3 QC parameters and save them to results files
+pdf('Results/20241127_vlnPlotQC_PD63383ntumour.pdf', height = 4, width = 8)
+par(mfrow=c(1,1))
+VlnPlot(tPD63383.nucl.1, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+dev.off() # I don't see how those plots would help anyone choose the lower threshold for counts and features 
+# very odd mt count - does this mean sth is wrong with this sample? should I keep it?
+
+# which cells to keep?
+keeprows = meta[meta$nCount_RNA > 50,] # require number of UMIs to be higher than minimum (1000 UMIs)
+keeprows = keeprows[keeprows$nFeature_RNA > 10,] # require number of features to be higher than minimum (300 genes)
+# keeprows = keeprows[keeprows$percent.mt <= 10,] # ignore mt filtering as this just looks odd
+cellids_keep = rownames(keeprows) # which CellIDs to keep 
+tPD63383.nucl.1_filtered = subset(tPD63383.nucl.1, subset = CellID %in% cellids_keep) # select cells of interest
+
+# which genes to keep?
+keep_features=rownames(tPD63383.nucl.1_filtered) 
+tPD63383.nucl.1_filtered = subset(tPD63383.nucl.1_filtered, features=keep_features)
+# I could exclude heat shock or ribosomal genes - variable takes in literature as to whether one should do this or not?
+# I won't do this in this dataset but I will run separate analysis excluding those genes
+
+# run standard Seurat pipeline 
+tPD63383.nucl.1_filtered = NormalizeData(object = tPD63383.nucl.1_filtered, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
+tPD63383.nucl.1_filtered = FindVariableFeatures(tPD63383.nucl.1_filtered, selection.method = "vst", nfeatures = 2000) # default 2k 
+tPD63383.nucl.1_filtered = ScaleData(tPD63383.nucl.1_filtered, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
+tPD63383.nucl.1_filtered = RunPCA(tPD63383.nucl.1_filtered, npcs = 70, features=VariableFeatures(object = tPD63383.nucl.1_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
+
+# Determine how many PCs to include in downstream analysis 
+pdf('Results/20241127_elbowPlot_PD63383ntumour.pdf', height = 4, width = 8)
+ElbowPlot(tPD63383.nucl.1_filtered, ndims = 50) # use 50 PCs 
+dev.off()
+
+# plot variance explained (scree plot)
+mat = tPD63383.nucl.1_filtered[["RNA"]]$scale.data 
+pca = tPD63383.nucl.1_filtered[["pca"]]
+total_variance = sum(matrixStats::rowVars(mat))
+eigValues = (pca@stdev)^2 
+varExplained = eigValues / total_variance
+varExplained %>% enframe(name = "PC", value = "varExplained" ) %>%
+  ggplot(aes(x = PC, y = varExplained)) + 
+  geom_bar(stat = "identity") +
+  theme_classic() +
+  ggtitle("scree plot, PD63383n tumour") 
+ggsave(glue('Results/20241127_varianceExplained_tumourPD63383n_1.pdf'), height = 4, width = 4)
+
+# Clustering 
+tPD63383.nucl.1_filtered = FindNeighbors(tPD63383.nucl.1_filtered, dims = 1:20, verbose = T)
+tPD63383.nucl.1_filtered = FindClusters(tPD63383.nucl.1_filtered, resolution = 0.4, verbose = T)
+tPD63383.nucl.1_filtered = RunUMAP(tPD63383.nucl.1_filtered, dims = 1:20, verbose = T, min.dist = 0.5, n.neighbors = 30)
+
+# Plot outcomes of clustering 
+pdf('Results/20241127_umap_PD63383ntumour.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered, reduction = "umap", label = TRUE)
+dev.off() 
+pdf('Results/20241127_pca_PD63383ntumour.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered, reduction = "pca", label = TRUE)
+dev.off()
+
+# Can I try clustering with different resolution parameter
+for (res in seq(0.1, 1.2, by = 0.1)){
+  tPD63383.nucl.1_filtered = FindClusters(tPD63383.nucl.1_filtered, resolution = res, verbose = T)
+  tPD63383.nucl.1_filtered = RunUMAP(tPD63383.nucl.1_filtered, dims = 1:20, verbose = T, min.dist = 0.5, n.neighbors = 30)
+  pdf(glue('Results/20241127_umap_PD63383ntumour_{res}_res.pdf'), height = 4, width = 4)
+  plot = DimPlot(tPD63383.nucl.1_filtered, reduction = "umap", label = TRUE)
+  print(plot)
+  dev.off() 
+} # After this I'm quite inclined to go with resolution 0.2-0.4 
+
+# Identify features and look at markers 
+tPD63383.nucl.1_filtered.markers = FindAllMarkers(tPD63383.nucl.1_filtered, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+
+# include genes that take part in the fusion, early embryonic, CD markers, synaptophysin, stuff Nathan looked at (to see if I am getting sth vaguely similar)
+genes_of_interest = c('MYOD1', 'PAX3', 'PAX7', 'CYP11A1', 'CD14', 'CD68', 'SYP', 'MN1', 'ZNF341', 'NR5A1', 'KCNQ1', 'TP53') # MYOG is 0 for all so I got rid of this
+pdf(glue('Results/20241127_featurePlot_PD63383ntumour.pdf'), width=12, height=8)
+FeaturePlot(tPD63383.nucl.1_filtered, features = genes_of_interest, order=TRUE)
+dev.off()
+
+# Heatmap of markers 
+top10 = tPD63383.nucl.1_filtered.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+pdf(glue('Results/20241127_heatmapTop10_PD63383ntumour.pdf'), width=12, height=10)
+DoHeatmap(tPD63383.nucl.1_filtered, features = top10$gene) + NoLegend()
+dev.off()
+
+# Dotplot of cluster markers (4 for each cluster)
+top4 = tPD63383.nucl.1_filtered.markers %>% group_by(cluster) %>% top_n(n = 4, wt = avg_log2FC)
+pdf(glue('Results/20241127_dotPlotTop4_PD63383ntumour.pdf'), width=10, height=6)
+DotPlot(tPD63383.nucl.1_filtered, features = top4$gene) + coord_flip()
+dev.off()
+
+# Dotplot of genes of interest 
+pdf(glue('Results/20241127_dotPlot_PD63383ntumour_GOI.pdf'), width=10, height=6)
+DotPlot(object = tPD63383.nucl.1_filtered, features = genes_of_interest)
+dev.off()
+
+# Score by cell cycle expression (S and G2M genes accessed according to https://satijalab.org/seurat/articles/cell_cycle_vignette.html from October 2023)
+s.genes = cc.genes$s.genes
+g2m.genes = cc.genes$g2m.genes
+tPD63383.nucl.1_filtered = CellCycleScoring(tPD63383.nucl.1_filtered, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+# set.ident = TRUE sets the identity of the Seurat object to the cell-cycle phase
+
+# Color UMAP by cell cycle phase (based on expression of cell cycle genes)
+pdf('Results/20241127_umap_PD63383ntumour_cellCycle.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered, reduction = "umap", label = TRUE, group.by = 'Phase')
+dev.off() # don't see a separate clusters of proliferating cells :(
+pdf('Results/20241127_pca_PD63383ntumour_cellCycle.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered, reduction = "pca", label = TRUE, group.by = 'Phase')
+dev.off() # kind of separate but not very clear? not sure if I should do anything about this 
+# I guess that means that we don't need to regress out the variation related to cell cycle phase 
+
+# Run analysis and clustering on dataset with removed ribosomal and heatshock genes
+genes_to_exclude = read.csv('Data/excludeGenes.tsv', sep='\t', header = F) %>% unlist()
+keep_features2=rownames(tPD63383.nucl.1_filtered)[which(!rownames(tPD63383.nucl.1_filtered) %in% genes_to_exclude)]
+
+tPD63383.nucl.1_filtered2 = subset(tPD63383.nucl.1_filtered, features=keep_features2)
+tPD63383.nucl.1_filtered2 = NormalizeData(object = tPD63383.nucl.1_filtered2, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
+tPD63383.nucl.1_filtered2 = FindVariableFeatures(tPD63383.nucl.1_filtered2, selection.method = "vst", nfeatures = 2000) # default 2k 
+tPD63383.nucl.1_filtered2 = ScaleData(tPD63383.nucl.1_filtered2, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
+tPD63383.nucl.1_filtered2 = RunPCA(tPD63383.nucl.1_filtered2, npcs = 70, features=VariableFeatures(object = tPD63383.nucl.1_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
+tPD63383.nucl.1_filtered2 = FindNeighbors(tPD63383.nucl.1_filtered2, dims = 1:20, verbose = T)
+tPD63383.nucl.1_filtered2 = FindClusters(tPD63383.nucl.1_filtered2, resolution = 0.6, verbose = T)
+tPD63383.nucl.1_filtered2 = RunUMAP(tPD63383.nucl.1_filtered2, dims = 1:20, verbose = T, min.dist = 0.5, n.neighbors = 30)
+tPD63383.nucl.1_filtered2 = RunTSNE(tPD63383.nucl.1_filtered2) # might as well run it but tSNE doesn't seem to be popular 
+tPD63383.nucl.1_filtered2 = CellCycleScoring(tPD63383.nucl.1_filtered2, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+
+# Plot outcomes of clustering (it doesn't look massively different to me!)
+pdf('Results/20241127_umap_PD63383ntumour_rmGenes.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered2, reduction = "umap", label = TRUE)
+dev.off() 
+pdf('Results/20241127_tsne_PD63383ntumour_rmGenes.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered2, reduction = "tsne", label = TRUE)
+dev.off()
+pdf('Results/20241127_pca_PD63383ntumour_rmGenes.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered2, reduction = "pca", label = TRUE)
+dev.off()
+pdf('Results/20241127_umap_PD63383ntumour_rmGenes_cellCycle.pdf', height = 4, width = 4)
+DimPlot(tPD63383.nucl.1_filtered2, reduction = "umap", label = TRUE, group.by = 'Phase')
+dev.off() 
+
+# try running the same function on nuclear samples, but note that these may require different QC
+# does filtering based on mt still make sense?
+# should I lower the thresholds for feature and gene count (since data is more sparse)?
+sc_preprocessing(tumourPD63383.1n, 'tPD63383.nuclear.1', 10, 200, 500, 50, 0.2, 0.5, 30)
+sc_preprocessing(tumourPD63383.2n, 'tPD63383.nuclear.2', 10, 200, 500, 50, 0.2, 0.5, 30)
+sc_preprocessing(tumourPD63383.3n, 'tPD63383.nuclear.3', 10, 200, 500, 50, 0.2, 0.5, 30)
+
+###################################################################################################################################
+# INTEGRATION OF SAMPLES FROM DIFFERENT LANES
 
 # at what point should I integrate samples from different lanes?
+# I think the most common way to do this is to integrate the .fastq reads at the stage of running CellRanger
+# However, I also found this https://ucdavis-bioinformatics-training.github.io/2020-August-intro-scRNAseq/data_analysis/scRNA_Workshop-PART1_fixed#:~:text=Load%20the%20Cell%20Ranger%20Matrix,can%20aggregate%20them%20in%20R.
+# which seems to suggest that you can integrate samples from multiple lanes when running Seurat (after CellRanger, working on CellRanger count matrix)
 
-# how do I do cell type annotation?
+setwd('/Users/bw18/Desktop/1SB/scRNAseq')
+
+# Samples 
+# I have the following samples (these are tumour samples!)
+# PD62341 fresh: CG_SB_NB13652544, CG_SB_NB13652545, CG_SB_NB13652546
+# PD63383 fresh: CG_SB_NB13760628, CG_SB_NB13760629, CG_SB_NB13760630
+# PD63383 frozen (nuclear): CG_SB_NB14599068, CG_SB_NB14599069, CG_SB_NB14599070
+
+PD62341_ids = c("CG_SB_NB13652544", "CG_SB_NB13652545", "CG_SB_NB13652546")
+PD63383_ids = c("CG_SB_NB13760628", "CG_SB_NB13760629", "CG_SB_NB13760630")
+
+data.loc = "/Users/bw18/Desktop/1SB/scRNAseq"
+
+PD62341.d = sapply(PD62341_ids, function(i){
+  d10x = Read10X(file.path(data.loc, "Data", i, "filtered_feature_bc_matrix"))
+  colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
+  d10x
+})
+PD62341.data = do.call("cbind", PD62341.d)
+
+PD63383.d = sapply(PD63383_ids, function(i){
+  d10x = Read10X(file.path(data.loc, "Data", i, "filtered_feature_bc_matrix"))
+  colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
+  d10x
+})
+PD63383.data = do.call("cbind", PD63383.d)
+
+# We can now run our function on the aggregated data and see what happens 
+sc_preprocessing(PD62341.data, 'tPD62341.agg', 10, 300, 1000, 50, 0.2, 0.5, 30)
+sc_preprocessing(PD63383.data, 'tPD63383.agg', 10, 300, 1000, 50, 0.2, 0.5, 30)
+
+# What is the correct way of merging the datasets from both twins together?
+# Can try just this but I am not convinced this is the way to do this 
+tumour_sc_ids = c("CG_SB_NB13652544", "CG_SB_NB13652545", "CG_SB_NB13652546", "CG_SB_NB13760628", "CG_SB_NB13760629", "CG_SB_NB13760630")
+tumour_sc.d = sapply(tumour_sc_ids, function(i){
+  d10x = Read10X(file.path(data.loc, "Data", i, "filtered_feature_bc_matrix"))
+  colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
+  d10x
+})
+
+tumour_sc.data = do.call("cbind", tumour_sc.d)
+sc_preprocessing(tumour_sc.data, 'tumour_sc.agg', 10, 300, 1000, 20, 0.2, 0.5, 40)
+
+###################################################################################################################################
+# Cell type annotation 
+
+# One possible option is to look at expression of known markers
+
+# I found https://www-nature-com.ezp.lib.cam.ac.uk/articles/s41388-024-03001-8 (March 2024, Oncogene)
+# which reports the scRNA-seq of undifferentiated pleomorphic sarcoma (which is kind of what I have; pleomorphic means occurring in different forms)
+# they identify: monocytes (macrophages), tumour cells, fibroblast, T cell, endothelial, mast, NK, pericyte cells
+# perhaps do this for tumour from each twin separately and then can compare clusters 
+
+# run pre-processing on aggregated tumour from one twin
+PD62341.d = sapply(PD62341_ids, function(i){
+  d10x = Read10X(file.path(data.loc, "Data", i, "filtered_feature_bc_matrix"))
+  colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
+  d10x
+})
+PD62341.data = do.call("cbind", PD62341.d)
+
+PD62341t = CreateSeuratObject(counts = PD62341.data, project = "PD62341.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
+PD62341t[["percent.mt"]] = PercentageFeatureSet(PD62341t, pattern = "^MT-")
+PD62341t@meta.data$CellID = rownames(PD62341t@meta.data) # add the cellID to the metadata
+meta = PD62341t@meta.data # create a dt with all the metadata of interest, including cell ID 
+keeprows = meta[meta$nCount_RNA > 1000,] # require number of UMIs to be higher than minimum (1000 UMIs)
+keeprows = keeprows[keeprows$nFeature_RNA > 300,] # require number of features to be higher than minimum (300 genes)
+keeprows = keeprows[keeprows$percent.mt <= 10,] # exclude cells with mitochondrial content above a threshold (10%)
+cellids_keep = rownames(keeprows) # which CellIDs to keep 
+PD62341t_filtered = subset(PD62341t, subset = CellID %in% cellids_keep) # select cells of interest
+keepfeatures=rownames(PD62341t_filtered)[which(!rownames(PD62341t_filtered) %in% genes_to_exclude)]
+PD62341t_filtered = subset(PD62341t_filtered, features=keepfeatures)
+PD62341t_filtered = NormalizeData(object = PD62341t_filtered, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
+PD62341t_filtered = FindVariableFeatures(PD62341t_filtered, selection.method = "vst", nfeatures = 2000) # default 2k 
+PD62341t_filtered = ScaleData(PD62341t_filtered, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
+PD62341t_filtered = RunPCA(PD62341t_filtered, npcs = 50, features=VariableFeatures(object = PD62341t_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
+PD62341t_filtered = FindNeighbors(PD62341t_filtered, dims = 1:50, verbose = T)
+PD62341t_filtered = FindClusters(PD62341t_filtered, resolution = 0.4, verbose = T)
+PD62341t_filtered = RunUMAP(PD62341t_filtered, dims = 1:50, verbose = T, min.dist = 0.6, n.neighbors = 40)
+
+pdf(glue('Results/20241201_umap_PD62341t_rmGenes_aggTumour.pdf'), height = 4, width = 4)
+DimPlot(PD62341t_filtered, reduction = "umap", label = TRUE)
+dev.off() 
+
+# first, start by looking at expression of each of the possible marker genes 
+marker_genes = c("PTPRC", "CD68", "CD14", "CD163", "AIF1", # monocyte 
+                 "COL11A1", "COL3A1", # fibroblasts 
+                 "CD8A", "CD4", "CD3D", # T cells
+                 "GNLY", "NKG7","KLRG1", # NK cells
+                 "PLVAP", "PECAM1", "VWF", # endothelial
+                 "ACTA2", "NOTCH3", "RGS5", # pericyte 
+                 "ZNF341", "MN1", # tumour cells 
+                 "TMEM119", "C1Q", "PROS1", "IBA1")  
+
+pdf(glue('Results/20241201_featurePlot_marker_genes_tPD62341_agg.pdf'), width=12, height=16)
+FeaturePlot(PD62341t_filtered, features = marker_genes, order=TRUE)
+dev.off()
+
+###################################################################################################################################
+# Cell type annotation (SEURAT TUTORIAL) - I TRIED BUT DOESN'T SEEM TO WORK WITH THE FETAL DATASET
+
+# another approach is to maybe try and do data integration with Seurat 
+# library(devtools)
+# devtools::install_github('satijalab/seurat-data')
+library(SeuratData)
+AvailableData() # what kinds of datasets would be useful for this sample? some sarcoma? any fetal dataset?
+
+# install a reference package and load the data from the reference 
+InstallData("panc8")
+panc8 = LoadData("panc8")
+pancreas.ref = subset(panc8, tech %in% c("celseq2", "smartseq2")) # select scRNA-seq generated with Cel-seq and SMART-seq
+pancreas.ref[["RNA"]] = split(pancreas.ref[["RNA"]], f = pancreas.ref$tech)
+
+# data pre-processing (no integration)
+pancreas.ref = NormalizeData(pancreas.ref)
+pancreas.ref = FindVariableFeatures(pancreas.ref)
+pancreas.ref = ScaleData(pancreas.ref)
+pancreas.ref = RunPCA(pancreas.ref)
+pancreas.ref = FindNeighbors(pancreas.ref, dims = 1:30)
+pancreas.ref = FindClusters(pancreas.ref)
+pancreas.ref = RunUMAP(pancreas.ref, dims = 1:30)
+DimPlot(pancreas.ref, group.by = c("tech", "celltype"))
+
+# integrate datasets from different sequencing tech into a shared reference
+pancreas.ref = IntegrateLayers(object = pancreas.ref, method = CCAIntegration, orig.reduction = "pca",
+                                new.reduction = "integrated.cca", verbose = FALSE)
+pancreas.ref = FindNeighbors(pancreas.ref, reduction = "integrated.cca", dims = 1:30)
+pancreas.ref = FindClusters(pancreas.ref)
+pancreas.ref = RunUMAP(pancreas.ref, reduction = "integrated.cca", dims = 1:30)
+DimPlot(pancreas.ref, group.by = c("tech", "celltype"))
+
+# create a query dataset (two other technologies)
+pancreas.query = subset(panc8, tech %in% c("fluidigmc1", "celseq"))
+pancreas.query = NormalizeData(pancreas.query)
+pancreas.anchors = FindTransferAnchors(reference = pancreas.ref, query = pancreas.query, dims = 1:30,
+                                        reference.reduction = "pca")
+predictions = TransferData(anchorset = pancreas.anchors, refdata = pancreas.ref$celltype, dims = 1:30)
+pancreas.query = AddMetaData(pancreas.query, metadata = predictions)
+pancreas.query$prediction.match = pancreas.query$predicted.id == pancreas.query$celltype
+table(pancreas.query$prediction.match)
+
+# use reference dataset to assign cell type to the query
+pancreas.ref = RunUMAP(pancreas.ref, dims = 1:30, reduction = "integrated.cca", return.model = TRUE)
+pancreas.query = MapQuery(anchorset = pancreas.anchors, reference = pancreas.ref, query = pancreas.query,
+                           refdata = list(celltype = "celltype"), reference.reduction = "pca", reduction.model = "umap")
+p1 = DimPlot(pancreas.ref, reduction = "umap", group.by = "celltype", label = TRUE, label.size = 3,
+              repel = TRUE) + NoLegend() + ggtitle("Reference annotations")
+p2 = DimPlot(pancreas.query, reduction = "ref.umap", group.by = "predicted.celltype", label = TRUE,
+              label.size = 3, repel = TRUE) + NoLegend() + ggtitle("Query transferred labels")
+p1 + p2
+
+# maybe we could try with fetal data as reference? could identify immune cells / fibroblasts / endothelial
+remotes::install_github('satijalab/azimuth', ref = 'master')
+InstallData("fetusref")
+fetal = LoadData("fetusref", "azimuth") 
+# I am getting an error where fetusref is installed but cannot be loaded 
+# attempted solving by installing Azimuth package (also Satija lab) but doesn't seem like I can get all the packages reasonably easily so I think I'm going to drop this for now
+fetal.ref = subset(fetal) # select scRNA-seq generated with Cel-seq and SMART-seq
+fetal.ref[["RNA"]] = split(fetal.ref[["RNA"]], f = fetal.ref$tech)
+
+# data pre-processing (no integration)
+fetal.ref = NormalizeData(fetal.ref)
+fetal.ref = FindVariableFeatures(fetal.ref)
+fetal.ref = ScaleData(fetal.ref)
+fetal.ref = RunPCA(fetal.ref)
+fetal.ref = FindNeighbors(fetal.ref, dims = 1:30)
+fetal.ref = FindClusters(fetal.ref)
+fetal.ref = RunUMAP(fetal.ref, dims = 1:30)
+DimPlot(fetal.ref, group.by = c("tech", "celltype"))
+
+# integrate datasets from different sequencing tech into a shared reference
+fetal.ref = IntegrateLayers(object = fetal.ref, method = CCAIntegration, orig.reduction = "pca",
+                               new.reduction = "integrated.cca", verbose = FALSE)
+fetal.ref = FindNeighbors(fetal.ref, reduction = "integrated.cca", dims = 1:30)
+fetal.ref = FindClusters(fetal.ref)
+fetal.ref = RunUMAP(fetal.ref, reduction = "integrated.cca", dims = 1:30)
+DimPlot(fetal.ref, group.by = c("tech", "celltype"))
+
+
+# Cell type annotation based on markers of each cluster 
+
+# Let's agree that we are using clusters with the following parameters:
+# N_PCs = 70, resolution = 0.2, min_dist = 0.3, n_neighbors = 30
+PD62341t = CreateSeuratObject(counts = PD62341.data, project = "PD62341.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
+PD62341t[["percent.mt"]] = PercentageFeatureSet(PD62341t, pattern = "^MT-")
+PD62341t@meta.data$CellID = rownames(PD62341t@meta.data) # add the cellID to the metadata
+meta = PD62341t@meta.data # create a dt with all the metadata of interest, including cell ID 
+keeprows = meta[meta$nCount_RNA > 1000,] # require number of UMIs to be higher than minimum (1000 UMIs)
+keeprows = keeprows[keeprows$nFeature_RNA > 300,] # require number of features to be higher than minimum (300 genes)
+keeprows = keeprows[keeprows$percent.mt <= 10,] # exclude cells with mitochondrial content above a threshold (10%)
+cellids_keep = rownames(keeprows) # which CellIDs to keep 
+PD62341t_filtered = subset(PD62341t, subset = CellID %in% cellids_keep) # select cells of interest
+keepfeatures=rownames(PD62341t_filtered)[which(!rownames(PD62341t_filtered) %in% genes_to_exclude)]
+PD62341t_filtered = subset(PD62341t_filtered, features=keepfeatures)
+PD62341t_filtered = NormalizeData(object = PD62341t_filtered, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
+PD62341t_filtered = FindVariableFeatures(PD62341t_filtered, selection.method = "vst", nfeatures = 2000) # default 2k 
+PD62341t_filtered = ScaleData(PD62341t_filtered, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
+PD62341t_filtered = RunPCA(PD62341t_filtered, npcs = 70, features=VariableFeatures(object = PD62341t_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
+PD62341t_filtered = FindNeighbors(PD62341t_filtered, dims = 1:70, verbose = T)
+PD62341t_filtered = FindClusters(PD62341t_filtered, resolution = 0.2, verbose = T)
+PD62341t_filtered = RunUMAP(PD62341t_filtered, dims = 1:70, verbose = T, min.dist = 0.3, n.neighbors = 30)
+DimPlot(PD62341t_filtered, reduction = "umap", label = TRUE) # okay so we have 14 clusters for the moment 
+
+pdf('Results/20241201_umap_PD62341t_14clusters.pdf')
+DimPlot(PD62341t_filtered, reduction = "umap", label = TRUE) # okay so we have 14 clusters for the moment 
+dev.off()
+
+# identify top 5 genes for each cluster 
+PD62341t_filtered.markers = FindAllMarkers(PD62341t_filtered, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+top4 = PD62341t_filtered.markers %>% group_by(cluster) %>% top_n(n = 4, wt = avg_log2FC)
+DotPlot(PD62341t_filtered, features = top4$gene) + coord_flip()
+
+top10 = PD62341t_filtered.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+
+pdf('Results/20241201_dotplot_PD62341t_14clusters.pdf', height=16, width=10)
+DotPlot(PD62341t_filtered, features = top4$gene) + coord_flip()
+dev.off()
+
+# also do a feature plot as this will help identify the easiest clusters (tumour, fibroblasts)
+pdf(glue('Results/20241201_featurePlot_knownMarkers_tPD62341_agg_14clusters.pdf'), width=12, height=16)
+FeaturePlot(PD62341t_filtered, features = marker_genes, order=TRUE)
+dev.off()
+
+# checking genes for each cluster 
+# 0 - looks like something from the bone marrow. could be macrophages? weirdly also has some brain-related stuff. but also, very low PTPRC expression?
+# 1 - tumour 
+# 2 - endothelial 
+# 3 - looks like some cells from the bone marrow 
+# 4 - tumour 
+# 5 - looks like meyloid cells (+ immune subset)
+# 6 - fibroblasts?
+# 7 - express PTPRC and some immune-enriched stuff, so likely another myeloid set
+# 8 - fibroblasts?
+# 9 - tumour 
+# 10 - fibroblasts?
+# 11 - quite unclear 
+# 12 - quite unclear 
+# 13 - looks endothelial
+
+# I am not sure what clusters 0 and 3 are 
+# Find all markers for those two clusters
+cluster0.markers <- FindMarkers(PD62341t_filtered, ident.1 = 0)
+# based on the stuff that's up (HBA1, HBA2, HGB1, ALAS2, TMCC2) - feels like this has to be erythrocytes
+cluster3.markers <- FindMarkers(PD62341t_filtered, ident.1 = 3)
+# also feels like this has to be erythroid cells 
+
+# can we use markers for blood cells?
+# PBMC markers from https://satijalab.org/seurat/articles/pbmc3k_tutorial.html 
+pbmc_markers = c("CCR7", # naive T cell (CD4)
+                 "CD14", "LYZ", # monocyte 
+                 "S100A4", # memory T cell (CD4)
+                 "CD8A", # CD8+ T cell 
+                 "CD14", "CD68", # myeloid-like stuff I guess
+                 "FCGR3A", "MS4A7", # monocyte 
+                 "GNLY", "NKG7", # NK
+                 "FCER1A", "CST3", # DC
+                 "CD34", "RUNDC3A", "TMEM119",
+                 "CD45",
+                 "HBA1", "HBA2", "HBB", "ALAS2", "AHSP") # hemoglobin 
+
+pdf(glue('Results/20241201_featurePlot_pbcmMarkers_tPD62341_agg.pdf'), width=12, height=12)
+FeaturePlot(PD62341t_filtered, features = pbmc_markers, order=TRUE)
+dev.off()
+
+###################################################################################################################################
+# Cell type annotation another round 
+# Another way of doing this is what I found here: https://bioconductor.org/packages/release/bioc/vignettes/SingleR/inst/doc/SingleR.html
+
+###################################################################################################################################
+# Logistic regression on HCA 
+
+###################################################################################################################################
+# Myeloid cells - what's up with those? 
+# where are the myeloid cells and what can I say about the expression of CD14 and CD68?
+
+# How do I get reads from those cells to do the genotyping?
 
 
 ###################################################################################################################################
@@ -319,7 +921,7 @@ head(twins@meta.data)
 
 # add a column that shows content of mitochondria
 # for this package, we add a column using '[[]]'
-twins[["percent.mt"]] <- PercentageFeatureSet(twins, pattern = "^MT-")
+twins[["percent.mt"]] = PercentageFeatureSet(twins, pattern = "^MT-")
 twins@meta.data %>% head() # added mitochondrial content correctly 
 
 # QC plots one can obtain 
@@ -490,15 +1092,15 @@ ggplot(umap_df, aes(x = umap_1, y = umap_2)) +
 # Identify cluster biomarkers (differentially expressed genes)
 
 # find markers of the 1st cluster
-cluster1.markers <- FindMarkers(twins, ident.1 = 1, min.pct = 0.25)
+cluster1.markers = FindMarkers(twins, ident.1 = 1, min.pct = 0.25)
 head(cluster1.markers, n = 5) 
 
 # find markers that differentiate cluster 5 from clusters 0 and 3
-cluster5.markers <- FindMarkers(twins, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
+cluster5.markers = FindMarkers(twins, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
 head(cluster5.markers, n = 5) # ident.2 sets what you want to distinguish your cells from
 
 # find markers for each cluster
-twins.markers <- FindAllMarkers(twins, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+twins.markers = FindAllMarkers(twins, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 # why do we set this kind of lfc threshold?
 
 # we want to identify top markers for each cluster
@@ -520,26 +1122,15 @@ FeaturePlot(twins, features = c('MYOD1', 'PAX3', 'PAX7', 'CD14', 'CD68', 'MYOG',
 # Reorder data points, such that the data points where the gene is expressed are on top
 p = FeaturePlot(twins, features = "CD14") # let's say we want to look at CD14 gene
 p_after = p
-p_after$data <- p_after$data[order(p_after$data$CD14),]
+p_after$data = p_after$data[order(p_after$data$CD14),]
 CombinePlots(plots = list(p, p_after))
 
 ###################################################################################################################################
 # Expression heatmap for different clusters 
-top10 <- twins.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+top10 = twins.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
 DoHeatmap(twins, features = top10$gene) + NoLegend()
 # omg this looks like it did actually do something that is reasonably correct 
 
-###################################################################################################################################
-# Cell type annotation 
-
-# Logic followed in the method that I am going to be using here:
-# compare your own cell types to cell types in reference atlases, such at the HCA
-# the method used in Seurat aims to identify 'anchors' between pairs of datasets
-# 'anchors' represent pairwise correspondences b/n individual cells (one in each dataset)
-# we hypothesize that each of those cells originate from the same biological state 
-# anchors are used to harmonize datasets and transfer info from one dataset to another
-
-# where do I obtain a suitable reference to do this for? need to figure out what to download from HCA I think 
 
 
 
