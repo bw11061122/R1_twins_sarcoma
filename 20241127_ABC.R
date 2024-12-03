@@ -137,7 +137,7 @@ prob_selection_final=prob_selection[prob_selection$pval>0.01,]
 # simulate a tree where you select cells to the ICM and then divide them for several more times 
 sim_tree=function(stage, stage_twinning, number, mu1, mu2, split_asymmetry){
   
-  tree=bi_tree(11) # create a tree (until 10 cell divisions) 
+  tree=make_tree(11) # create a tree (until 10 cell divisions) 
   # the logic here is that we set the boundary of 100 ICM cells to split into twins 
   # the min nr of cells allocated to the ICM is 3 (selected at stage 4); the max nr of cells allocated to the ICM is 30 (at stage 6)
   # in either case, at stage 11, we should have at least 96 cells (if 3 selected at stage 6) so we can do the split from the tree we simulated to stage 11 in any case
@@ -148,9 +148,10 @@ sim_tree=function(stage, stage_twinning, number, mu1, mu2, split_asymmetry){
   tree_df=as.data.frame(fortify(tree)) # convert to a dt so this is nice to work with
   
   nodes_gen=find_nodes_gen(stage, tree=tree) # find nodes of the stage of interest 
-  drop_nodes=sample(nodes_gen,size=2^stage-number) # drop nodes at this stage (all cells - nr of cells allocated to the LCM)
+  drop_nodes=sample(nodes_gen,size=2^stage-number) # drop nodes at this stage (all cells minus nr of cells allocated to the LCM)
   drop_tips=find_children(drop_nodes,tree_df) # drop tips of the nodes that you dropped 
   
+  # get the LCM tree only 
   tree_subset=drop.tip(tree,tip=drop_tips) # create the subsetted tree
   tree_df=as.data.frame(fortify(tree_subset)) # dt of the current tree
   
