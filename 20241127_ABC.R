@@ -135,12 +135,12 @@ prob_selection=as.data.frame(prob_selection)
 prob_selection_final=prob_selection[prob_selection$pval>0.01,]
 
 # simulate a tree where you select cells to the ICM and then divide them for several more times 
-sim_tree=function(stage,stage_twinning,number,mu1,mu2, split_asymmetry){
+sim_tree=function(stage, stage_twinning, number, mu1, mu2, split_asymmetry){
   
   tree=bi_tree(11) # create a tree (until 10 cell divisions) 
   # the logic here is that we set the boundary of 100 ICM cells to split into twins 
   # the min nr of cells allocated to the ICM is 3 (selected at stage 4); the max nr of cells allocated to the ICM is 30 (at stage 6)
-  # in either case, at stage 11, we should have at least 96 cells (if 3 selected at stage 6) so we can do the split 
+  # in either case, at stage 11, we should have at least 96 cells (if 3 selected at stage 6) so we can do the split from the tree we simulated to stage 11 in any case
   
   tree$edge.length = rpois(lambda=mu2,n=nrow(tree$edge)) # add mutations onto each branch of the tree (sample from Poisson distribution with lambda = mutation rate after ZGA)
   tree$edge.length[tree$edge[,2]%in%c(find_nodes_gen(1, tree=tree),find_nodes_gen(2, tree=tree))]=rpois(lambda=mu1,n=6) 
