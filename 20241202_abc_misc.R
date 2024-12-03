@@ -1,63 +1,85 @@
-
-# simulate a tree until 11 generations
-tree=make_tree(6) # create a tree (until 10 cell divisions) 
-node_depths = node.depth(tree) # absolute depths 
-nodes_to_icm = which(node_depths == 2^(6-4)) # 16 cells to choose from
+# current idea is to create a tree until generation 4 
+# there you select ICM cells
+# you then add trees for the selected cells
+# you split the cells after n ICM divisions to obtain twins
+tree1 = make_tree(4)
+# we will do a temporary label to make sure we can track this correctly bc im stupid and cannot do this otherwise
+node_depths = node.depth(tree1)
+nodes_to_icm = which(node_depths == 1) # 16 cells to choose from (at the last layer)
 cells_to_icm = sample(nodes_to_icm, 3) # select 3 cells from 16 to make ICM
+cells_non_icm = setdiff(nodes_to_icm, cells_to_icm) # rest of the cell contributes to the trophoblast
 
 # check that you select nodes at the right level 
-plot.phylo(tree)
-nodelabels(cells_to_icm, cells_to_icm)
+plot.phylo(tree1)
+nodelabels(cells_to_icm, cells_to_icm) # yes that looks about right 
 
-# the logic here is that we set the boundary of 100 ICM cells to split into twins 
-# the min nr of cells allocated to the ICM is 3 (selected at stage 4); the max nr of cells allocated to the ICM is 30 (at stage 6)
-# in either case, at stage 11, we should have at least 96 cells (if 3 selected at stage 6) so we can do the split from the tree we simulated to stage 11 in any case
-# maybe an alternative is to assume that split occurred at day 7 latest so we have max 2^8 cells (1 cell div per day + some sort of wiggle in case of faster div or sth)
+# simulate an additional tree for extra few divisions and add it to each cell selected to the ICM
+tree2 = make_tree(3)
+tree3 = bind.tree(tree1, tree2, where = cells_to_icm[1])
+if (is.null(tree3$edge.length)){
+  tree3$edge.length = rep(1, nrow(tree3$edge))
+}
+plot.phylo(tree3)
+nodelabels( col = 'purple')
 
-tree$edge.length = rpois(lambda=mu2,n=nrow(tree$edge)) # add mutations onto each branch of the tree (sample from Poisson distribution with lambda = mutation rate after ZGA)
-tree$edge.length[tree$edge[,2]%in%c(find_nodes_gen(1, tree=tree),find_nodes_gen(2, tree=tree))]=rpois(lambda=mu1,n=6) 
-# ZGA at the 8 cell stage, so for the first 6 branches (in stage 1 and stage 2), replace with mutations generated with mu1 (basically higher, so we can have more mutations at this stage)
-tree_df=as.data.frame(fortify(tree)) # convert to a dt so this is nice to work with
+tree3 = bind.tree(tree3, tree2, where = cells_to_icm[2])
+if (is.null(tree3$edge.length)){
+  tree3$edge.length = rep(1, nrow(tree3$edge))
+}
+plot.phylo(tree3)
+nodelabels( col = 'purple')
 
-# identify all nodes at a given level (the level you want to take cells to the ICM)
-node_depths = node.depth(tree) # absolute depths 
-nodes_to_icm = which(node_depths == 2^(6-4)) # 16 cells to choose from
-cells_to_icm = sample(nodes_to_icm, 3) # select 3 cells from 16 to make ICM
+tree3 = bind.tree(tree3, tree2, where = cells_to_icm[3])
+if (is.null(tree3$edge.length)){
+  tree3$edge.length = rep(1, nrow(tree3$edge))
+}
+plot.phylo(tree3)
+nodelabels( col = 'purple')
+# okay that actually worked!!
 
-# I want to retain only ancestors and descendants of the selected nodes 
-plot.phylo(tree)
-nodelabels(cells_to_icm, cells_to_icm)
+# I guess I can add the mutations now
+mu1 = 2
+mu2 = 1
+tree3$edge.length = rpois(lambda=mu2,n=nrow(tree3$edge)) # add mutations onto each branch of the tree (sample from Poisson distribution with lambda = mutation rate after ZGA)
+tree3$edge.length[tree3$edge[,2]%in%c(find_nodes_gen(1, tree=tree3),find_nodes_gen(2, tree=tree3))]=rpois(lambda=mu1,n=6) 
+plot.phylo(tree3)
 
-nodes_gen=find_nodes_gen(4, tree=tree) # find nodes of the stage of interest (say we take cells to ICM at stage 4 ie 16 cells) 
-drop_nodes=sample(nodes_gen,size=2^4-3) # drop nodes at this stage (all cells minus nr of cells allocated to the LCM), say you have 16 cells and take 3 to the ICM
-drop_tips=find_children(drop_nodes,tree_df) # drop tips of the nodes that you dropped 
+# okay and now you want to split cells into twins 
+# you have 3 * 2^3 = 24 cells 
+a = 0.2 # asymmetry parameter
+nr_twin1 = round(a * 3*2^3) # nr of cells to twin1 
+# select the last nodes 
+tree3_df = data.frame(fortify(tree3))
+twin_nodes = tree3_df %>% filter(branch == max(tree3_df$branch)) %>% dplyr::select(node) %>% unlist()
+twin1_nodes = sample(twin_nodes, nr_twin1)
 
-# get the LCM tree only 
-tree_subset=drop.tip(tree,tip=drop_tips) # create the subsetted tree
-tree_df=as.data.frame(fortify(tree_subset)) # dt of the current tree
+plot.phylo(tree3)
+nodelabels(twin_nodes, twin_nodes, col= 'blue')  
 
-# okay now decide at what stage you want twins to split
-# let's say that we selected 3 cells at stage 4 to ICM
-# we let the ICM cells divide 3 more times each so we have 3 * 2^4 = 24 cells
-# once we get 24 cells, we split the embryo into twins 
-cells_to_split=find_nodes_gen(4, tree=tree_subset)
-print(length(cells_to_split))
-drop_tips=find_children(cells_to_split,tree_df)
-# drop any cells after this stage
-tree_sub=drop.tip(tree,tip=drop_tips)
+plot.phylo(tree3)
+nodelabels(twin1_nodes, twin1_nodes, col= 'purple')  
 
-# okay this is not working yet but what i want
-# simulate the tree and selection of cells to the ICM
-# let ICM cells divide a few more times
-# subset a tree so you only have ancestors of ICM cells and children of those
-# select when to split the tree
-# select nodes (with specific asymmetry)
-# calculate nr and VAF of twin-specific mutations and shared mutations
+# okay so now what I could do is basically have a parameter where I select cells on the same lineage 
+# this is proxy to how closely related cells stick together after cell division (~cell mixing)
+# I guess an option would be to have a parameter cell_mixing T or F, and if cell_mixing=F, then
+twin_nodes = tree3_df %>% filter(branch == max(tree3_df$branch)) %>% dplyr::select(node) %>% unlist()
+twin_nodes = twin_nodes[1:8] # only sample from the a 8 nodes which were generated by one ICM cell 
+twin1_nodes = sample(twin_nodes, nr_twin1)
+plot.phylo(tree3)
+nodelabels(twin_nodes, twin_nodes, col= 'blue')  
+plot.phylo(tree3)
+nodelabels(twin1_nodes, twin1_nodes, col= 'purple')  
 
-# then can simluate sequencing or sth like this 
-
-
-
+# I guess now we can calculate the number of different mutations shared or twin-specific 
+# assign mutations to each branch 
+# but then this gives you mutation burden, you are not really tracking which cell inherits which mutation 
+# anyway let's go with this for now and we will see what we can do 
+mu1=2
+mu2=1
+tree3$edge.length = rpois(lambda=mu2,n=nrow(tree3$edge)) # add mutations onto each branch of the tree (sample from Poisson distribution with lambda = mutation rate after ZGA)
+tree3$edge.length[tree3$edge[,2]%in%c(find_nodes_gen(1, tree=tree3),find_nodes_gen(2, tree=tree3))]=rpois(lambda=mu1,n=6) 
+plot.phylo(tree3)
+nodelabels(twin1_nodes, twin1_nodes, col= 'purple')  
 
 
 

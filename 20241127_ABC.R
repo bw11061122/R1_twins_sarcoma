@@ -24,6 +24,7 @@ library(abc)
 library(ape)
 library(ggtree)
 library(phytools)
+library(TreeTools)
 
 ###################################################################################################################################
 # INPUT FILES 
@@ -100,6 +101,7 @@ find_children = function(nodes, tree=tree_df){
   all_tips=c()
   for(node in nodes){
     child_nodes = tree$node[tree$parent==node]
+    print(child_nodes)
     tips = c()
     for (a in 1:length(child_nodes)){
       if (tree$isTip[tree$node==child_nodes[a]]){
@@ -113,26 +115,6 @@ find_children = function(nodes, tree=tree_df){
   }
   return(all_tips)
 }
-
-# how many cells to allocate to the ICM? 
-prob_selection=c() # vector of probabilities that a given nr of cell is allocated to the LCM
-
-# what is the difference between number and picked here??
-for(stage in 2:6){ # we allow cells to be selected to the ICM from stage 2 (4 cells) to stage 6 (64 cells)
-  for(number in 2:(2^(stage)-1)){ # we have from 2 to n-1 cells available (n = total nr of cells at that stage)
-    probs=c()
-    for(k in 1:min(number,2^(stage-1))){ # do we select cells to the ICM here? (ma 1/2 cells can be allocated to the ICM)
-      probs=c(probs,binom.test(x=342,n=500,p = k/number)$p.value) 
-      # given the nr of trials and the nr of successes, how unreasonable is the probability?
-      # where did we take the nr of successes and the nr of trials from?
-    }
-    prob_selection=rbind(prob_selection,c(stage,number,max(probs),which.max(probs)))
-  }
-}
-
-colnames(prob_selection)=c("stage","number","pval","picked") # picked refers to the nr of cells picked to the ICM
-prob_selection=as.data.frame(prob_selection)
-prob_selection_final=prob_selection[prob_selection$pval>0.01,]
 
 # simulate a tree where you select cells to the ICM and then divide them for several more times 
 sim_tree=function(stage, stage_twinning, number, mu1, mu2, split_asymmetry){
@@ -169,12 +151,12 @@ sim_tree=function(stage, stage_twinning, number, mu1, mu2, split_asymmetry){
   # here you can kind of have a mixing parameter = do you want to sample cells at random or preferentially from the same branch?
   # you could do sth like take sisters w prob x, and reduce the prob at each step back on the tree (assuming higher chance cells mixed)
   tips= # identify tips
-  cells_twin1 = sample(tips, size=nr_cells_twin1) # these are the cells / nodes that you allocated to twin 1
+    cells_twin1 = sample(tips, size=nr_cells_twin1) # these are the cells / nodes that you allocated to twin 1
   # here when you sample, you just sample at random, so this assumes no spatial structure in the embryo
   
   # is there a way to sample but only from one branch?
   # you can calculate the 
-
+  
   # get the summary statistics out 
   
   # Number of mutations 
@@ -198,7 +180,27 @@ sim_tree=function(stage, stage_twinning, number, mu1, mu2, split_asymmetry){
 }
 
 
-# 
+# how many cells to allocate to the ICM? 
+prob_selection=c() # vector of probabilities that a given nr of cell is allocated to the LCM
+
+# what is the difference between number and picked here??
+for(stage in 2:6){ # we allow cells to be selected to the ICM from stage 2 (4 cells) to stage 6 (64 cells)
+  for(number in 2:(2^(stage)-1)){ # we have from 2 to n-1 cells available (n = total nr of cells at that stage)
+    probs=c()
+    for(k in 1:min(number,2^(stage-1))){ # do we select cells to the ICM here? (ma 1/2 cells can be allocated to the ICM)
+      probs=c(probs,binom.test(x=342,n=500,p = k/number)$p.value) 
+      # given the nr of trials and the nr of successes, how unreasonable is the probability?
+      # where did we take the nr of successes and the nr of trials from?
+    }
+    prob_selection=rbind(prob_selection,c(stage,number,max(probs),which.max(probs)))
+  }
+}
+
+colnames(prob_selection)=c("stage","number","pval","picked") # picked refers to the nr of cells picked to the ICM
+prob_selection=as.data.frame(prob_selection)
+prob_selection_final=prob_selection[prob_selection$pval>0.01,]
+
+# run the simulation 
 tree=bi_tree(10) # create a tree (until 10 cell divisions)
 tree$edge.length = rpois(lambda=mu2,n=nrow(tree$edge)) # add mutations onto each branch of the tree (sample from Poisson distribution with lambda = mutation rate after ZGA)
 tree$edge.length[tree$edge[,2]%in%c(find_nodes_gen(1, tree=tree),find_nodes_gen(2, tree=tree))]=rpois(lambda=mu1,n=6) 
