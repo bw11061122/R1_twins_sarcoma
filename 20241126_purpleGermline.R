@@ -14,6 +14,10 @@
 # Script to identify regions of copy number alterations (deletions or duplications) in the germline
 # Identify mutations in those regions where the VAF is 0.3 and so those can be explained as a germline copy number alteration 
 
+# UPDATE 04/12/2024: 
+# After discussion with Henry, we decided to scrap PURPLE for now and use something else to get rid of the germline mutations
+# on copy number-altered regions, as this is too painful and looks like it's making our life harder not easier 
+
 ###################################################################################################################################
 # LIBRARIES
 
