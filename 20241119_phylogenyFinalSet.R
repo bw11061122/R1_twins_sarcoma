@@ -50,7 +50,7 @@ twins_dt[, c(twins_PDv38is) := NULL]
 # Load QC-validated mutations (final set of mutations to be used)
 muts_dt = data.table(read.csv('Data/20241114_599muts_QCJbrowse.csv', header = T))
 muts = muts_dt[Jbrowse.quality == 'Y', mut_ID] %>% unlist()
-paste('Number of mutations that passed QC:', length(muts)) # 256 
+paste('Number of mutations that passed QC:', length(muts)) # 255 
 
 # Create a dataframe with mutations of interested retained
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
