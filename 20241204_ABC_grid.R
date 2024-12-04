@@ -6,6 +6,7 @@
 # Barbara Walkowiak bw18
 
 # Script to run simulations (Henry wants to do this on a grid so I guess this is what we are going to try)
+# I am trying to google how to do this and found some useful code here: https://gist.github.com/Ram-N/5019098 
 
 ###################################################################################################################################
 # LIBRARIES
@@ -29,14 +30,57 @@ start_div = 4 # number of divisions before cells selected to the ICM
 cells_to_icm = 3 # how many cells to select to ICM
 icm_div = 4 # number of times each ICM cell divides once the ICM has formed
 
-# Start with one cell on the grid
+# Define necessary functions
 
-# Divide the cell n times, place the descendants on the grid (not completely random)
+create_empty_df = function(){ # create empty dataframe with 0s to populate it 
+  area_df <- data.frame( matrix(0, nrow=gridX, ncol=gridY))
+  names(area_df) <- c(1:gridX)  
+  return(area_df)
+}
 
-# Select cells to the ICM and keep dividing those
+start_df = create_empty_df()
+
+# start simulation by randomly placing a cell on the grid 
+start_sim = function(){ # get new coordinates by sampling x and y coordinates at random 
+    xNew = sample(1:gridX, 1) # get new coordinates (x direction)
+    yNew = sample(1:gridY, 1) # get new coordinates (y direction) 
+    return( c(xNew,yNew))
+}
+
+# divide all cells on the grid (create 2x that many cells and place them in a spatially-coherent manner)
+divide_cells = function(){
+  
+  
+  
+}
+
+# select cells from existing ones (select to ICM)
+select_to_icm = function(n, cells){ # select n cells from all existing cells 
+  
+  
+}
 
 
-adjacells <- getAdjacentCellsDataFrame()
+# split the grid (cells to twin1 vs to twin2 )
+split_twins = function(p){ # specify proportion of cells that should go to twin1 
+  
+}
+
+
+# plot the output of the simulation
+drawArea <- function(area_df){  
+  
+  df <- melt(as.matrix(area_df, nrow=30))  
+  brk = c(-1, 0, 1, 2, 24, 1000)
+  df$valBucket =cut(df$value, breaks=brk) 
+  
+  square=15
+  p <-NULL
+  p <- ggplot(df, aes(X1,X2, color=valBucket)) + geom_point(shape=square, size=6)
+  p <- p + scale_colour_manual(values = c("black","blue","orange","yellow","red", "white"))
+  return(p)
+}
+
 
 
 # Make multiple runs (Replication of simulation) and take the average of stats

@@ -1,12 +1,14 @@
 ###################################################################################################################################
-# SCRIPT 2
+# SCRIPT 2b
 
-# Script to remove germline mutations in copy number-altered regions
+# Script to show filtering of mutations thought to be on germline copy number-altered regions
 # 2024-11-26
 # Barbara Walkowiak bw18
 
 # INPUT: 
-# 1 PURPE dt (.cnv.segment) for each sample 
+# 1 pileup
+# 2 existing filters 
+# 3 List of mutations from previous filters 
 
 # OUTPUT:
 # 1 list of mutations to exclude based on presence in copy number germline variants 
@@ -37,18 +39,29 @@ library(ggrepel)
 
 # Read the merged dataframe 
 setwd('/Users/bw18/Desktop/1SB')
-twins_dt = data.table(read.csv('Data/twins_dt_20241114_1134.csv')) # import high quality pileup with added filters
+twins_dt = fread('Data/twins_dt_20241204_1069.csv') # import high quality pileup with added filters
 
 # Drop columns with PD38is_wgs (used as reference)
 twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
-# Create a dataframe that only includes mutations retained post filtering  
-muts_included = read.table('Data/mutations_include_20241114_1134.txt') %>% unlist()
-paste('Number of mutations that passed required filters:', length(muts_included)) # 1134
+# Identify and exclude mutations that failed QC   
+muts_failqc = twins_dt[(sum_req_filters >= 1 & f7_likelyGermline_bothTwins==0) | (sum_req_filters > 1 & f7_likelyGermline_bothTwins==1), mut_ID] %>% unlist()  
+paste('Number of mutations that failed QC:', length(muts_failqc)) # 28,771 # so 8% fails QC, not great but not disastrous either?
 
-muts_germline = read.table('Data/mutations_putativeGermline_20241114.txt') %>% unlist()
-paste('Number of mutations identified as putative germline:', length(muts_germline)) # 333,031
+# Informative sets of mutations 
+# Mutations included int the final set of 1,069
+muts_included = read.table('Data/mutations_include_20241204_1069.txt') %>% unlist()
+
+# Mutations which were retained as non-germline out of the 1,069
+muts_599 = read.table('Data/mutations_include_20241114_599.txt') %>% unlist()
+muts_germline_cn = setdiff(muts_included, muts_599)
+
+# Mutations which passed manual QC 
+muts_dt = data.table(read.csv('Data/20241114_599muts_QCJbrowse.csv', header = T))
+muts_255 = muts_dt[Jbrowse.quality == 'Y', mut_ID] %>% unlist()
+paste('Number of mutations that passed QC:', length(muts_255)) # 255 
+muts_failed_qc = setdiff(muts_599, muts_255)
 
 ###################################################################################################################################
 # PLOT SETTINGS
@@ -63,14 +76,7 @@ col_tumour_PD63383 = "#6F09D4"
 col_normal_PD62341 = "#71D99B"
 col_normal_PD63383 = "#C99DF6"
 
-col_background = '#c8c8c8'
 col_germline = '#d3b28b'
-col_other = '#25b6db'
-col_normal_all = '#5265c9'
-col_normal_all_removed = '#b9dff5'
-col_clusters = '#bf068a'
-col_coverage = '#bf7a06'
-col_clusters_coverage = '#810cb9'
 col_excluded = '#a80505'
 
 ######################################################################################################
@@ -127,26 +133,59 @@ samples_PD63383_vaf = paste(samples_PD63383, 'VAF', sep='_')
 # AGGREGATED MTR, DEP and VAF (by sample category) 
 
 # Aggregated VAF in tumour samples 
-twins_dt[, dep_all_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
-twins_dt[, dep_all_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
-twins_dt[, dep_all_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_dep]
-twins_dt[, dep_all_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_dep]
-twins_dt[, dep_all_normal := rowSums(.SD), .SDcols = samples_normal_dep]
-twins_dt[, dep_all_tumour := rowSums(.SD), .SDcols = samples_tumour_dep]
-twins_dt[, dep_all := rowSums(.SD), .SDcols = samples_dep]
+twins_dt_filtered[, dep_all_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_dep]
+twins_dt_filtered[, dep_all_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_dep]
+twins_dt_filtered[, dep_all_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_dep]
+twins_dt_filtered[, dep_all_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_dep]
+twins_dt_filtered[, dep_all_normal := rowSums(.SD), .SDcols = samples_normal_dep]
+twins_dt_filtered[, dep_all_tumour := rowSums(.SD), .SDcols = samples_tumour_dep]
+twins_dt_filtered[, dep_all := rowSums(.SD), .SDcols = samples_dep]
 
-twins_dt[, mtr_all_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
-twins_dt[, mtr_all_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
-twins_dt[, mtr_all_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_mtr]
-twins_dt[, mtr_all_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_mtr]
-twins_dt[, mtr_all_normal := rowSums(.SD), .SDcols = samples_normal_mtr]
-twins_dt[, mtr_all_tumour := rowSums(.SD), .SDcols = samples_tumour_mtr]
-twins_dt[, mtr_all := rowSums(.SD), .SDcols = samples_mtr]
+twins_dt_filtered[, mtr_all_normal_PD62341 := rowSums(.SD), .SDcols = samples_normal_PD62341_mtr]
+twins_dt_filtered[, mtr_all_normal_PD63383 := rowSums(.SD), .SDcols = samples_normal_PD63383_mtr]
+twins_dt_filtered[, mtr_all_tumour_PD62341 := rowSums(.SD), .SDcols = samples_tumour_PD62341_mtr]
+twins_dt_filtered[, mtr_all_tumour_PD63383 := rowSums(.SD), .SDcols = samples_tumour_PD63383_mtr]
+twins_dt_filtered[, mtr_all_normal := rowSums(.SD), .SDcols = samples_normal_mtr]
+twins_dt_filtered[, mtr_all_tumour := rowSums(.SD), .SDcols = samples_tumour_mtr]
+twins_dt_filtered[, mtr_all := rowSums(.SD), .SDcols = samples_mtr]
 
-twins_dt[, vaf_all_normal_PD62341 := mtr_all_normal_PD62341 / dep_all_normal_PD62341]
-twins_dt[, vaf_all_normal_PD63383 := mtr_all_normal_PD63383 / dep_all_normal_PD63383]
-twins_dt[, vaf_all_tumour_PD62341 := mtr_all_tumour_PD62341 / dep_all_tumour_PD62341]
-twins_dt[, vaf_all_tumour_PD63383 := mtr_all_tumour_PD63383 / dep_all_tumour_PD63383]
-twins_dt[, vaf_all_normal := mtr_all_normal / dep_all_normal]
-twins_dt[, vaf_all_tumour := mtr_all_tumour / dep_all_tumour]
-twins_dt[, vaf_all := mtr_all / dep_all]
+twins_dt_filtered[, vaf_all_normal_PD62341 := mtr_all_normal_PD62341 / dep_all_normal_PD62341]
+twins_dt_filtered[, vaf_all_normal_PD63383 := mtr_all_normal_PD63383 / dep_all_normal_PD63383]
+twins_dt_filtered[, vaf_all_tumour_PD62341 := mtr_all_tumour_PD62341 / dep_all_tumour_PD62341]
+twins_dt_filtered[, vaf_all_tumour_PD63383 := mtr_all_tumour_PD63383 / dep_all_tumour_PD63383]
+twins_dt_filtered[, vaf_all_normal := mtr_all_normal / dep_all_normal]
+twins_dt_filtered[, vaf_all_tumour := mtr_all_tumour / dep_all_tumour]
+twins_dt_filtered[, vaf_all := mtr_all / dep_all]
+
+######################################################################################################
+# Calculate distance to the next mutation 
+
+# first, get chromosome and position columns
+twins_dt_filtered[, Chrom := tstrsplit(mut_ID, '_', fixed=T, keep=1)]
+twins_dt_filtered[, pos := tstrsplit(mut_ID, '_', fixed=T, keep=2)]
+twins_dt_filtered[, pos := as.numeric(pos)]
+
+# only for included mutations (1069)
+twins_dt_included = twins_dt_filtered[mut_ID %in% muts_included]
+setkey(twins_dt_included, Chrom, pos)
+twins_dt_included[ , diff_up := pos - shift(pos), by = Chrom] # difference to the mutation before this one
+twins_dt_included[ , diff_down := abs(pos - shift(pos, type = 'lead')), by = Chrom] # difference to the mutation after this one
+twins_dt_included[, min_diff := pmin(diff_up, diff_down, na.rm=TRUE)] # nearest next mutation
+
+######################################################################################################
+# For each mutation, the aim is to plot coverage against distance to the next mutation 
+
+twins_dt_included[, mut_cat := factor(fcase(
+  mut_ID %in% muts_germline_cn, 'germline CN',
+  !mut_ID %in% muts_germline_cn & mut_ID %in% muts_255, 'not germline, passed QC',
+  !mut_ID %in% muts_germline_cn & !mut_ID %in% muts_255, 'not germline, failed QC'
+))]
+
+ggplot(twins_dt_included, aes(x = dep_all_normal, y = log10(min_diff), colour = mut_cat))+ # diff 0 if first mutation
+  geom_point(alpha= 0.8)+
+  theme_classic(base_size = 13)+
+  labs(x = 'coverage (Aggregated normal samples)', y = 'log10(distance to nearest mutation)', colour = 'Mutation category')+
+  ggtitle('1069 included mutations')+
+  guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
+  scale_color_manual(values = c(col_germline, col_excluded, col_normal))
+ggsave('Results/20241204_filteringGermline_covVslogDistance.pdf', height = 4, width = 4)
