@@ -40,7 +40,7 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 
 # Read the merged dataframe 
 setwd('/Users/bw18/Desktop/1SB')
-twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv'))
+twins_dt = fread('Data/pileup_merged_20241016.tsv')
 
 # Drop columns with PD38is_wgs (used as reference)
 twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
@@ -143,7 +143,7 @@ paste('Number of mutations mapped to chromosome Y:', dim(twins_dt[f1_mappedY==1]
 # Remove substitutions present next to any indels, as these are often poor quality (indels can lead to mapping issues) 
 
 # Read indel dataframe (coordinates of low and high quality indels)
-indel_all = data.table(read.csv('Data/PD62341_PD63382_unmatched_indels_pass_or_fail.txt', sep = '\t', header = FALSE))
+indel_all = fread('Data/PD62341_PD63382_unmatched_indels_pass_or_fail.txt', sep = '\t', header = FALSE)
 setnames(indel_all, c('V1', 'V2', 'V3', 'V4'), c('Chrom', 'pos', 'ref', 'alt'))
 indel_all[,mut_ID := paste(Chrom, pos, ref, alt, sep = '_')]
 indel_all_id = indel_all[, mut_ID] %>% unlist()

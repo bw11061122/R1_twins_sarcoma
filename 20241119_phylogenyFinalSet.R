@@ -41,7 +41,7 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 
 # Read the merged dataframe 
 setwd('/Users/bw18/Desktop/1SB')
-twins_dt = data.table(read.csv('Data/pileup_merged_20241016.tsv')) # import high quality pileup
+twins_dt = fread('Data/pileup_merged_20241016.tsv') # import high quality pileup
 
 # Drop columns with PD38is_wgs (used as reference)
 twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
@@ -490,6 +490,33 @@ muts_one_sample_normal = twins_filtered_dt[sum_tumour_mtr_vaf==0 & sum_normal_mt
 muts_one_sample_tumour = twins_filtered_dt[sum_tumour_mtr_vaf==1 & sum_normal_mtr_vaf==0, mut_ID] %>% unlist() # 88 
 muts_one_sample = c(muts_one_sample_normal, muts_one_sample_tumour) 
 paste('Number of mutations present in only 1 sample:', length(muts_one_sample)) # 110
+
+# Have all mutations been assigned to exactly one group?
+print(length(c(muts_all_normal, muts_PD62341_normal, muts_PD63383_normal,
+               muts_one_sample_normal, muts_one_sample_tumour, muts_tumour_PD62341, muts_tumour_PD63383, muts_tumour)))
+
+# Manually assign remaining mutations 
+# "chr3_195014637_A_G" "chr4_15905566_C_T"  "chr5_44907911_G_A"  "chr8_137568368_T_A"
+muts_tumour = c(muts_tumour, 'chr5_44907911_G_A', 'chr8_137568368_T_A') # not assigned to tumour because also present in PD62341q (VAF = 0.11-0.12); however absent from n, v, ad therefore likely contamination, especially that VAF in some tumour samples is ~0.5
+muts_PD63383_normal = c(muts_PD63383_normal, 'chr4_15905566_C_T') # present in some PD63383 samples and PD62341v
+# chr4_15905566_C_T this one could be shared, I need to double check with Henry 
+
+# Create and save a dataframe with all mut IDs used to reconstruct phylogeny (255) and assignment to the group
+muts_classes = data.table(muts)
+setnames(muts_classes, 'muts', 'mut_ID')
+muts_classes[, mut_class := factor(fcase(
+  mut_ID %in% muts_all_normal, 'shared_early_embryonic',
+  mut_ID %in% muts_PD62341_normal, 'PD62341_specific_embryonic',
+  mut_ID %in% muts_PD63383_normal, 'PD63383_specific_embryonic',
+  mut_ID %in% muts_tumour, 'tumour',
+  mut_ID %in% muts_tumour_PD62341, 'tumour_PD62341_only',
+  mut_ID %in% muts_tumour_PD63383, 'tumour_PD63383_only',
+  mut_ID %in% muts_one_sample_normal, '1_normal_sample',
+  mut_ID %in% muts_one_sample_tumour, '1_tumour_sample',
+  !mut_ID %in% c(muts_all_normal, muts_PD62341_normal, muts_PD63383_normal, muts_tumour, muts_tumour_PD62341, muts_tumour_PD63383, muts_one_sample_normal, muts_one_sample_tumour), 'unassigned'
+))]
+
+write.table(muts_classes, 'Data/20241205_muts_classes_255.csv', sep = ',', quote=F, col.names=T, row.names=F)
 
 ######################################################################################################
 # Analysis of early embryonic mutations 

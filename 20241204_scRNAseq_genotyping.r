@@ -1,81 +1,114 @@
-####################################################################################################################################
+###################################################################################################################################
 # SCRIPT 9
 
-# scRNA-seq genotyping 
+# Script to analyse the scRNA-seq genotyping allele integrator output 
 # 2024-12-04
-# Barbara Walkowiak 
+# Barbara Walkowiak bw18
+
+# INPUT: 
+# 1 .tsv dataframes generated from alleleIntegrator
+# allele integrator ran 04/12/2024; jobID 664854
+# downloaded files from the farm via rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scRNA_genotyping/output/" /Users/bw18/Desktop/1SB/scRNAseq/Data/
+
+# OUTPUT:
 
 ###################################################################################################################################
-# LIBRARIES
-# the way to do this now is to use the conda environment that has been set up on the farm
-# following the instructions from Behjati Lab GitHub
-# ssh <user>@farm22
-# source /software/cellgen/team274/miniconda3/etc/profile.d/conda.sh
-# which conda
-# conda activate alleleIntegrator
+# LIBRARIES 
 
-# Load libraries and necessary functions to run alleleIntegrator 
-library(alleleIntegrator)
-library(GenomicFeatures)
+# Load needed libraries
+library(data.table)
+library(dplyr)
+library(ggplot2)
 library(tidyverse)
-source('/lustre/scratch125/casm/team274sb/mt22/alleleIntegrator_BehjatiLab/R/alleleIntegrator_helperFunctions.R')
-#source('/lustre/scratch125/casm/team274sb/mt22/generalScripts/utils/sc_utils.R')
-#source('/lustre/scratch125/casm/team274sb/mt22/generalScripts/utils/misc.R')
+library(tidyr)
+library(glue)
+library(comprehenr) # list comprehension in R 
+library(stringr)
+library(beeswarm)
+library(viridis)
+library(grid)
+library(pheatmap)
+library(ggrepel)
+library(RColorBrewer)
+library(Biostrings)
+library(GenomicRanges)
+library(BSgenome.Hsapiens.UCSC.hg38)
 
-# create output directory and set working directory to output 
-outDir = '/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scRNA_genotyping/output'
-if(!dir.exists(outDir)){
-  dir.create(outDir,recursive = T)
+###################################################################################################################################
+# INPUT FILES 
+
+setwd('/Users/bw18/Desktop/1SB')
+
+# load files from all samples (I )
+
+samples_scRNAseq = c('NB13652544', 'NB13652545', 'NB13652546',
+                     'NB13760628', 'NB13760629', 'NB13760630',
+                     'NB14599068', 'NB14599069', 'NB14599070')
+
+ai_counts_dt = data.table()
+for (sample in samples_scRNAseq){
+  ai_counts = fread(paste0('scRNAseq/Data/', sample, '_somaticVar_scRNA_alleleCounts.tsv'), sep='\t', fill = TRUE, header=TRUE)
+  ai_counts[, sample_ID := sample]
+  ai_counts_dt = rbind(ai_counts_dt, ai_counts)
 }
-setwd(outDir)
 
-###################################################################################################################################
-# Import mutations of interest (255 mutations used to reconstruct the phylogeny we consider informative)
+# add source of the sample
+ai_counts_dt[, sample := factor(fcase(
+  sample_ID %in% c('NB13652544', 'NB13652545', 'NB13652546'), 'PD62341',
+  sample_ID %in% c('NB13760628', 'NB13760629', 'NB13760630'), 'PD63383',
+  sample_ID %in% c('NB14599068', 'NB14599069', 'NB14599070'), 'PD63383_nuclear'
+))]
 
-setwd("/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scRNA_genotyping")
-phylo_mutations = fread('20241204_mutations255.bed', sep = '\t') # import bed file with mutation calls 
-phyloMut = phylo_mutations[,c('chrom', 'pos', 'pos'), with=FALSE]
-phyloMut[, width := 1]
-phyloMut[, strand := "*"]
-phyloMut[, Ref := phylo_mutations[, Ref]]
-phyloMut[, Alt := phylo_mutations[, Alt]]
-setnames(phyloMut, c('chrom', 'pos', 'pos', 'width', 'strand', 'Ref', 'Alt'), c("seqnames","start","end","width","strand","Ref","Alt"))
-phyloMut[, varID := paste(sep="_", seqnames, start, end)]
-phyloMut[, seqnames := gsub("chr","", seqnames)]
+# load list of final mutations used for the phylogeny
+muts_dt = data.table(read.csv('Data/20241114_599muts_QCJbrowse.csv', header = T))
+muts_final = muts_dt[Jbrowse.quality == 'Y', mut_ID] %>% unlist()
+paste('Number of mutations that passed QC:', length(muts_final)) # 255 
 
-# Convert to Granges object
-loci = GRanges(somaticMut$seqnames,IRanges(somaticMut$start, somaticMut$end),
-               varID = somaticMut$varID)
-mcols(loci) = cbind(mcols(loci),somaticMut[match(loci$varID,somaticMut$varID),!colnames(somaticMut) %in% c('X')])
+muts_final_dt = data.table(muts_final)
+setnames(muts_final_dt, 'muts_final', 'mut_ID')
+muts_final_dt[, mut_ID0 := substr(mut_ID, 1, nchar(mut_ID)-4)]
 
-# Index of the sample
-gosh_ID = c("GOSH100", "GOSH101") # GOSH IDs 
-sanger_ID = c("PD63383", "PD62341") # Sanger / CASM IDs
+# basic checks on the data
+paste('Number of cells with detected read spanning mutation position:', length(ai_counts_dt[, barcode] %>% unlist() %>% unique()))
+# 716 
 
-tumourDNA = paste(sep="", '/nfs/cancer_ref01/nst_links/live/3434/',sanger_ID,'/',sanger_ID,'.sample.dupmarked.bam')
-names(tumourDNA) = basename(dirname(tumourDNA))
+# what exactly is the Tot column?
+hist(ai_counts_dt[, Tot], xlab = 'Number of reads', main = 'Number of mutation-spanning reads in a cell')
 
-###################################################################################################################################
-# Run alleleCounter; aggregates base count at the specified positions 
+# identify mutation ID 
+ai_counts_dt[, Chrom := paste0('chr', chr)] # set the same chromosome name as mut_ID 
+ai_counts_dt[, mut_ID0 := paste0(Chrom, '_', pos)]
+ai_counts_dt = merge(ai_counts_dt, muts_final_dt, by = 'mut_ID0')
 
-# Get list of scRNAseq bam files of interest 
-# GOSH IDs of interest: GOSH100, GOSH101
-bams10X = list.files('/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_bams', full.names = T,recursive = T)
-bams10X = bams10X[grepl('bam$', bams10X) & grepl('GOSH100|GOSH101', bams10X)]
-print(paste('Bam files invesitgated:', bam10X))
-namesvec = sapply(1:length(bams10X), function(x) strsplit(strsplit(bams10X[x], fixed=T, split="_")[[1]][3], fixed=T, split="/")[[1]][3])
-names(bams10X) = basename(namesvec)
-bamFiles = bams10X
-names(bamFiles) = namesvec
+# number of mutations identified
+paste('Number of mutation-spanning positions identified:', length(ai_counts_dt[, mut_ID] %>% unlist() %>% unique()))
+# 93 so this is actually quite a lot 
 
-# specify parameter values 
-# path to the reference genome the same as provided in Nathan's script 
-refGenome = '/nfs/srpipe_references/downloaded_from_10X/refdata-gex-GRCh38-2020-A/fasta/genome.fa'
-nParallel = 30 # parallelization? not 100% sure what this emans 
-outputs = file.path(outDir,paste0(names(bamFiles),'_somaticVar_scRNA_alleleCounts.tsv')) # create the path to the output file
-params = list(bams = bamFiles, refGenome = refGenome, tgtLoci = loci, outputs = outputs, nParallel = nParallel)
+# For each read, determine if it is mutant or wt
+ai_counts_dt[, Ref := tstrsplit(mut_ID, '_', fixed=TRUE, keep=3)]
+ai_counts_dt[, Alt := tstrsplit(mut_ID, '_', fixed=TRUE, keep=4)]
+mut_cols = c('A', 'C', 'G', 'T')
+ai_counts_dt[, Read := apply(ai_counts_dt[, ..mut_cols], 1, function(row) {
+  read = mut_cols[which(row > 0)]
+  paste(read, collapse = ', ')
+})]
+ai_counts_dt[, status := factor(fcase(
+  Read == Ref, 'wt',
+  Read == Alt, 'mutant'
+))]
 
-# call alleleCounter using parameters specified 
-cnts = do.call(alleleCounter, params)
+table(ai_counts_dt[, status])
+# 25 mutant reads
+# 730 wt reads
 
-print('AlleleCounter completed!')
+# what mutations are those?
+# read in the dataframe with mutation group assignment
+muts_assignment = fread('Data/20241205_muts_classes_255.csv', sep = ',', header = TRUE)
+ai_counts_dt = merge(ai_counts_dt, muts_assignment, by = 'mut_ID')
+table(ai_counts_dt[, mut_class])
+
+#in which clusters are there cells with those reads? what about cells with mutant reads specifically?
+
+
+
+
