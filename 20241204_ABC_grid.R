@@ -38,33 +38,66 @@ library(plyr)
 # SIMULATION: FUNCTIONS
 
 # Define necessary functions
-create_empty_df = function(x, y){ # create empty dataframe with 0s that will be further populated 
-  area_df = data.frame( matrix(0, nrow=x, ncol=y))
-  names(area_df) = c(1:x)  
-  return(area_df)
+
+# creates an empty dataframe and selects at random the first cell to start 
+start_sim = function(x, y, center = TRUE){ # create empty dataframe with 0s that will be further populated 
+  
+  # create an empty grid 
+  grid = data.frame( matrix(0, nrow=x, ncol=y))
+  names(grid) = c(1:x)  
+  
+  # initialize the starting cell in the middle of the grid 
+  if (center == TRUE){
+    xNew = x/2
+    yNew = y/2
+    grid[xNew, yNew] = 1 # 1 indicates there is a cell there 
+    return(grid)
+  }
+  
+  else{
+    # initialize the starting cell wherever
+    xNew = sample(1:x, 1) # get new coordinates (x direction)
+    yNew = sample(1:y, 1) # get new coordinates (y direction) 
+    grid[xNew, yNew] = 1 # 1 indicates there is a cell there 
+    return(grid)
+  }
+  
 }
 
-# start simulation by randomly placing a cell on the grid 
-start_sim = function(grid){ # get new coordinates by sampling x and y coordinates at random 
-  gridX = dim(grid)[1]
-  gridY = dim(grid)[2]
-  xNew = sample(1:gridX, 1) # get new coordinates (x direction)
-  yNew = sample(1:gridY, 1) # get new coordinates (y direction) 
-  grid[xNew, yNew] = 1 # 1 indicates there is a cell there 
-  return(grid)
+# visualise grid 
+draw_area = function(grid){  
+  
+  df = reshape2::melt(as.matrix(grid, nrow=dim(grid)[1])) 
+  df$value = as.factor(df$value)
+  square = 15
+  p = ggplot(df, aes(Var1, Var2, color=value)) + 
+    geom_point(shape=square, size=6) + 
+    theme_classic() +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+
+    scale_colour_manual(values = c("black","blue", "#10c8c5", "purple", "darkred")) # black if absent, red if present 
+  return(p)
 }
 
 # divide all cells on the grid (for each existing cell, create two daughter cells, then remove the existing one)
 # use this function when dividing cells to contribute to the ICM 
 
-divide_cells_pre_icm = function(grid, sd){
-  
-  # available coordinates 
-  available_coords = which(grid==0, arr.ind=TRUE)
+# for each cell existing on the grid, this function selects coordinates of two new cells
+# check that coordinates are not outside of grid bounds and do not overlap 
+
+divide_cells_pre_icm = function(grid, sd = 5){
   
   # count the nr of cells on the grid
   nr_cells = sum(grid==1) 
-  print(paste0('Number of cells to divide:', nr_cells))
+  print(paste('Number of cells to divide:', nr_cells))
+  
+  # find grid dimensions
+  x = dim(grid)[1]
+  y = dim(grid)[2]
   
   # for each cell, select coordinates of the new daughter cell 
   for (i in 1:nr_cells){
@@ -81,9 +114,12 @@ divide_cells_pre_icm = function(grid, sd){
     # sample coordinates for the first cell
     repeat{ # repeat until coordinate sampled 
       xNew1 = rnorm(1, mean = xParent, sd = sd) 
-      yNew1 = rnorm(1, mean = yParent, sd = sd) 
-      if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
-        grid[xNew1, yNew1] = 1 
+      yNew1 = rnorm(1, mean = yParent, sd = sd)
+      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid
+        if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
+          grid[xNew1, yNew1] = 1 
+          break 
+        } 
       }
     }
     
@@ -91,8 +127,11 @@ divide_cells_pre_icm = function(grid, sd){
     repeat{ # repeat until coordinate sampled 
       xNew2 = rnorm(1, mean = xParent, sd = sd) 
       yNew2 = rnorm(1, mean = yParent, sd = sd) 
-      if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
-        grid[xNew2, yNew2] = 1 
+      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid 
+        if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
+          grid[xNew2, yNew2] = 1 
+          break 
+        }
       }
     }
     
@@ -104,14 +143,11 @@ divide_cells_pre_icm = function(grid, sd){
   nr_cells_added = sum(grid==1) 
   expected_nr_cells_added = nr_cells * 2
   
-  if (nr_cells_added == expected_nr_cells_added){
-    print('Added the correct number of cells')
-  }
-  else{
-    print('Something weird happened when adding cells')
-  }
+  print(paste('Number of added cells:', nr_cells_added))
+  print(paste('Expected number of added cells:', expected_nr_cells_added))
   
   return(grid)
+  draw_area(grid)
   
 }
 
@@ -128,24 +164,29 @@ select_to_icm = function(grid, n){ # select n cells from all existing cells
   coords_to_icm = sample(nrow(coords_available), size = n) # sample n random rows from the matrix (= select of n cells to icm)
   coords_icm = coords_available[c(coords_to_icm),]
   
-  print(coords_to_icm)
-  print(coords_icm)
-  
   # change the value of those cells to 2 
   # will allow to show which cells got selected
   grid[coords_icm] = 2
   return(grid)
+  
 }
 
-divide_cells_post_icm = function(grid, sd){
+divide_cells_post_icm = function(grid, sd = 5){
   
-  nr_icm_cells = sum(grid==2) # count nr of icm cells
+  # count the nr of cells on the grid
+  nr_cells = sum(grid==2) 
+  print(paste('Number of ICM cells to divide:', nr_cells))
   
+  # find grid dimensions
+  x = dim(grid)[1]
+  y = dim(grid)[2]
+  
+  # for each cell, select coordinates of the new daughter cell 
   for (i in 1:nr_cells){
     
     # coordinates of the parent cell 
-    xParent = which(grid==1, arr.ind=TRUE)[i, 1]
-    yParent = which(grid==1, arr.ind=TRUE)[i, 2]
+    xParent = which(grid==2, arr.ind=TRUE)[i, 1]
+    yParent = which(grid==2, arr.ind=TRUE)[i, 2]
     
     # sample coordinates for new cells 
     # the idea is to sample around the same row and around the same column
@@ -155,9 +196,12 @@ divide_cells_post_icm = function(grid, sd){
     # sample coordinates for the first cell
     repeat{ # repeat until coordinate sampled 
       xNew1 = rnorm(1, mean = xParent, sd = sd) 
-      yNew1 = rnorm(1, mean = yParent, sd = sd) 
-      if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
-        grid[xNew1, yNew1] = 1 
+      yNew1 = rnorm(1, mean = yParent, sd = sd)
+      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid
+        if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
+          grid[xNew1, yNew1] = 3 
+          break 
+        } 
       }
     }
     
@@ -165,25 +209,21 @@ divide_cells_post_icm = function(grid, sd){
     repeat{ # repeat until coordinate sampled 
       xNew2 = rnorm(1, mean = xParent, sd = sd) 
       yNew2 = rnorm(1, mean = yParent, sd = sd) 
-      if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
-        grid[xNew2, yNew2] = 1 
+      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid 
+        if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
+          grid[xNew2, yNew2] = 3
+          break 
+        }
       }
     }
     
-    # remove the mother cell from the grid 
-    grid[xParent, yParent] = 0
-    
   } 
   
-  nr_cells_added = sum(grid==1) - nr_icm_cells
-  expected_nr_cells_added = nr_icm_cells * 2
+  nr_cells_added = sum(grid==3) 
+  expected_nr_cells_added = nr_cells * 2
   
-  if (nr_cells_added == expected_nr_cells_added){
-    print('Added the correct number of cells')
-  }
-  else{
-    print('Something weird happened when adding cells')
-  }
+  print(paste('Number of added cells:', nr_cells_added))
+  print(paste('Expected number of added cells:', expected_nr_cells_added))
   
   return(grid)
   
@@ -195,7 +235,8 @@ divide_cells_post_icm = function(grid, sd){
 # split the grid (cells to twin1 vs to twin2 )
 split_twins = function(grid, p){ # specify proportion of cells that should go to twin1 
   
-  total_nr_cells = sum(grid==1)
+  # available cells will have the highest number
+  total_nr_cells = sum(grid==max(grid))
   nr_cells_twin1 = round(p * total_nr_cells)
   sum_cells = 0
   
@@ -203,7 +244,7 @@ split_twins = function(grid, p){ # specify proportion of cells that should go to
     cells_in_row = which(grid[i,]==1)
     if (length(cells_in_row > 0)){
       for (j in cells_in_row){
-        grid[i, j] = 3
+        grid[i, j] = max(grid)
         sum_cells = sum_cells + 1
       } 
     }
@@ -214,40 +255,29 @@ split_twins = function(grid, p){ # specify proportion of cells that should go to
   }
 }
 
-# okay so this works actually quite well 
-split_df = split_twins(start_df5, 0.9)
-drawArea(split_df)
-
-# plot the output of the simulation
-drawArea = function(area_df){  
-  
-  df = reshape2::melt(as.matrix(area_df, nrow=30)) 
-  df$value = as.factor(df$value)
-  square = 15
-  p = ggplot(df, aes(Var1, Var2, color=value)) + 
-    geom_point(shape=square, size=6) + 
-    theme_classic() +
-    theme(axis.title.x=element_blank(),
-          axis.text.x=element_blank(),
-          axis.ticks.x=element_blank(),
-          axis.title.y=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks.y=element_blank())+
-    scale_colour_manual(values = c("black","red", "blue", "purple", "darkred")) # black if absent, red if present 
-  return(p)
-}
-
 ###################################################################################################################################
 # SIMULATION: parameters 
 
-# size of the grid
-x = 50
-y = 50
+# specify parameters
+x = 100
+y = 100
+sd = 5
+s = 5 # rounds of cell division before ICM cells selected
+n = 4 # number of cells to select to the ICM 
+s2 = 3 # number of cell divisions of the ICM cells
+p = 0.7
 
-s = 4 # number of cell divisions to get cells that make the ICM
-s2 = 5 # number of cell divisions of ICM cells until embryo split
-n = 3 # number of cells to contribute to the ICM
-p = 0.3 # proportion of cells that form twin1 (measure of asymmetry of split)
+# run the simulation 
+grid0 = start_sim(x, y)
+draw_area(grid0)
+grid1 = Reduce(divide_cells_pre_icm, 1:s, init = grid0)
+draw_area(grid1)
+grid2 = select_to_icm(grid1, n)
+draw_area(grid2)
+grid3 = Reduce(divide_cells_post_icm, 1:s2, init = grid2)
+draw_area(grid3)
+grid4 = split_twins(grid3, p)
+draw_area(grid4)
 
 
 ###################################################################################################################################
@@ -256,20 +286,20 @@ p = 0.3 # proportion of cells that form twin1 (measure of asymmetry of split)
 # we will be doing simulations so set seed so we can reproduce this 
 set.seed(124)
 start_df = create_empty_df(x, y)
-drawArea(start_df)  
+draw_area(start_df)  
 start_df1 = start_sim(start_df)
-drawArea(start_df1)  
+draw_area(start_df1)  
 start_df2 = divide_cells_pre_icm(start_df1)
-drawArea(start_df2) 
+draw_area(start_df2) 
 start_df3 = divide_cells_pre_icm(start_df2)
-drawArea(start_df3) 
+draw_area(start_df3) 
 start_df4 = divide_cells(start_df3)
-drawArea(start_df4) 
+draw_area(start_df4) 
 start_df5 = select_to_icm(3, start_df4) # select 3 cells 
-drawArea(start_df4)  
-drawArea(start_df5)
+draw_area(start_df4)  
+draw_area(start_df5)
 start_df6 = divide_icm_cells(start_df5, 1) # select 3 cells 
-drawArea(start_df6)  
+draw_area(start_df6)  
 
 ###################################################################################################################################
 # SIMULATION: output / summary statistics 
@@ -291,7 +321,7 @@ for(i in 1:kNumReplications) {
 }
 
 #Render
-p <- drawArea(area_df)
+p <- draw_area(area_df)
 p
 names(st) <- c("Iter", "FoundHome", "NumSettlers", "Percent")
 st
