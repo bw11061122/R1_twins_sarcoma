@@ -15,6 +15,10 @@ library(ggplot2)
 library(plyr)
 
 ###################################################################################################################################
+# Set working directory 
+setwd('/Users/bw18/Desktop/1SB/ABC')
+
+###################################################################################################################################
 # SIMULATION SUMMARY 
 
 # PARAMETERS 
@@ -35,36 +39,34 @@ library(plyr)
 # TBD, we don't know 
 
 ###################################################################################################################################
+# SIMULATION: ADDING MUTATIONS (IDs = RANDOM STRINGS)
+
+# create 10k strings that can be used as mutation IDs to assign to cells
+# generate all possible 2-letter combination of letters
+muts_1id = letters 
+muts_2id = c()
+for (i in 1:length(letters)){
+  for (j in 1:length(letters)){
+    muts_2id = c(muts_2id, paste0(letters[i], letters[j])) 
+  }
+}
+muts_3id = c()
+for (i in 1:length(letters)){
+  for (j in 1:length(letters)){
+    for (z in 1:length(letters)){
+      muts_3id = c(muts_3id, paste0(letters[i], letters[j], letters[z]))  
+    }
+  }
+}
+muts_ids = c(muts_1id, muts_2id, muts_3id)
+paste('Number of mutations available to sample from:', length(muts_ids)) # 18,278 so definitely enough
+
+###################################################################################################################################
 # SIMULATION: FUNCTIONS
 
 # Define necessary functions
 
-# creates an empty dataframe and selects at random the first cell to start 
-start_sim = function(x, y, center = TRUE){ # create empty dataframe with 0s that will be further populated 
-  
-  # create an empty grid 
-  grid = data.frame( matrix(0, nrow=x, ncol=y))
-  names(grid) = c(1:x)  
-  
-  # initialize the starting cell in the middle of the grid 
-  if (center == TRUE){
-    xNew = x/2
-    yNew = y/2
-    grid[xNew, yNew] = 1 # 1 indicates there is a cell there 
-    return(grid)
-  }
-  
-  else{
-    # initialize the starting cell wherever
-    xNew = sample(1:x, 1) # get new coordinates (x direction)
-    yNew = sample(1:y, 1) # get new coordinates (y direction) 
-    grid[xNew, yNew] = 1 # 1 indicates there is a cell there 
-    return(grid)
-  }
-  
-}
-
-# visualise grid 
+# visualize grid 
 draw_area = function(grid){  
   
   df = reshape2::melt(as.matrix(grid, nrow=dim(grid)[1])) 
@@ -79,258 +81,537 @@ draw_area = function(grid){
           axis.title.y=element_blank(),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank())+
-    scale_colour_manual(values = c("black","blue", "#10c8c5", "purple", "darkred")) # black if absent, red if present 
+    coord_equal(ratio = 1)+
+    scale_colour_manual(labels = c("no cells", "TE cells", "ICM cells (twin 2)", "ICM cells (twin 1)"),
+                        values = c("black", "#c81048", "#10c8c5", "purple", "#dba20a")) # black if absent, red if present 
   return(p)
 }
 
+
+# Helper function to check indices selected
+check_indices = function(idx) {
+  sorted_indices = sort(idx)
+  for (i in 1:(length(idx) - 1)) {
+    diff = sorted_indices[i + 1] - sorted_indices[i]
+    if (diff == 1 && sorted_indices[i] %% 2 == 1) {
+      return(FALSE) # indices differ by 1 and the first is odd, means that you sampled two cells from the same parent
+    }
+  }
+  return(TRUE) # fine, can accept 
+}
+
+# Divide cells pre-ICM
 # divide all cells on the grid (for each existing cell, create two daughter cells, then remove the existing one)
 # use this function when dividing cells to contribute to the ICM 
 
 # for each cell existing on the grid, this function selects coordinates of two new cells
 # check that coordinates are not outside of grid bounds and do not overlap 
 
-divide_cells_pre_icm = function(grid, sd = 5){
-  
-  # count the nr of cells on the grid
-  nr_cells = sum(grid==1) 
-  print(paste('Number of cells to divide:', nr_cells))
-  
-  # find grid dimensions
-  x = dim(grid)[1]
-  y = dim(grid)[2]
-  
-  # for each cell, select coordinates of the new daughter cell 
-  for (i in 1:nr_cells){
+# each daughter cell acquired a number of mutations selected from the Poisson distribution according to the mutation rate
 
-    # coordinates of the parent cell 
-    xParent = which(grid==1, arr.ind=TRUE)[i, 1]
-    yParent = which(grid==1, arr.ind=TRUE)[i, 2]
+simulate_twinning = function(x, y, mu1 = 1, mu2 = 1, sd1 = 10, sd2 = 3, s1 = 4, n = 3, s2 = 4, p = 0.5, center = TRUE){
+  
+  # start the simulation
+  grid = data.frame( matrix(0, nrow=x, ncol=y))
+  names(grid) = c(1:x)  
+  
+  # initialize the starting cell in the middle of the grid 
+  if (center == TRUE){
+    xNew = x/2
+    yNew = y/2
+    grid[xNew, yNew] = 1 # 1 indicates there is a cell there 
+  }
+  
+  else{
+    # initialize the starting cell wherever
+    xNew = sample(1:x, 1) # get new coordinates (x direction)
+    yNew = sample(1:y, 1) # get new coordinates (y direction) 
+    grid[xNew, yNew] = 1 # 1 indicates there is a cell there 
+  }
+  
+  # add mutation to the first cell (give it 1 mutation so we can keep track of who's whose parent)
+  
+  # select mutations from the list
+  muts_acquired = sample(muts_ids, 1)
+  
+  # update muts_ids to avoid sampling the same mutation twice
+  muts_ids = setdiff(muts_ids, muts_acquired)
+  
+  # add mutations to the dt 
+  muts_row = t(c(xNew, yNew, 1, muts_acquired)) # first row = 1st cell in the embryo 
+  muts_sim = rbind(muts_sim, muts_row, use.names=FALSE)
+  
+  # simulate s cell divisions 
+  for (iter in 1:s1){
     
-    # sample coordinates for new cells 
-    # the idea is to sample around the same row and around the same column
-    # this creates a spatial structure on the grid 
-    # ensure that cells do not overlap 
+    # count the nr of cells on the grid
+    nr_cells = sum(grid==1) 
     
-    # sample coordinates for the first cell
-    repeat{ # repeat until coordinate sampled 
-      xNew1 = rnorm(1, mean = xParent, sd = sd) 
-      yNew1 = rnorm(1, mean = yParent, sd = sd)
-      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid
-        if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
-          grid[xNew1, yNew1] = 1 
-          break 
-        } 
-      }
-    }
+    # find grid dimensions
+    x = dim(grid)[1]
+    y = dim(grid)[2]
     
-    # sample coordinates for the second cell
-    repeat{ # repeat until coordinate sampled 
-      xNew2 = rnorm(1, mean = xParent, sd = sd) 
-      yNew2 = rnorm(1, mean = yParent, sd = sd) 
-      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid 
-        if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
-          grid[xNew2, yNew2] = 1 
-          break 
+    coordParents = which(grid==1, arr.ind=TRUE)
+    
+    # for each cell, select coordinates of the new daughter cell 
+    for (i in 1:nr_cells){
+      
+      # coordinates of the parent cell 
+      xParent = coordParents[i, 1]
+      yParent = coordParents[i, 2]
+      
+      # identify mutations present in the parent cell
+      muts_parent = muts_sim[cell_x == xParent & cell_y == yParent, cell_muts] %>% unlist()
+      
+      # sample coordinates for new cells 
+      # the idea is to sample around the same row and around the same column
+      # this creates a spatial structure on the grid 
+      # ensure that cells do not overlap 
+      
+      # sample coordinates for the first cell
+      repeat{ # repeat until coordinate sampled 
+        xNew1 = round(rnorm(1, mean = xParent, sd = sd1))
+        yNew1 = round(rnorm(1, mean = yParent, sd = sd1))
+        
+        if (xNew1 >= 1 & xNew1 <= x & yNew1 >= 1 & yNew1 <= y){ # check coordinates not outside the grid
+          if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
+            grid[xNew1, yNew1] = 1 
+            
+            # add mutations
+            # choose nr of mutations according to the mutation rate
+            nr_muts = rpois(lambda=mu1, n=1) # only return one number 
+            
+            # select mutations from the list
+            muts_acquired1 = sample(muts_ids, nr_muts)
+            muts_all1 = c(muts_parent, muts_acquired1)
+            muts_all1 = paste(muts_all1, collapse = ',')
+            
+            # update muts_ids to avoid sampling the same mutation twice
+            muts_ids = setdiff(muts_ids, muts_all1)
+            
+            # add mutations to the dt 
+            muts_row = t(c(xNew1, yNew1, iter+1, muts_all1))
+            muts_sim = rbind(muts_sim, muts_row, use.names=FALSE)
+            
+            break 
+          } 
         }
       }
-    }
-    
-    # remove the mother cell from the grid 
-    grid[xParent, yParent] = 0
-    
-  } 
-  
-  nr_cells_added = sum(grid==1) 
-  expected_nr_cells_added = nr_cells * 2
-  
-  print(paste('Number of added cells:', nr_cells_added))
-  print(paste('Expected number of added cells:', expected_nr_cells_added))
-  
-  return(grid)
-  draw_area(grid)
-  
-}
-
-# select cells from existing ones (select to ICM)
-select_to_icm = function(grid, n){ # select n cells from all existing cells 
-  
-  # count the nr of cells on the grid
-  nr_cells = sum(grid==1) 
-  print(paste0('Number of cells available to go to the ICM:', nr_cells))
-  
-  # obtain coordinates of all cells which are present 
-  coords_available = which(grid==1, arr.ind=TRUE)
-  
-  coords_to_icm = sample(nrow(coords_available), size = n) # sample n random rows from the matrix (= select of n cells to icm)
-  coords_icm = coords_available[c(coords_to_icm),]
-  
-  # change the value of those cells to 2 
-  # will allow to show which cells got selected
-  grid[coords_icm] = 2
-  return(grid)
-  
-}
-
-divide_cells_post_icm = function(grid, sd = 5){
-  
-  # count the nr of cells on the grid
-  nr_cells = sum(grid==2) 
-  print(paste('Number of ICM cells to divide:', nr_cells))
-  
-  # find grid dimensions
-  x = dim(grid)[1]
-  y = dim(grid)[2]
-  
-  # for each cell, select coordinates of the new daughter cell 
-  for (i in 1:nr_cells){
-    
-    # coordinates of the parent cell 
-    xParent = which(grid==2, arr.ind=TRUE)[i, 1]
-    yParent = which(grid==2, arr.ind=TRUE)[i, 2]
-    
-    # sample coordinates for new cells 
-    # the idea is to sample around the same row and around the same column
-    # this creates a spatial structure on the grid 
-    # ensure that cells do not overlap 
-    
-    # sample coordinates for the first cell
-    repeat{ # repeat until coordinate sampled 
-      xNew1 = rnorm(1, mean = xParent, sd = sd) 
-      yNew1 = rnorm(1, mean = yParent, sd = sd)
-      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid
-        if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
-          grid[xNew1, yNew1] = 3 
-          break 
-        } 
-      }
-    }
-    
-    # sample coordinates for the second cell
-    repeat{ # repeat until coordinate sampled 
-      xNew2 = rnorm(1, mean = xParent, sd = sd) 
-      yNew2 = rnorm(1, mean = yParent, sd = sd) 
-      if (xNew1 > 1 & xNew1 < x & yNew1 > 1 & yNew1 < y){ # check coordinates not outside the grid 
-        if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
-          grid[xNew2, yNew2] = 3
-          break 
+      
+      # sample coordinates for the second cell
+      repeat{ # repeat until coordinate sampled 
+        xNew2 = round(rnorm(1, mean = xParent, sd = sd1))
+        yNew2 = round(rnorm(1, mean = yParent, sd = sd1))
+        
+        if (xNew2 >= 1 & xNew2 <= x & yNew2 >= 1 & yNew2 <= y){ # check coordinates not outside the grid 
+          if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
+            grid[xNew2, yNew2] = 1 
+            
+            # add mutations
+            # choose nr of mutations according to the mutation rate
+            nr_muts = rpois(lambda=mu1, n=1) # only return one number 
+            
+            # select mutations from the list
+            muts_acquired2 = sample(muts_ids, nr_muts)
+            muts_all2 = c(muts_parent, muts_acquired2)
+            muts_all2 = paste(muts_all2, collapse = ',')
+            
+            # update muts_ids to avoid sampling the same mutation twice
+            muts_ids = setdiff(muts_ids, muts_all2)
+            
+            # add mutations to the dt 
+            muts_row = t(c(xNew2, yNew2, iter+1, muts_all2))
+            muts_sim = rbind(muts_sim, muts_row, use.names=FALSE)
+            
+            break 
+          }
         }
       }
-    }
+      
+      # remove the mother cell from the grid 
+      grid[xParent, yParent] = 0
+      
+    } 
     
-  } 
+    nr_cells_added = sum(grid==1) 
+    expected_nr_cells_added = nr_cells * 2
   
-  nr_cells_added = sum(grid==3) 
-  expected_nr_cells_added = nr_cells * 2
+  }
   
-  print(paste('Number of added cells:', nr_cells_added))
-  print(paste('Expected number of added cells:', expected_nr_cells_added))
+  # select coordinates of cells existing after the last cell division
+  last_gen = s1+1
+  coords_cells = muts_sim[cell_gen==last_gen, c('cell_x', 'cell_y'), with=FALSE]
+  coords_cells[, names(coords_cells) := lapply(.SD, as.numeric), .SDcols = names(coords_cells)]
   
-  return(grid)
+  # it would be good to add a check to prevent cells generated from the same parent cell to be both ICM allocated
+  # based on the idea that cells ingressed through asymmetric divisions contribute to the ICM
+  # > if the division is asymmetric, only one of the two cells will be ICM-allocated 
   
-}
+  # check the ID of the first row of the generation you are sampling from
+  repeat{
+    indices_to_icm = sample(nrow(coords_cells), size = n) # sample n random row indexes from the matrix (= select of n cells to icm)
+    
+    # check that you don't have 1 and 2; 3 and 4; 5 and 6 and so on 
+    if (check_indices(indices_to_icm)) {
+      accepted_indices = indices_to_icm
+      break 
+    }
+  }
+  
+  coords_icm = coords_cells[accepted_indices,c('cell_x', 'cell_y'), with=FALSE] # select coordinates for ICM cells
 
-# I guess you'd like to ensure that by the end of the cells dividing you have enough cells to split the grid and it's ~full
-# so you can just draw a line through the grid or something of that kind 
-
-# split the grid (cells to twin1 vs to twin2 )
-split_twins = function(grid, p){ # specify proportion of cells that should go to twin1 
+  # add column in muts_sim to indicate which cells went to the ICM
+  # calculate the indices in the actual dt
+  sum_cells_before = dim(muts_sim[cell_gen<=s1])[1]
+  accepted_indices_2 = accepted_indices + sum_cells_before
+  muts_sim[, makes_ICM := ifelse(.I %in% accepted_indices_2, 1, 0)]
   
-  # available cells will have the highest number
-  total_nr_cells = sum(grid==max(grid))
-  nr_cells_twin1 = round(p * total_nr_cells)
+  for (i in 1:nrow(coords_icm)){
+   x_icm = as.numeric(coords_icm[i,1])
+   y_icm = as.numeric(coords_icm[i,2])
+   grid[x_icm, y_icm] = 2
+  }
+
+  cells_icm = sum(grid==2)
+  
+  # now divide ICM cells
+  
+  for (iter2 in 1:s2){ # repeat cell division s2 times 
+    
+    coordParents = which(grid==2, arr.ind=TRUE)
+    nr_cells_divide = nrow(coordParents)
+    
+    for (c in 1:nr_cells_divide){ # for each cell in the ICM 
+      
+      # coordinates of the parent cell 
+      xParent = coordParents[c, 1]
+      yParent = coordParents[c, 2]
+      
+      # identify mutations present in the parent cell
+      muts_parent = muts_sim[cell_x == xParent & cell_y == yParent, cell_muts] %>% unlist()
+      
+      # sample coordinates for new cells 
+      # the idea is to sample around the same row and around the same column
+      # this creates a spatial structure on the grid 
+      # ensure that cells do not overlap 
+      
+      # sample coordinates for the first cell
+      repeat{ # repeat until coordinate sampled 
+        xNew1 = round(rnorm(1, mean = xParent, sd = sd2))
+        yNew1 = round(rnorm(1, mean = yParent, sd = sd2))
+        
+        if (xNew1 >= 1 & xNew1 <= x & yNew1 >= 1 & yNew1 <= y){ # check coordinates not outside the grid
+          if (grid[xNew1, yNew1] == 0){ # add the cell if the position is not occupied
+            grid[xNew1, yNew1] = 2 
+            
+            # add mutations
+            # choose nr of mutations according to the mutation rate
+            nr_muts = rpois(lambda=mu2, n=1) # only return one number 
+            
+            # select mutations from the list
+            muts_acquired1 = sample(muts_ids, nr_muts)
+            muts_all1 = c(muts_parent, muts_acquired1)
+            muts_all1 = paste(muts_all1, collapse = ',')
+            
+            # update muts_ids to avoid sampling the same mutation twice
+            muts_ids = setdiff(muts_ids, muts_all1)
+            # 2 to label that this is a daughter cell of one of the ICM cells
+            
+            # add mutations to the dt 
+            muts_row = t(c(xNew1, yNew1, iter2+s1, muts_all1, 2))
+            muts_sim = rbind(muts_sim, muts_row, use.names=FALSE)
+            
+            break 
+          } 
+        }
+      }
+      
+      # sample coordinates for the second cell
+      repeat{ # repeat until coordinate sampled 
+        xNew2 = round(rnorm(1, mean = xParent, sd = sd2))
+        yNew2 = round(rnorm(1, mean = yParent, sd = sd2))
+        
+        if (xNew2 >= 1 & xNew2 <= x & yNew2 >= 1 & yNew2 <= y){ # check coordinates not outside the grid 
+          if (grid[xNew2, yNew2] == 0){ # add the cell if the position is not occupied 
+            grid[xNew2, yNew2] = 2 
+            
+            # add mutations
+            # choose nr of mutations according to the mutation rate
+            nr_muts = rpois(lambda=mu2, n=1) # only return one number 
+            
+            # select mutations from the list
+            muts_acquired2 = sample(muts_ids, nr_muts)
+            muts_all2 = c(muts_parent, muts_acquired2)
+            muts_all2 = paste(muts_all2, collapse = ',')
+            
+            # update muts_ids to avoid sampling the same mutation twice
+            muts_ids = setdiff(muts_ids, muts_all2)
+            
+            # add mutations to the dt 
+            muts_row = t(c(xNew2, yNew2, iter2+s1, muts_all2, 2))
+            muts_sim = rbind(muts_sim, muts_row, use.names=FALSE)
+            
+            break 
+          }
+        }
+      }
+      
+      # remove the mother cell from the grid 
+      grid[xParent, yParent] = 0
+      
+    } 
+    
+  }
+ 
+  
+  nr_cells_twins = sum(grid==2)
+  nr_cells_twin1 = round(p * nr_cells_twins)
   sum_cells = 0
   
   for (i in 1:nrow(grid)){
-    cells_in_row = which(grid[i,]==1)
-    if (length(cells_in_row > 0)){
-      for (j in cells_in_row){
-        grid[i, j] = max(grid)
-        sum_cells = sum_cells + 1
-      } 
-    }
-    
-    if (sum_cells >= nr_cells_twin1){
-      return(grid)
+    cells_in_row = which(grid[i,]==2)
+    if (sum_cells <= nr_cells_twin1){
+      if (length(cells_in_row > 0)){
+        for (j in cells_in_row){
+          grid[i, j] = 3 # label twin 1 cells with a different number
+          sum_cells = sum_cells + 1
+        } 
+      }
     }
   }
+  
+  nr_cells_twin1 = sum(grid==3)
+  nr_cells_twin2 = sum(grid==2)
+  
+  # add column to specify if cell allocated to twin1 or twin2
+  coords_twin1 = data.frame(which(grid==3, arr.ind=TRUE))
+  coords_twin2 = data.frame(which(grid==2, arr.ind=TRUE))
+  coords_twin1$coord = paste0(coords_twin1$row, '_', coords_twin1$col)
+  ctwin1 = coords_twin1$coord %>% unlist()
+  coords_twin2$coord = paste0(coords_twin2$row, '_', coords_twin2$col)
+  ctwin2 = coords_twin2$coord %>% unlist()
+  
+  muts_sim[, coord := paste0(cell_x, '_', cell_y)]
+  muts_sim[, twin := factor(fcase(
+    coord %in% ctwin1, 'twin 1',
+    coord %in% ctwin2, 'twin 2',
+    !coord %in% c(ctwin1, ctwin2), 'not ICM'
+  ))]
+  
+  # plot the visual output of the simulation and save with respective parameters
+  draw_area(grid)
+  ggsave(glue('Results/sim_output_mu1{mu1}_mu2{mu2}_sd1{sd1}_sd2{sd2}s1{s1}_s2{s2}_n{n}_p{p}.pdf'), height = 4, width = 4)
+  
+  # before you return muts_sim dataframe, I want to also add info on which parameters this was obtained with
+  muts_sim[, mu1 := mu1]
+  muts_sim[, mu2 := mu2]
+  muts_sim[, s1 := s1]
+  muts_sim[, s2 := s2]
+  muts_sim[, sd1 := sd1]
+  muts_sim[, sd2 := sd2]
+  muts_sim[, n := n]
+  muts_sim[, p := p]
+
+  out = list(grid, muts_sim, muts_ids)
+  return(out)
+  
 }
 
 ###################################################################################################################################
 # SIMULATION: parameters 
 
-# specify parameters
-x = 100
-y = 100
-sd = 5
-s = 5 # rounds of cell division before ICM cells selected
-n = 4 # number of cells to select to the ICM 
-s2 = 3 # number of cell divisions of the ICM cells
-p = 0.7
+# create an empty dataframe to store mutations for each cell on the phylogeny
+# store: x- and y-coordinate of where the cell was on the matrix, cell generation
+muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
 
-# run the simulation 
-grid0 = start_sim(x, y)
-draw_area(grid0)
-grid1 = Reduce(divide_cells_pre_icm, 1:s, init = grid0)
-draw_area(grid1)
-grid2 = select_to_icm(grid1, n)
-draw_area(grid2)
-grid3 = Reduce(divide_cells_post_icm, 1:s2, init = grid2)
-draw_area(grid3)
-grid4 = split_twins(grid3, p)
-draw_area(grid4)
+# parameters to specify 
+# mu1, mu2; mutation rate (before and after ZGA)
+# sd1 = 10, sd2 = 3; controls how closely cells are spaced in pre-ICM and post-ICM divisions
+# s1 = 4, s2 = 4; number of cell divisions pre-ICM and post-ICM
+# n = number of cells selected to the ICM
+# p = fraction of cells allocated to twin 2
 
+# run the simulation
+seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
+print(paste0("Random seed used in the simulation: ", seed))
+set.seed(seed)
+out1 = simulate_twinning(100, 100, mu1=1, mu2=1, s1=5, s2=3, n=4, p=0.6)
+# get output (matrix with mutations)
+muts_sim1 = out1[[2]]
 
-###################################################################################################################################
-# SIMULATION: run 
+# what can you calculate based on this?
+# extract all mutations and how many times these are present
+nr_cells_twin1 = dim(muts_sim1[twin == 'twin 1'])[1]
+nr_cells_twin2 = dim(muts_sim1[twin == 'twin 2'])[1]
+muts_twin1 = muts_sim1[twin == 'twin 1', cell_muts] %>% unlist()
+muts_twin2 = muts_sim1[twin == 'twin 2', cell_muts] %>% unlist()
+muts_twin1 = unlist(lapply(muts_twin1, function(x) strsplit(x, split = ",")))
+muts_twin2 = unlist(lapply(muts_twin2, function(x) strsplit(x, split = ",")))
 
-# we will be doing simulations so set seed so we can reproduce this 
-set.seed(124)
-start_df = create_empty_df(x, y)
-draw_area(start_df)  
-start_df1 = start_sim(start_df)
-draw_area(start_df1)  
-start_df2 = divide_cells_pre_icm(start_df1)
-draw_area(start_df2) 
-start_df3 = divide_cells_pre_icm(start_df2)
-draw_area(start_df3) 
-start_df4 = divide_cells(start_df3)
-draw_area(start_df4) 
-start_df5 = select_to_icm(3, start_df4) # select 3 cells 
-draw_area(start_df4)  
-draw_area(start_df5)
-start_df6 = divide_icm_cells(start_df5, 1) # select 3 cells 
-draw_area(start_df6)  
+# count mutations present in each twin
+counts_muts_twin1 = data.table(table(muts_twin1))
+counts_muts_twin2 = data.table(table(muts_twin2))
+setnames(counts_muts_twin1, c('muts_twin1', 'N'), c('mut_ID', 'N1'))
+setnames(counts_muts_twin2, c('muts_twin2', 'N'), c('mut_ID', 'N2'))
+counts_muts_twin1[, ccf1 := N1/nr_cells_twin1]
+counts_muts_twin2[, ccf2 := N2/nr_cells_twin2]
+counts_muts_twin1[, vaf1 := ccf1/2]
+counts_muts_twin2[, vaf2 := ccf2/2]
 
-###################################################################################################################################
-# SIMULATION: output / summary statistics 
+# create a shared df with muts in either twin 
+counts_muts_both = merge(counts_muts_twin1, counts_muts_twin2, by = 'mut_ID', all = TRUE)
+counts_muts_both[is.na(counts_muts_both)] = 0 # replace NA with 0
+counts_muts_both[, twin1_specific := as.numeric(vaf1 >= 0.1 & vaf2 == 0)]
+counts_muts_both[, twin2_specific := as.numeric(vaf1 == 0 & vaf2 >= 0.1)]
+counts_muts_both[, shared := as.numeric(vaf1 >= 0.1 & vaf2 >= 0.1)]
 
-# Make multiple runs (Replication of simulation) and take the average of stats
-st <- data.frame()
-st_row<- vector()
-for(i in 1:kNumReplications) {
-  area_df <- resetIteration()
+paste('Number of shared mutations:', dim(counts_muts_both[shared==1])[1]) # 7 
+paste('Number of twin1-specific mutations:', dim(counts_muts_both[twin1_specific==1])[1]) # 6
+paste('Number of twin2-specific mutations:', dim(counts_muts_both[twin2_specific==1])[1]) # 6
+
+# Distribution of VAFs of twin1-specific mutations
+hist(counts_muts_both[twin1_specific==1, vaf1] %>% unlist(), xlab = 'vaf in twin 1', 
+     main = 'Distribution of VAF; twin1-specific mutations', xlim = c(0, 0.5))
+hist(counts_muts_both[twin2_specific==1, vaf2] %>% unlist(), xlab = 'vaf in twin 2', 
+     main = 'Distribution of VAF; twin2-specific mutations', xlim = c(0, 0.5))
+hist(counts_muts_both[twin1_specific==1, vaf1] %>% unlist(), xlab = 'vaf in twin 1', 
+     main = 'Distribution of VAF; twin1-specific mutations', xlim = c(0, 0.5))
+hist(counts_muts_both[shared==1, c('vaf1', 'vaf2'), with=F] %>% unlist(), xlab = 'vaf', 
+     main = 'Distribution of VAF; shared mutations', xlim = c(0, 0.5))
+
+# write a function to extract interesting output from the simulation
+get_output = function(muts_sim){  
   
-  seedAreaWithPioneers(numPioneers,seeding.opt)
-  simstats <- accommodateSettlers(kNumSettlers, settling.option)
+  nr_cells_twin1 = dim(muts_sim[twin == 'twin 1'])[1]
+  nr_cells_twin2 = dim(muts_sim[twin == 'twin 2'])[1]
+  print(paste('Number of cells allocated to twin 1', nr_cells_twin1))
+  print(paste('Number of cells allocated to twin 2', nr_cells_twin2))
   
-  found.home <- simstats[1]
-  max.look.around <- simstats[2]
-  #compute for this iterations
-  st_row <- store_iteration_stats(i, kNumSettlers, found.home, max.look.around)
-  st <- rbind(st,st_row)
+  # extract IDs of mutations present in cells from either twin 
+  muts_twin1 = muts_sim[twin == 'twin 1', cell_muts] %>% unlist()
+  muts_twin2 = muts_sim[twin == 'twin 2', cell_muts] %>% unlist()
+  muts_twin1 = unlist(lapply(muts_twin1, function(x) strsplit(x, split = ",")))
+  muts_twin2 = unlist(lapply(muts_twin2, function(x) strsplit(x, split = ",")))
+  
+  # count mutations present in each twin
+  counts_muts_twin1 = data.table(table(muts_twin1))
+  counts_muts_twin2 = data.table(table(muts_twin2))
+  setnames(counts_muts_twin1, c('muts_twin1', 'N'), c('mut_ID', 'N1'))
+  setnames(counts_muts_twin2, c('muts_twin2', 'N'), c('mut_ID', 'N2'))
+  
+  # add info on mutation VAF and fraction of cells where mutation is present 
+  counts_muts_twin1[, ccf1 := N1/nr_cells_twin1]
+  counts_muts_twin2[, ccf2 := N2/nr_cells_twin2]
+  counts_muts_twin1[, vaf1 := ccf1/2]
+  counts_muts_twin2[, vaf2 := ccf2/2]
+  
+  # create a shared df with muts in either twin 
+  counts_muts_both = merge(counts_muts_twin1, counts_muts_twin2, by = 'mut_ID', all = TRUE)
+  counts_muts_both[is.na(counts_muts_both)] = 0 # replace NA with 0
+  counts_muts_both[, twin1_specific := as.numeric(vaf1 >= 0.1 & vaf2 == 0)]
+  counts_muts_both[, twin2_specific := as.numeric(vaf1 == 0 & vaf2 >= 0.1)]
+  counts_muts_both[, shared := as.numeric(vaf1 >= 0.1 & vaf2 >= 0.1)]
+  
+  paste('Number of shared mutations:', dim(counts_muts_both[shared==1])[1]) # 7 
+  paste('Number of twin1-specific mutations:', dim(counts_muts_both[twin1_specific==1])[1]) # 6
+  paste('Number of twin2-specific mutations:', dim(counts_muts_both[twin2_specific==1])[1]) # 6
+  
+  # extract parameters to write to new dt
+  mu1 = muts_sim[, mu1] %>% unlist() %>% unique()
+  mu2 = muts_sim[, mu2] %>% unlist() %>% unique()
+  sd1 = muts_sim[, sd1] %>% unlist() %>% unique()
+  sd2 = muts_sim[, sd2] %>% unlist() %>% unique()
+  s1 = muts_sim[, s1] %>% unlist() %>% unique()
+  s2 = muts_sim[, s1] %>% unlist() %>% unique()
+  n = muts_sim[, n] %>% unlist() %>% unique()
+  p = muts_sim[, p] %>% unlist() %>% unique()
+
+  # extract summary stats 
+  nr_shared = dim(counts_muts_both[shared==1])[1]
+  nr_twin1 = dim(counts_muts_both[twin1_specific==1])[1]
+  nr_twin2 = dim(counts_muts_both[twin2_specific==1])[1]
+  
+  # extract vafs for each category of mutation
+  vafs_shared_twin1 = paste(counts_muts_both[shared==1, vaf1] %>% unlist(), collapse = ',')
+  vafs_shared_twin2 = paste(counts_muts_both[shared==1, vaf2] %>% unlist(), collapse = ',')
+  vafs_spec_twin1 = paste(counts_muts_both[twin1_specific==1, vaf1] %>% unlist(), collapse = ',')
+  vafs_spec_twin2 = paste(counts_muts_both[twin2_specific==1, vaf2] %>% unlist(), collapse = ',')
+  
+  out_row = t(c(mu1, mu2, sd1, sd2, s1, s2, n, p,
+                nr_shared, nr_twin1, nr_twin2, vafs_shared_twin1, vafs_shared_twin2, vafs_spec_twin1, vafs_spec_twin2))
+  out_sim = rbind(out_sim, out_row, use.names = FALSE)
+  return(out_sim)
+  
 }
 
-#Render
-p <- draw_area(area_df)
-p
-names(st) <- c("Iter", "FoundHome", "NumSettlers", "Percent")
-st
+# create an empty dt to store result data in 
+# in this data.table, I want to store parameters the sim was run with, and output 
+out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
+                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
+                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
+out_sim1 = get_output(muts_sim1)
+
+
+###################################################################################################################################
+# SIMULATION: parameters 
+
+# what are the reasonable parameter values?
+# x, y, sd1, sd2 = for x and y, anything big will do
+# sd1, sd2 = does Henry have any intuition for this? I was thinking sd1 > sd2, but not sure otherwise
+# s1 = 3-5?
+# s2 = 2-6?
+# n = 2-6
+# p = 0.25, 0.5, 0.75 (can try more fine-grained but realistically 0.2-0.8)
+# mu1, mu2 = for now set both to 1, can think about being more fancy later
+
+# specify parameters and test for s2 = 2, 3, 4, 5, 6
+x = 100
+y = 100
+mu1 = 1
+mu2 = 1
+sd1 = 10
+sd2 = 3
+s1 = 3
+n = 3
+p = 0.5
+
+# set seed
+seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
+print(paste0("Random seed used in the simulation: ", seed))
+set.seed(seed)
+
+# initialize an empty dt to store results in 
+out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
+                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
+                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
+
+# test out from s2 in 2 to 6 (2-6 ICM cell divisions)
+for (s2 in 2:6){
+  
+  # run 100 simulations for each parameter value 
+  for (rep in 1:100){
+    out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2)
+    out_muts = out[[2]]
+    out_sim = get_output(out_muts)
+  }
+  
+}
 
 
 
+###################################################################################################################################
+# SIMULATION: target data 
 
+###################################################################################################################################
+# SIMULATION: ABC figuring this out 
+observed_data=data.frame(nr_shared = 1, 
+                         nr_twin1 = 7,
+                         nr_twin2 = 11)  
 
-
+abc_results=abc(target=observed_data, 
+                param=all_sim[select,c("s1","s2","n","p")], 
+                sumstat=all_sim[select,c("nr_shared","nr_twin1","nr_twin2")], 
+                tol=0.01, hcorr=F,method="rejection")
 
 
 
