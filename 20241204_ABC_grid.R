@@ -142,6 +142,7 @@ simulate_twinning = function(x, y, mu1 = 1, mu2 = 1, sd1 = 10, sd2 = 3, s1 = 4, 
   muts_sim = rbind(muts_sim, muts_row, use.names=FALSE)
   
   # simulate s cell divisions 
+  
   for (iter in 1:s1){
     
     # count the nr of cells on the grid
@@ -363,7 +364,6 @@ simulate_twinning = function(x, y, mu1 = 1, mu2 = 1, sd1 = 10, sd2 = 3, s1 = 4, 
     
   }
  
-  
   nr_cells_twins = sum(grid==2)
   nr_cells_twin1 = round(p * nr_cells_twins)
   sum_cells = 0
@@ -382,7 +382,7 @@ simulate_twinning = function(x, y, mu1 = 1, mu2 = 1, sd1 = 10, sd2 = 3, s1 = 4, 
   
   nr_cells_twin1 = sum(grid==3)
   nr_cells_twin2 = sum(grid==2)
-  
+
   # add column to specify if cell allocated to twin1 or twin2
   coords_twin1 = data.frame(which(grid==3, arr.ind=TRUE))
   coords_twin2 = data.frame(which(grid==2, arr.ind=TRUE))
@@ -397,10 +397,6 @@ simulate_twinning = function(x, y, mu1 = 1, mu2 = 1, sd1 = 10, sd2 = 3, s1 = 4, 
     coord %in% ctwin2, 'twin 2',
     !coord %in% c(ctwin1, ctwin2), 'not ICM'
   ))]
-  
-  # plot the visual output of the simulation and save with respective parameters
-  draw_area(grid)
-  ggsave(glue('Results/sim_output_mu1{mu1}_mu2{mu2}_sd1{sd1}_sd2{sd2}s1{s1}_s2{s2}_n{n}_p{p}.pdf'), height = 4, width = 4)
   
   # before you return muts_sim dataframe, I want to also add info on which parameters this was obtained with
   muts_sim[, mu1 := mu1]
@@ -418,74 +414,13 @@ simulate_twinning = function(x, y, mu1 = 1, mu2 = 1, sd1 = 10, sd2 = 3, s1 = 4, 
 }
 
 ###################################################################################################################################
-# SIMULATION: parameters 
-
-# create an empty dataframe to store mutations for each cell on the phylogeny
-# store: x- and y-coordinate of where the cell was on the matrix, cell generation
-muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
-
-# parameters to specify 
-# mu1, mu2; mutation rate (before and after ZGA)
-# sd1 = 10, sd2 = 3; controls how closely cells are spaced in pre-ICM and post-ICM divisions
-# s1 = 4, s2 = 4; number of cell divisions pre-ICM and post-ICM
-# n = number of cells selected to the ICM
-# p = fraction of cells allocated to twin 2
-
-# run the simulation
-seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
-print(paste0("Random seed used in the simulation: ", seed))
-set.seed(seed)
-out1 = simulate_twinning(100, 100, mu1=1, mu2=1, s1=5, s2=3, n=4, p=0.6)
-# get output (matrix with mutations)
-muts_sim1 = out1[[2]]
-
-# what can you calculate based on this?
-# extract all mutations and how many times these are present
-nr_cells_twin1 = dim(muts_sim1[twin == 'twin 1'])[1]
-nr_cells_twin2 = dim(muts_sim1[twin == 'twin 2'])[1]
-muts_twin1 = muts_sim1[twin == 'twin 1', cell_muts] %>% unlist()
-muts_twin2 = muts_sim1[twin == 'twin 2', cell_muts] %>% unlist()
-muts_twin1 = unlist(lapply(muts_twin1, function(x) strsplit(x, split = ",")))
-muts_twin2 = unlist(lapply(muts_twin2, function(x) strsplit(x, split = ",")))
-
-# count mutations present in each twin
-counts_muts_twin1 = data.table(table(muts_twin1))
-counts_muts_twin2 = data.table(table(muts_twin2))
-setnames(counts_muts_twin1, c('muts_twin1', 'N'), c('mut_ID', 'N1'))
-setnames(counts_muts_twin2, c('muts_twin2', 'N'), c('mut_ID', 'N2'))
-counts_muts_twin1[, ccf1 := N1/nr_cells_twin1]
-counts_muts_twin2[, ccf2 := N2/nr_cells_twin2]
-counts_muts_twin1[, vaf1 := ccf1/2]
-counts_muts_twin2[, vaf2 := ccf2/2]
-
-# create a shared df with muts in either twin 
-counts_muts_both = merge(counts_muts_twin1, counts_muts_twin2, by = 'mut_ID', all = TRUE)
-counts_muts_both[is.na(counts_muts_both)] = 0 # replace NA with 0
-counts_muts_both[, twin1_specific := as.numeric(vaf1 >= 0.1 & vaf2 == 0)]
-counts_muts_both[, twin2_specific := as.numeric(vaf1 == 0 & vaf2 >= 0.1)]
-counts_muts_both[, shared := as.numeric(vaf1 >= 0.1 & vaf2 >= 0.1)]
-
-paste('Number of shared mutations:', dim(counts_muts_both[shared==1])[1]) # 7 
-paste('Number of twin1-specific mutations:', dim(counts_muts_both[twin1_specific==1])[1]) # 6
-paste('Number of twin2-specific mutations:', dim(counts_muts_both[twin2_specific==1])[1]) # 6
-
-# Distribution of VAFs of twin1-specific mutations
-hist(counts_muts_both[twin1_specific==1, vaf1] %>% unlist(), xlab = 'vaf in twin 1', 
-     main = 'Distribution of VAF; twin1-specific mutations', xlim = c(0, 0.5))
-hist(counts_muts_both[twin2_specific==1, vaf2] %>% unlist(), xlab = 'vaf in twin 2', 
-     main = 'Distribution of VAF; twin2-specific mutations', xlim = c(0, 0.5))
-hist(counts_muts_both[twin1_specific==1, vaf1] %>% unlist(), xlab = 'vaf in twin 1', 
-     main = 'Distribution of VAF; twin1-specific mutations', xlim = c(0, 0.5))
-hist(counts_muts_both[shared==1, c('vaf1', 'vaf2'), with=F] %>% unlist(), xlab = 'vaf', 
-     main = 'Distribution of VAF; shared mutations', xlim = c(0, 0.5))
+# SIMULATION: output 
 
 # write a function to extract interesting output from the simulation
 get_output = function(muts_sim){  
   
   nr_cells_twin1 = dim(muts_sim[twin == 'twin 1'])[1]
   nr_cells_twin2 = dim(muts_sim[twin == 'twin 2'])[1]
-  print(paste('Number of cells allocated to twin 1', nr_cells_twin1))
-  print(paste('Number of cells allocated to twin 2', nr_cells_twin2))
   
   # extract IDs of mutations present in cells from either twin 
   muts_twin1 = muts_sim[twin == 'twin 1', cell_muts] %>% unlist()
@@ -512,17 +447,13 @@ get_output = function(muts_sim){
   counts_muts_both[, twin2_specific := as.numeric(vaf1 == 0 & vaf2 >= 0.1)]
   counts_muts_both[, shared := as.numeric(vaf1 >= 0.1 & vaf2 >= 0.1)]
   
-  paste('Number of shared mutations:', dim(counts_muts_both[shared==1])[1]) # 7 
-  paste('Number of twin1-specific mutations:', dim(counts_muts_both[twin1_specific==1])[1]) # 6
-  paste('Number of twin2-specific mutations:', dim(counts_muts_both[twin2_specific==1])[1]) # 6
-  
   # extract parameters to write to new dt
   mu1 = muts_sim[, mu1] %>% unlist() %>% unique()
   mu2 = muts_sim[, mu2] %>% unlist() %>% unique()
   sd1 = muts_sim[, sd1] %>% unlist() %>% unique()
   sd2 = muts_sim[, sd2] %>% unlist() %>% unique()
   s1 = muts_sim[, s1] %>% unlist() %>% unique()
-  s2 = muts_sim[, s1] %>% unlist() %>% unique()
+  s2 = muts_sim[, s2] %>% unlist() %>% unique()
   n = muts_sim[, n] %>% unlist() %>% unique()
   p = muts_sim[, p] %>% unlist() %>% unique()
 
@@ -543,14 +474,6 @@ get_output = function(muts_sim){
   return(out_sim)
   
 }
-
-# create an empty dt to store result data in 
-# in this data.table, I want to store parameters the sim was run with, and output 
-out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
-                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
-                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
-out_sim1 = get_output(muts_sim1)
-
 
 ###################################################################################################################################
 # SIMULATION: parameters 
@@ -580,7 +503,9 @@ seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, 
 print(paste0("Random seed used in the simulation: ", seed))
 set.seed(seed)
 
-# initialize an empty dt to store results in 
+# create an empty dt to store mutations for each cell on the phylogeny
+muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
+# create an empty dt to store simulation results in 
 out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
                    nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
                    vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
@@ -590,14 +515,91 @@ for (s2 in 2:6){
   
   # run 100 simulations for each parameter value 
   for (rep in 1:100){
-    out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2)
+    out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = p)
+    
     out_muts = out[[2]]
     out_sim = get_output(out_muts)
+    
+    out_grid = out[[1]]
+    if (rep == 100){
+      draw_area(out_grid)
+      ggsave(glue('Results/20241206_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
+    }
+    
   }
+}
+
+# make sure that relevant columns in out_sim are numeric
+num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_twin1', 'nr_twin2')
+out_sim[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+
+# how many mutations (shared / twin-specific) do we get for each s?
+for (s in 2:6){
+  
+  out_sim_sub = out_sim[s2 == s]
+  nr_shared_muts = out_sim_sub[, nr_shared] %>% unlist() %>% as.numeric()
+  nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
+  nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
+  
+  print(hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s}')))
+  print(hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s}')))
+  print(hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s}')))
   
 }
 
+# empty dt to write results to
+muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
+out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
+                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
+                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
 
+
+# test s2 and p (0.25, 0.5, 0.75) (parameter screen kind of)
+for (s2 in 2:6){
+  
+  for (pf in c(0.3, 0.5, 0.7)){
+  
+    for (rep in 1:100){
+      
+      # run 100 simulations for each parameter value 
+      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = pf)
+      
+      out_muts = out[[2]]
+      out_sim = get_output(out_muts)
+      
+      if (rep==1){
+        print(c(s2, pf))
+        out_grid = out[[1]]
+        draw_area(out_grid)
+        ggsave('Results/20241207_out_sim')
+        }
+      
+      
+      
+    }
+  }
+}
+  
+num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_twin1', 'nr_twin2')
+out_sim[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+  
+# how many mutations (shared / twin-specific) do we get for each s?
+for (s_value in 2:6){
+  for (p_value in c(0.3, 0.5, 0.7)){
+    
+    out_sim_sub = out_sim[s2 == s_value & p == p_value]
+    nr_shared_muts = out_sim_sub[, nr_shared] %>% unlist() %>% as.numeric()
+    nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
+    nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
+    
+    print(hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 80), breaks = 10))
+    print(hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 80), breaks = 10))
+    print(hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 80), breaks = 10))
+    
+  }  
+}
+
+# ngl this is really slow but this is the best I think I can do coding-wise
 
 ###################################################################################################################################
 # SIMULATION: target data 
