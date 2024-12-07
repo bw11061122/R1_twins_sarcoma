@@ -547,6 +547,14 @@ for (s in 2:6){
   
 }
 
+###################################################################################################################################
+# SIMULATION with 2 varying parameters 
+
+# set seed
+seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
+print(paste0("Random seed used in the simulation: ", seed))
+set.seed(seed)
+
 # empty dt to write results to
 muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
 out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
@@ -554,28 +562,29 @@ out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s
                    vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
 
 
-# test s2 and p (0.25, 0.5, 0.75) (parameter screen kind of)
+# test s2 and p (0.3, 0.5, 0.7) (parameter screen kind of)
 for (s2 in 2:6){
   
   for (pf in c(0.3, 0.5, 0.7)){
   
     for (rep in 1:100){
       
+      if (rep==1){ # print which simulation you are on
+        print(c(s2, pf))
+      }
+      
       # run 100 simulations for each parameter value 
       out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = pf)
       
       out_muts = out[[2]]
       out_sim = get_output(out_muts)
-      
-      if (rep==1){
-        print(c(s2, pf))
+    
+      if (rep == 100){ # save grid to output for each parameter combination  
         out_grid = out[[1]]
         draw_area(out_grid)
-        ggsave('Results/20241207_out_sim')
-        }
-      
-      
-      
+        ggsave(glue('Results/20241206_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{pf}.pdf'), width = 4, height = 4)
+      }
+    
     }
   }
 }
@@ -585,6 +594,7 @@ out_sim[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
   
 # how many mutations (shared / twin-specific) do we get for each s?
 for (s_value in 2:6){
+  
   for (p_value in c(0.3, 0.5, 0.7)){
     
     out_sim_sub = out_sim[s2 == s_value & p == p_value]
@@ -592,17 +602,20 @@ for (s_value in 2:6){
     nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
     nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
     
-    print(hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 80), breaks = 10))
-    print(hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 80), breaks = 10))
-    print(hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 80), breaks = 10))
+    pdf(glue('Results/20241206_sim_out_hist_sharedMuts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
+    dev.off()
+  
+    pdf(glue('Results/20241206_sim_out_hist_twin1Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
+    dev.off()
+
+    pdf(glue('Results/20241206_sim_out_hist_twin2Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
+    dev.off()
     
   }  
 }
-
-# ngl this is really slow but this is the best I think I can do coding-wise
-
-###################################################################################################################################
-# SIMULATION: target data 
 
 ###################################################################################################################################
 # SIMULATION: ABC figuring this out 
@@ -611,11 +624,14 @@ observed_data=data.frame(nr_shared = 1,
                          nr_twin2 = 11)  
 
 abc_results=abc(target=observed_data, 
-                param=all_sim[select,c("s1","s2","n","p")], 
-                sumstat=all_sim[select,c("nr_shared","nr_twin1","nr_twin2")], 
+                param=out_sim[,c("s1","s2","n","p")], 
+                sumstat=out_sim[,c("nr_shared","nr_twin1","nr_twin2")], 
                 tol=0.01, hcorr=F,method="rejection")
 
-
+# results of accepted simulations
+abs_results$unadj.values
+# s2 across 2, 3, 4, 5
+# weirdly p generally 0.3 
 
 
 
