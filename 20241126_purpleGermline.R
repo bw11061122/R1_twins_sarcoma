@@ -309,7 +309,7 @@ for (s in samples_normal){
     scale_color_manual(values = c('grey', 'goldenrod', 'purple'))+
     scale_alpha_manual(values = c(0.1, 0.6, 0.8), guide = 'none')+
     theme_classic(base_size = 12)+
-    facet_wrap(~Chrom, , scales = "free_x")+
+    facet_wrap(~Chrom,  scales = "free_x")+
     labs(x = 'Genomic position', y = 'Coverage ({s})', color = 'germline CN?')+
     guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
     ggtitle(glue('{s}'))+
