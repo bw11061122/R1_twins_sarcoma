@@ -123,13 +123,12 @@ samples_PD63383_vaf = paste(samples_PD63383, 'VAF', sep='_')
 # LIST OF APPLIED FILTERS 
 # 1 Exclude mutations mapped to chromosome Y
 # 2 Exclude mutations within 30 base pairs of an indel
-# 2 Exclude mutations which are on regions deemed as copy number altered by PURPLE
-# 4a Exclude mutations with median coverage < 15 in normal samples
-# 4b Exclude mutations with median coverage > 60 in normal samples
-# 5 Require mutation to be well mapped (MTR >= 4 AND VAF >= 0.1) in at least one sample
-# 6 Exclude mutations exhibiting strand bias in mutant reads but not in wild type reads across all samples
-# 7 Exclude mutations with substantial poor quality mapping (ratio of reads mapped in high vs low quality pileup < 0.7)
-# 8 Exclude mutations identified as germline both normal samples of PD62341 AND normal samples of PD63383 in low-quality pileup 
+# 3a Exclude mutations with median coverage < 15 in normal samples
+# 3b Exclude mutations with median coverage > 60 in normal samples
+# 4 Require mutation to be well mapped (MTR >= 4 AND VAF >= 0.1) in at least one sample
+# 5 Exclude mutations exhibiting strand bias in mutant reads but not in wild type reads across all samples
+# 6 Exclude mutations with substantial poor quality mapping (ratio of reads mapped in high vs low quality pileup < 0.7)
+# 7 Exclude mutations identified as germline both normal samples of PD62341 AND normal samples of PD63383 in low-quality pileup 
 
 ######################################################################################################
 # 1 FILTERING OUT READS MAPPING TO CHROMOSOME Y: EXCLUDE MUTATIONS MAPPED TO Y
@@ -192,6 +191,13 @@ twins_dt[,f3_highDepthNormal := as.numeric(median_dep_normal > 60)] # 1 if media
 paste('Number of sites with median coverage below 15 (normal samples):', dim(twins_dt[f3_lowDepthNormal==1])[1]) # 9,449
 paste('Number of sites with median coverage above 60 (normal samples):', dim(twins_dt[f3_highDepthNormal==1])[1]) # 500
 
+# Can I test what happens if you remove by aggregated depth?
+twins_dt[, agg_dep_normal := rowSums(.SD), .SDcols = samples_normal_dep] # calculate median depth across all normal samples 
+twins_dt[,f3_lowDepthNormal_aggCov := as.numeric(agg_dep_normal < 300)] # 1 if aggregated depth is below 300 
+twins_dt[,f3_highDepthNormal_aggCov := as.numeric(agg_dep_normal > 500)] # 1 if aggregated depth is above 500
+paste('Number of sites with aggregated coverage below 300:', dim(twins_dt[f3_lowDepthNormal_aggCov==1])[1]) # 22,778
+paste('Number of sites with aggregated coverage above 500:', dim(twins_dt[f3_highDepthNormal_aggCov==1])[1]) # 15,926
+
 ######################################################################################################
 # 4 FILTERING BASED ON EVIDENCE IN MIN 1 SAMPLE
 
@@ -202,7 +208,7 @@ paste('Number of sites with median coverage above 60 (normal samples):', dim(twi
 for(sample in samples_names){
   twins_sample = twins_dt[, c('mut_ID', glue('{sample}_MTR'), glue('{sample}_VAF'))]
   setnames(twins_sample, c(glue('{sample}_MTR'), glue('{sample}_VAF')), c('mtr', 'vaf'))
-  twins_sample[, glue('f4_{sample}') :=  1 - as.numeric(mtr >= 4) * as.numeric(vaf >= 0.1)]
+  twins_sample[, glue('f4_{sample}') :=  1 - (as.numeric(mtr >= 4) * as.numeric(vaf >= 0.1))]
   twins_dt = merge(twins_dt, twins_sample[, c('mut_ID', glue('f4_{sample}')), with = FALSE], by = 'mut_ID')
 }
 
@@ -212,18 +218,11 @@ twins_dt[, f4_mtrAndVaf := as.numeric(f4_sum == 0)] # 0 if VAF > 0.1 and MTR > 4
 paste("Number of mutations which are NOT well mapped by both MTR and VAF in at least 1 sample:", dim(twins_dt[f4_mtrAndVaf==1])[1]) # 5,501
 
 ######################################################################################################
-# 6 FILTERING BASED ON STRAND BIAS (IN VARIANT READS, BUT NOT WT READS TO INCREASE SPECIFICITY)
+# 5 FILTERING BASED ON STRAND BIAS (IN VARIANT READS, BUT NOT WT READS TO INCREASE SPECIFICITY)
 
-# define the function to obtain p value from 2-sided exact binomial test 
-bin_test_2sided <- function(a, b, p = 0.5) {
-  if (b > 0) {binom.test(a, b, 0.5, alternative = c("two.sided"), conf.level = 0.95)$p.value}
-  else {2}} # if no reads are mapped at all, return 2 so these cases can be easily identified and excluded
-
-# Subset strand information (for normal and tumour samples)
+# Identify columns with forward and reverse reads 
 forward_cols = grep("_FAZ|_FCZ|_FTZ|_FGZ", names(twins_dt), value = TRUE) 
 reverse_cols = grep("_RAZ|_RCZ|_RTZ|_RGZ", names(twins_dt), value = TRUE) 
-
-# 1 Strand bias across mutant reads 
 
 # For each mutation, identify relevant forward and reverse reads (corresponding to the Alt variant)
 twins_dt[, forward_mut := sapply(1:.N, function(row) { # identify forward strands carrying the mutation
@@ -236,8 +235,6 @@ twins_dt[, reverse_mut := sapply(1:.N, function(row) { # identify reverse strand
   cols_to_sum = names(twins_dt)[grepl(paste0('R', alt, 'Z'), names(twins_dt))]
   sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
 })]
-
-# For each mutation, identify the number of reads on forward and reverse strands
 twins_dt[, forward_wt := sapply(1:.N, function(row) { # identify forward strands with the wt allele 
   ref = Ref[row]
   cols_to_sum = names(twins_dt)[grepl(paste0('F', ref, 'Z'), names(twins_dt))]
@@ -248,43 +245,6 @@ twins_dt[, reverse_wt := sapply(1:.N, function(row) { # identify reverse strands
   cols_to_sum = names(twins_dt)[grepl(paste0('R', ref, 'Z'), names(twins_dt))]
   sum(unlist(.SD[row, c(cols_to_sum), with=FALSE]), na.rm=TRUE)
 })]
-
-# Sum mutant reads (equivalent to N = number of trials) 
-twins_dt[, sum_all_mut := forward_mut + reverse_mut] # should be identical to MTR 
-twins_dt[, sum_all_wt := forward_wt + reverse_wt] 
-
-# P-value of exact binomial test: H0: p=0.5, H1: p=/=0.5
-twins_dt[, p_val_mut := mapply(bin_test_2sided, forward_mut, sum_all_mut)]
-
-# correct for multiple testing (Bonferroni correction for nr of tests)
-twins_dt[, significance_mut := as.factor(fcase( 
-  p_val_mut < 0.01/dim(twins_dt)[1], 'significant', # support for H1; p < 0.5; strand bias
-  p_val_mut >= 0.01/dim(twins_dt)[1], 'not_significant' # no support for H1: no strand bias identified  
-))] # really want to minimize false positives because there is a risk of throwing away high-quality mutations
-
-# 2 Strand bias across all reads  
-twins_dt[, sum_FAZ := rowSums(.SD), .SDcols = patterns("_FAZ", cols = names(twins_dt))]
-twins_dt[, sum_FTZ := rowSums(.SD), .SDcols = patterns("_FTZ", cols = names(twins_dt))]
-twins_dt[, sum_FCZ := rowSums(.SD), .SDcols = patterns("_FCZ", cols = names(twins_dt))]
-twins_dt[, sum_FGZ := rowSums(.SD), .SDcols = patterns("_FGZ", cols = names(twins_dt))]
-
-twins_dt[, sum_RAZ := rowSums(.SD), .SDcols = patterns("_RAZ", cols = names(twins_dt))]
-twins_dt[, sum_RTZ := rowSums(.SD), .SDcols = patterns("_RTZ", cols = names(twins_dt))]
-twins_dt[, sum_RCZ := rowSums(.SD), .SDcols = patterns("_RCZ", cols = names(twins_dt))]
-twins_dt[, sum_RGZ := rowSums(.SD), .SDcols = patterns("_RGZ", cols = names(twins_dt))]
-
-twins_dt[, sum_forward := sum_FAZ + sum_FCZ + sum_FTZ + sum_FGZ]
-twins_dt[, sum_reverse := sum_RAZ + sum_RCZ + sum_RTZ + sum_RGZ]
-twins_dt[, sum_all := sum_forward + sum_reverse]
-
-# P-value of exact binomial test: H0: p=0.5, H1: p=/=0.5
-twins_dt[, p_val := mapply(bin_test_2sided, sum_forward, sum_all)]
-
-# Correct for multiple testing (Bonferroni correction for nr of tests)
-twins_dt[, significance := as.factor(fcase( 
-  p_val < 0.01/dim(twins_dt)[1], 'significant', # support for H1: strand bias identified 
-  p_val >= 0.01/dim(twins_dt)[1], 'not_significant' # no support for H1: no strand bias
-))]
 
 # Fisher Exact test (based no GATK https://gatk.broadinstitute.org/hc/en-us/articles/360035532152-Fisher-s-Exact-Test)
 fisher_test = function(row){
@@ -377,27 +337,27 @@ paste('Number of mutations that pass required filters (1):', dim(twins_dt[sum_re
 
 ######################################################################################################
 # OUTPUT 1: SAVE FILTERED MUTATIONS TO A TXT FILE
-write.table(muts_included, 'Data/mutations_include_20241204_1069.txt', quote = FALSE, col.names = F, row.names = F)
+write.table(muts_included, 'Out/F1_mutations_include_20241204_1069.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
-# OUTPUT 1: SAVE PUTATIVE GERMLINE MUTATIONS TO A TXT FILE
+# OUTPUT 1: SAVE PUTATIVE GERMLINE MUTATIONS TO A TXT FILE( (only include mutations retained after QC))
 muts_germline = twins_dt[sum_req_filters==1 & f7_likelyGermline_bothTwins==1, mut_ID] %>% unlist() # 332,974
-write.table(muts_germline, 'Data/mutations_putativeGermline_20241204.txt', quote = FALSE, col.names = F, row.names = F)
+write.table(muts_germline, 'Out/F1_mutations_putativeGermline_20241204.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
-# OUTPUT 1: SAVE PUTATIVE GERMLINE MUTATIONS TO A TXT FILE
+# OUTPUT 1: SAVE MUTATIIONS THAT PASSED QC (germline and putative somatic)
 muts_passed_qc = c(muts_included, muts_germline)
 paste('Number of included mutations:', length(muts_passed_qc)) # 334,043
-write.table(muts_passed_qc, 'Data/mutations_passedQuality_20241204.txt', quote = FALSE, col.names = F, row.names = F)
+write.table(muts_passed_qc, 'Out/F1_mutations_passedQuality_20241204.txt', quote = FALSE, col.names = F, row.names = F)
 
 ######################################################################################################
 # OUTPUT 2: SAVE THE DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS)
-write.csv(twins_dt, 'Data/twins_dt_20241204_1069.csv', quote = FALSE, row.names = F)
+write.csv(twins_dt, 'Out/F1_twins_dt_20241204_1069.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # OUTPUT 3: SAVE THE DATAFRAME TO A FILE (MUTATION + FILTERING STATUS ONLY)
 twins_dt_info = twins_dt[, c('mut_ID', columns_req_filters, 'sum_req_filters'), with=FALSE]
-write.csv(twins_dt_info, 'Data/twins_status_filters_20241204_1069.csv', quote = FALSE, row.names = F)
+write.csv(twins_dt_info, 'Out/F1_twins_status_filters_20241204_1069.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # OUTPUT 4: PLOT DISTIRBUTON OF MUTATION CLASSES AFTER FILTERING 
@@ -452,7 +412,7 @@ ggplot(data=mut_counts_qc, aes(x=V1, y=freq_norm, fill=QC)) +
   theme_classic(base_size = 10)+
   labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', 
        title = glue('All mutations ({num_mut})'))
-ggsave('Results/20241114_p1_mut_types_QC_all.pdf', width = 5, height = 3.5)
+ggsave('Figures/F1/20241114_p1_mut_types_QC_all.pdf', width = 5, height = 3.5)
 
 # compare removing germline mutations (many likely will be real)
 muts_dt2 = twins_dt[f7_likelyGermline_bothTwins==0, c('mut_ID', 'Ref', 'Alt', 'sum_req_filters'), with=FALSE]
@@ -499,7 +459,7 @@ ggplot(data=mut_counts_qc2, aes(x=V1, y=freq_norm, fill=QC)) +
   theme_classic(base_size = 10)+
   labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', 
        title = glue('Excluded putative germline ({num_mut2})'))
-ggsave('Results/20241114_p1_mut_types_QC_germline_excluded.pdf', width = 5, height = 3.5)
+ggsave('Figures/F1/20241114_p1_mut_types_QC_germline_excluded.pdf', width = 5, height = 3.5)
 
 ######################################################################################################
 # OUTPUT 4: PLOT DISTIRBUTON OF MUTATIONS IN TRI-NUC CONTEXTS AFTER FILTERING 
@@ -576,7 +536,7 @@ ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Results/20241114_p1_mut_trins_allmuts.pdf', width = 8, height = 2.5)
+ggsave('Figures/F1/20241114_p1_mut_trins_allmuts.pdf', width = 8, height = 2.5)
 
 # plot tri-nucleotide context for the filtered set of mutations  
 dtf = twins_dt[sum_req_filters==0]
@@ -607,7 +567,7 @@ ggplot(data=mut_sign_counts2, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Results/20241114_p1_mut_trins_finalset.pdf', width = 8, height = 2.5)
+ggsave('Figures/F1/20241114_p1_mut_trins_finalset.pdf', width = 8, height = 2.5)
 
 # Create a series of plots that show what happens when you progressively apply different filters
 # filters in the order of which removes the most mutations first 
@@ -647,7 +607,7 @@ for (f in filters){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Results/202411019_p1_mut_trins_allmuts_{f}.pdf'), width = 8, height = 2.5)
+  ggsave(glue('Figures/F1/202411019_p1_mut_trins_allmuts_{f}.pdf'), width = 8, height = 2.5)
 }
 
 # show how signatures change after consecutive filters are applied
@@ -684,7 +644,7 @@ for (i in seq_along(filters)){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Results/20241114_p1_mut_trins_allmuts_filters_{i}.pdf'), width = 8, height = 2.5)
+  ggsave(glue('Figures/F1/20241114_p1_mut_trins_allmuts_filters_{i}.pdf'), width = 8, height = 2.5)
 }
 
 # show the type of mutations that are thrown away by each filter 
@@ -725,7 +685,7 @@ for (i in seq_along(filters)){
       theme(panel.spacing = unit(0, "lines"))+
       theme(strip.text.x = element_text(size = 13))+
       geom_hline(yintercept = 0, colour="black", size = 0.1)
-    ggsave(glue('Results/20241114_p1_mut_trins_allmuts_filters_removed_{i}.pdf'), width = 8, height = 2.5) }
+    ggsave(glue('Figures/F1/20241114_p1_mut_trins_allmuts_filters_removed_{i}.pdf'), width = 8, height = 2.5) }
 }
 
 ######################################################################################################
