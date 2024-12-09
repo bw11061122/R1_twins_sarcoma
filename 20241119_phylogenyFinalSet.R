@@ -1,19 +1,18 @@
 ###################################################################################################################################
 # SCRIPT 3
 
-# Script to reconstruct the phylogeny 
+# Script to reconstruct the phylogeny (both early development and tumour)
 # November - December 2024
 # Barbara Walkowiak bw18
 
 # INPUT: 
 # 1 merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples
 # 2 list of mutations that passed required filters (255 mutations total)
-# 3 estimates of the tumour cell fraction in all samples 
+# 3 estimates of the tumour cell fraction in all samples (using median from 26 mutations)
 
 # OUTPUT:
 # 1 lists of mutations in specific categories of interest for the phylogeny
 # 2 plots for each category of mutations of interest
-# 3 Final reconstructed phylogeny 
 
 ###################################################################################################################################
 # LIBRARIES 
@@ -60,10 +59,6 @@ twins_filtered_dt = twins_dt[mut_ID %in% muts]
 # Import dataframe with purity estimates
 purity_dt = fread('Out/F2/20241208_estimates_tumour_cont_26muts_median.csv')
 
-# Import list of driver genes (from Henry Lee-Six, 12/11/2024)
-driver_genes_dt = fread('Data/HLS_fibromatoses_driver_list_with_fusions.csv', header=T)
-driver_genes = driver_genes_dt[, gene] %>% unlist()
-
 ###################################################################################################################################
 # PLOT SETTINGS
 
@@ -72,6 +67,9 @@ col_tumour = '#ad0505'
 col_normal = '#07a7d0'
 col_PD62341 = "#0ac368"
 col_PD63383 = "#a249e8"
+
+col_normal_PD62341 = "#71D99B"
+col_normal_PD63383 = "#C99DF6"
 col_tumour_PD62341 = "#07713d"
 col_tumour_PD63383 = "#d1a3e1"
 
@@ -81,12 +79,6 @@ col_tumour_PD63383.2 = "#bd0f71"
 col_tumour1 = "#f793ba"
 col_tumour2 = "#f03e3b"
 col_tumour3 = "#d88c0d"
-
-col_normal_PD62341 = "#71D99B"
-col_normal_PD63383 = "#C99DF6"
-col_PD62341_spleen = "#148259"
-col_PD63383_spleen = "#53088e"
-col_PD63383_skin = '#d0bbe1'
 
 ######################################################################################################
 # SAMPLES
@@ -1159,13 +1151,10 @@ for (k in 1:4){
     theme_classic(base_size = 10)+
     labs(x = 'Tumour cell fraction', y = 'VAF')+
     ylim(c(0, 0.7))+
+    xlim(c(0, 1))+
     ggtitle(glue('Tumour samples, cluster {k} (kmeans 4)'))+
-    scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+    scale_color_manual(values = c('#09ddbd', '#167288', '#a89a49', '#d48c84', '#dd0d0d', '#8cdaec', '#dd8709', '#9bddb1', '#d2ace0', '#6f0b9e'))
   ggsave(glue('Figures/F3/20241208_p4_tumourMuts_tumourCellFraction_vs_Vaf_clustering_kmeans4_cluster{k}.pdf'), height = 3.5, width = 4.5)
   
 }
-
-
-
 
