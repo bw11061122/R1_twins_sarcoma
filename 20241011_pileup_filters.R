@@ -2,7 +2,7 @@
 # SCRIPT 1
 
 # Script to obtain set of mutations (SNVs) to reconstruct the phylogeny
-# 2024-10-11 - 2024-11-14
+# October - December 2024
 # Barbara Walkowiak bw18
 
 # INPUT: merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples

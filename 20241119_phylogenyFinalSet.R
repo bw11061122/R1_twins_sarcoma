@@ -47,16 +47,15 @@ twins_dt = fread('Data/pileup_merged_20241016.tsv') # import high quality pileup
 twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
-# Load QC-validated mutations (final set of mutations to be used)
-muts_dt = data.table(read.csv('Data/20241114_599muts_QCJbrowse.csv', header = T))
-muts = muts_dt[Jbrowse.quality == 'Y', mut_ID] %>% unlist()
-paste('Number of mutations that passed QC:', length(muts)) # 255 
+# Filter to only include mutations retained for filtering 
+muts = read.table('Out/F1/F1_mutations_final_20241208_255.txt') 
+paste('Number of mutations that passed required filters:', length(muts)) # 
 
-# Create a dataframe with mutations of interested retained
+# Create dataframe with mutations that passed current filters 
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 # Import dataframe with purity estimates
-purity_dt = data.table(read.csv('Data/20241114_estimates_tumour_cont_27muts_median.csv'))
+purity_dt = data.table(read.csv('Data/20241208_estimates_tumour_cont_27muts_median.csv'))
 
 # Import list of driver genes (from Henry Lee-Six, 12/11/2024)
 driver_genes_dt = data.table(read.csv('Data/HLS_fibromatoses_driver_list_with_fusions.csv', header=T))
