@@ -425,7 +425,7 @@ ggsave(glue('Figures/F4/20241208_telomere_lengths_by_tissue_from0.pdf'), height 
 
 ######################################################################################################
 # Check if there are any possible driver mutations of clonal hem in the set of normal mutations which could affect uneven transfusion b/n twins?
-# NB those would have to be twins-specific and present in blood cells; I didn't find any 
+# NB those would have to be twins-specific and present in blood cells; very unlikely 
 
 # clonal hem driver genes (from https://pmc.ncbi.nlm.nih.gov/articles/PMC11176083/)
 # ZBTB33, ZNF318, ZNF234, SPRED2, SH2B3, SRCAP, SIK3, SRSF1, CHEK2, CCDC115, CCL22, BAX, YLPM1, MYD88, MTA2, MAGEC3 and IGLL5
