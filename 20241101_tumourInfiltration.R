@@ -336,8 +336,8 @@ ggsave(glue('Figures/F2/20241208_tumour_normal_content_est_26muts.pdf'), width=8
 
 ######################################################################################################
 # OUTPUT 1: SAVE TABLES WITH ESTIMATES OF NORMAL + TUMOUR CELL FRACTION AND PURITY
-write.table(median_VAFs_dt, 'Out/F2/20241208_estimates_tumour_cont_26muts_median.csv', sep = ',', quote=F, row.names=F)
-write.table(mean_VAFs_dt, 'Out/F2/20241208_estimates_tumour_cont_26muts_mean.csv', sep = ',', quote=F, row.names=F)
+write.table(median_VAFs_dt, 'Out/F2/F2_stimates_tumour_cont_26muts_median_20241208.csv', sep = ',', quote=F, row.names=F)
+write.table(mean_VAFs_dt, 'Out/F2/F2_estimates_tumour_cont_26muts_mean_20241208.csv', sep = ',', quote=F, row.names=F)
 
 # these are the estimates that I will be using for the analysis going forward 
 
@@ -400,7 +400,7 @@ for (sample in samples_normal){
 for (sample in samples_tumour){
   s_vaf = paste0(sample, '_VAF')
   sample_vaf_all = twins_filtered_vaf[mut_ID %in% muts_tumour_specific_2, ..s_vaf] %>% unlist()
-  pdf(glue('Figures/F2/20241208_p3_hist_tumour_vaf_all_{sample}_8muts.pdf'), width=4.5, height=3.5)
+  pdf(glue('Figures/F2/20241208_hist_tumour_vaf_all_{sample}_8muts.pdf'), width=4.5, height=3.5)
   hist(sample_vaf_all, xlab = 'VAF', main = glue('{sample}'), xlim = c(0, 1))
   abline(v=median(sample_vaf_all),col="blue")
   abline(v=mean(sample_vaf_all),col='red')
@@ -436,8 +436,8 @@ mean_VAFs_dt_2[, purity := fcase(
 mean_VAFs_dt_2[, purity_est := round(purity, 1)]
 
 # OUTPUT 2: SAVE TABLES WITH ESTIMATES OF NORMAL + TUMOUR CELL FRACTION AND PURITY
-write.table(median_VAFs_dt_2, 'Out/F2/20241208_estimates_tumour_cont_8muts_median.csv', sep = ',', quote=F, row.names=F)
-write.table(mean_VAFs_dt_2, 'Out/F2/20241208_estimates_tumour_cont_8muts_mean.csv', sep = ',', quote=F, row.names=F)
+write.table(median_VAFs_dt_2, 'Out/F2/F2_estimates_tumour_cont_8muts_median_20241208.csv', sep = ',', quote=F, row.names=F)
+write.table(mean_VAFs_dt_2, 'Out/F2/F2_estimates_tumour_cont_8muts_mean_20241208.csv', sep = ',', quote=F, row.names=F)
 
 ######################################################################################################
 # Approach 3: identify deviation from VAF = 1 in tumour samples for reads on retained chr1 / chr18
@@ -480,8 +480,8 @@ mean_VAFs_dt_3[, purity := fcase(
 mean_VAFs_dt_3[, purity_est := round(purity, 1)]
 
 # OUTPUT 3: SAVE TABLES WITH ESTIMATES OF NORMAL + TUMOUR CELL FRACTION AND PURITY
-write.table(median_VAFs_dt_3, 'Out/F2/20241208_estimates_tumour_cont_3muts_median_chr1_18.csv', sep = ',', quote=F, row.names=F)
-write.table(mean_VAFs_dt_3, 'Out/F2/20241208_estimates_tumour_cont_3muts_mean_chr1_18.csv', sep = ',', quote=F, row.names=F)
+write.table(median_VAFs_dt_3, 'Out/F2/F2_estimates_tumour_cont_3muts_median_chr1_18_20241208.csv', sep = ',', quote=F, row.names=F)
+write.table(mean_VAFs_dt_3, 'Out/F2/F2_estimates_tumour_cont_3muts_mean_chr1_18_20241208.csv', sep = ',', quote=F, row.names=F)
 
 
 

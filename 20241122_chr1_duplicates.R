@@ -335,3 +335,16 @@ twins_filtered_dt[mut_ID == 'chr1_38827952_C_A', c(samples_vaf), with=F]
 # Is is the case that duplicated reads are more commonly A than C
 table(sam[V2>512, mut_site]) # 0.4
 
+###################################################################################################################################
+# Can PCR duplicates specifically on the mutant strand in chr1_388 explain the inflated VAF?
+qbinom(0.05, 174, 104/174)/174
+# this is agg from 5 samples
+# say each sample has 2 duplicate reads 
+qbinom(0.05, 164, 94/164)/164
+# okay this does actually get us to a reasonable number 
+# but you would require > 2 duplicates per sample and your VAF is still really high  
+
+qbinom(0.05, 199, 56/199)/199
+qbinom(0.05, 189, 46/189)/189
+# this would be 0.15 so still too high 
+# again, you would have to have > 2 duplicates per sample for this to be viable
