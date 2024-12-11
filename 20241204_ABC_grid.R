@@ -1,8 +1,8 @@
 ####################################################################################################################################
-# SCRIPT 8
+# SCRIPT 5
 
 # Getting started with ABC simulations
-# 2024-12-04
+# December 2024
 # Barbara Walkowiak bw18
 
 # Script to run simulations (Henry wants to do this on a grid so I guess this is what we are going to try)
@@ -16,7 +16,7 @@ library(plyr)
 
 ###################################################################################################################################
 # Set working directory 
-setwd('/Users/bw18/Desktop/1SB/ABC')
+setwd('/Users/bw18/Desktop/1SB')
 
 ###################################################################################################################################
 # SIMULATION SUMMARY 
@@ -36,12 +36,12 @@ setwd('/Users/bw18/Desktop/1SB/ABC')
 # Spatial structure accurately approx by a 2D grid 
 
 # SUMMARY STATISTICS 
-# TBD, we don't know 
+# TBD, we don't know (number of mutations and their VAFs for now)
 
 ###################################################################################################################################
 # SIMULATION: ADDING MUTATIONS (IDs = RANDOM STRINGS)
 
-# create 10k strings that can be used as mutation IDs to assign to cells
+# create ~20k strings that can be used as mutation IDs to assign to cells
 # generate all possible 2-letter combination of letters
 muts_1id = letters 
 muts_2id = c()
@@ -83,12 +83,12 @@ draw_area = function(grid){
           axis.ticks.y=element_blank())+
     coord_equal(ratio = 1)+
     scale_colour_manual(labels = c("no cells", "TE cells", "ICM cells (twin 2)", "ICM cells (twin 1)"),
-                        values = c("black", "#c81048", "#10c8c5", "purple", "#dba20a")) # black if absent, red if present 
+                        values = c("#656363", "#c81048", "#a249e8", "#0ac368", "#dba20a")) # black if absent, red if present 
   return(p)
 }
 
 
-# Helper function to check indices selected
+# Helper function to check indices of selected cells
 check_indices = function(idx) {
   sorted_indices = sort(idx)
   for (i in 1:(length(idx) - 1)) {
@@ -107,7 +107,7 @@ check_indices = function(idx) {
 # for each cell existing on the grid, this function selects coordinates of two new cells
 # check that coordinates are not outside of grid bounds and do not overlap 
 
-# each daughter cell acquired a number of mutations selected from the Poisson distribution according to the mutation rate
+# each daughter cell acquires a number of mutations selected from the Poisson distribution according to the mutation rate
 
 simulate_twinning = function(x, y, mu1 = 1, mu2 = 1, sd1 = 10, sd2 = 3, s1 = 4, n = 3, s2 = 4, p = 0.5, center = TRUE){
   
@@ -523,7 +523,7 @@ for (s2 in 2:6){
     out_grid = out[[1]]
     if (rep == 100){
       draw_area(out_grid)
-      ggsave(glue('Results/20241206_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
+      ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
     }
     
   }
@@ -560,7 +560,7 @@ muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell
 out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
                    nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
                    vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
-
+# 8 parameters and 6 summary statistics (list of VAFs is not really a summary statistic but looking at this for now)
 
 # test s2 and p (0.3, 0.5, 0.7) (parameter screen kind of)
 for (s2 in 2:6){
@@ -577,12 +577,12 @@ for (s2 in 2:6){
       out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = pf)
       
       out_muts = out[[2]]
-      out_sim = get_output(out_muts)
+      out_sim = get_output(out_muts) # binds to existing dataframe so doesn't over-write previous observations when ran in a loop 
     
       if (rep == 100){ # save grid to output for each parameter combination  
         out_grid = out[[1]]
         draw_area(out_grid)
-        ggsave(glue('Results/20241206_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{pf}.pdf'), width = 4, height = 4)
+        ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{pf}.pdf'), width = 4, height = 4)
       }
     
     }
@@ -602,16 +602,100 @@ for (s_value in 2:6){
     nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
     nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
     
-    pdf(glue('Results/20241206_sim_out_hist_sharedMuts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    pdf(glue('Figures/F5/20241208_sim_out_hist_sharedMuts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
     hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
     dev.off()
   
-    pdf(glue('Results/20241206_sim_out_hist_twin1Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    pdf(glue('Figures/F5/20241208_sim_out_hist_twin1Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
     hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
     dev.off()
 
-    pdf(glue('Results/20241206_sim_out_hist_twin2Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    pdf(glue('Figures/F5/20241208_sim_out_hist_twin2Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
     hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
+    dev.off()
+    
+  }  
+}
+
+###################################################################################################################################
+# Simulation with a possibly better way of keeping track of parameters 
+
+# create an empty dt to store mutations acquired by cells on the phylogeny 
+muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
+
+# create an empty dt to store simulation results 
+out_sim_5k=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
+                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
+                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
+
+
+# create a matrix that stores possible parameter combinations 
+s2_p_mat = c()
+for(s2 in 2:6){
+  p = c(0.3, 0.4, 0.5, 0.6, 0.7)
+  s2_p_mat = rbind(s2_p_mat,data.frame(s2=s2,p=p))
+}
+
+# Run the simulation 
+n_iter=5000 # repeat the simulation 5000 times 
+
+# specify values of parameters that are kept constant for now 
+x = 100
+y = 100
+sd1 = 10
+sd2 = 3
+s1 = 4
+n = 3
+
+for(k in 1:n_iter){
+  
+  # specify values of mutation rates (but maybe better to keep those constant as well?)
+  mu1=sample(seq(0.5,6,by=0.01),1)
+  mu2=sample(seq(0.1,1.5,by=0.01),1)
+  
+  # select one combination of parameters from the matrix of parameter combination
+  select=sample(1:nrow(s2_p_mat),1)
+  s2=s2_p_mat$s2[select]
+  p=s2_p_mat$p[select]
+  
+  # run simulation with the specified parameters 
+  out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = p)
+  
+  out_muts = out[[2]] # get the matrix of mutations in each cell that existed in the phylogeny
+  out_sim_5k = get_output(out_muts) # run the function to get a summarized output 
+  
+  if (k%%1000==0){
+    print(k)
+  }
+}
+
+# make sure numeric columns are numeric in the .out dt 
+num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_twin1', 'nr_twin2')
+out_sim_5k[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+
+head(out_sim_5k)
+write.table(out_sim_5k, 'Out/F5/F5_ABC_out_sim_5k_20241208.txt')
+
+# is there a way I can use the matrix (from the output) to plot myself a tree to see what I think about it?
+for (s_value in 2:6){
+  
+  for (p_value in c(0.3, 0.5, 0.7)){
+    
+    out_sim_sub = out_sim_5k[s2 == s_value & p == p_value]
+    nr_shared_muts = out_sim_sub[, nr_shared] %>% unlist() %>% as.numeric()
+    nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
+    nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
+    
+    pdf(glue('Figures/F5/20241208_sim_out_5k_hist_sharedMuts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 4, width = 4)
+    hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 70))
+    dev.off()
+    
+    pdf(glue('Figures/F5/20241208_sim_out_5k_hist_twin1Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 4, width = 4)
+    hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 70))
+    dev.off()
+    
+    pdf(glue('Figures/F5/20241208_sim_out_5k_hist_twin2Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 4, width = 4)
+    hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20), ylim = c(0, 70))
     dev.off()
     
   }  
@@ -632,6 +716,4 @@ abc_results=abc(target=observed_data,
 abs_results$unadj.values
 # s2 across 2, 3, 4, 5
 # weirdly p generally 0.3 
-
-
 

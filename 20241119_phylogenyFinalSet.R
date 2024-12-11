@@ -57,7 +57,7 @@ paste('Number of mutations that passed required filters:', length(muts)) # 255
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
 # Import dataframe with purity estimates
-purity_dt = fread('Out/F2/20241208_estimates_tumour_cont_26muts_median.csv')
+purity_dt = fread('Out/F2/F2_estimates_tumour_cont_26muts_median_20241208.csv')
 
 ###################################################################################################################################
 # PLOT SETTINGS

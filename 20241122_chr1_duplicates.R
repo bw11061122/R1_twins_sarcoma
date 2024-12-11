@@ -1,13 +1,16 @@
 ###################################################################################################################################
-# SCRIPT 6
+# SUPPLEMENTARY SCRIPT 
 
 # Script to try to identify the reason for inflated VAF in chr1:38827952;C>A 
 # We think this is an early embryonic mutation that came from a cell lineage that contributed unevenly to both twins 
-# 2024-11-23
+# November 2024
 # Barbara Walkowiak bw18
 
 # INPUT: 
 # 1 sam file with reads spanning chr1_38827952_C_A (.sam file for each sample)
+
+# OUTPUT:
+# hopefully I will figure out how this mutation has VAF > 0.5 (lower CI > 0.5)
 
 ###################################################################################################################################
 # LIBRARIES 
@@ -33,6 +36,8 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 
 ###################################################################################################################################
 # INPUT FILES 
+
+setwd('/Users/bw18/Desktop/1SB')
 
 # read sam files covering this mutation for each sample 
 # each sam file has all reads spanning the position in a given sample, and associated read parameters  
