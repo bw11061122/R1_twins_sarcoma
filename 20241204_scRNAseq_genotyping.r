@@ -1,5 +1,5 @@
 ###################################################################################################################################
-# SCRIPT 6.2
+# SCRIPT 7
 
 # Script to analyse the scRNA-seq genotyping allele integrator output 
 # December 2024
@@ -10,7 +10,7 @@
 # allele integrator ran 04/12/2024; jobID 664854
 # downloaded files from the farm via rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scRNA_genotyping/output/" /Users/bw18/Desktop/1SB/scRNAseq/Data/
 # 2 data frame with final 255 mutations (ID + assignment to informative group on the phylogeny)
-# 3 Seurat object with clusters (generated from tumour from either twin)
+# 3 Seurat object with clusters (generated from tumour from either twin separately)
 
 # OUTPUT
 # 1 UMAP plots with presence of each mutation (mutant / wt reads) across different clusters
@@ -263,6 +263,7 @@ table(ai_counts_dt[, twin])
 # identify mutation ID 
 ai_counts_dt[, Chrom := paste0('chr', chr)] # set the same chromosome name as mut_ID 
 ai_counts_dt[, mut_ID0 := paste0(Chrom, '_', pos)]
+muts_assignment[, mut_ID0 := substr(mut_ID, 1, nchar(mut_ID)-4)]
 ai_counts_dt = merge(ai_counts_dt, muts_assignment, by = 'mut_ID0')
 
 # For each read, determine if it is mutant or wt
@@ -476,12 +477,12 @@ ggsave('Figures/F7/20241208_umap_normal_mutations.pdf', height = 5, width = 5)
 
 # get all clusters with mean expression of NR5A1 (SF1, tumour marker) > 1
 gene_expression_PD62341 = FetchData(tumour_PD62341_clusters, vars = c('NR5A1', "ident"))
-tumour_PD62341 = aggregate(gene_expression_PD62341[, 'NR5A1', drop = FALSE],
+tumour_PD62341 = aggregate(gene_expression_PD62341[, 'NR5A1', drop=FALSE  ],
                             by = list(cluster = gene_expression_PD62341$ident), FUN = mean) %>%  
                             filter(NR5A1 > 1) %>% pull(cluster) 
 
 gene_expression_PD63383 = FetchData(tumour_PD63383_clusters, vars = c('NR5A1', "ident"))
-tumour_PD63383 = aggregate(gene_expression_PD63383[, 'NR5A1', drop = FALSE],
+tumour_PD63383 = aggregate(gene_expression_PD63383[, 'NR5A1', drop=FALSE ],
                           by = list(cluster = gene_expression_PD63383$ident), FUN = mean) %>%  
                           filter(NR5A1 > 1) %>% pull(cluster)
 
@@ -491,7 +492,7 @@ muts_in_scrna = ai_counts_dt[, mut_ID] %>% unlist() %>% unique()
 for (mut in muts_in_scrna){
   
   # get nicely formatted mutation name (for plotting)
-  mut_name = sub("^([^_]+)-([^_]+)-", "\\1;\\2>", mut)
+  mut_name = gsub("_(.*?)_(.*?)_", ";\\1 \\2>", mut)
   
   # determine which mutation class this mutation was assigned to
   mut_assignment = as.character(muts_assignment[mut_ID == mut, mut_class])
@@ -504,7 +505,7 @@ for (mut in muts_in_scrna){
   
   # only do the plot if the mutant position-spanning reads have been identified in any PD62341 cell
   
-  # mutant read in PD62341 only 
+  # if reads in PD62341 tumour only 
   if (dim(reads[!is.na(seurat_clusters_PD62341)])[1] > 0 & dim(reads[!is.na(seurat_clusters_PD63383)])[1]==0){
     
     reads = ai_counts_dt[(!is.na(seurat_clusters_PD62341) & is.na(seurat_clusters_PD63383)) & mut_ID == mut]
@@ -523,29 +524,33 @@ for (mut in muts_in_scrna){
       is.na(status) & ident %in% tumour_PD62341, 'tumour cells',
       is.na(status) & !ident %in% tumour_PD62341, 'normal cells'))]
     umap_PD62341[, status2 := factor(status2, levels = c('tumour cells', 'normal cells', 'wt read', 'mutant read'))]
-    ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2))+
+    ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
-      scale_color_manual(values = myCols, drop = FALSE)+
+      scale_color_manual(values = myCols)+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+ 
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}'))
+      guides(size = "none")+
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}'), col = 'category')
     ggsave(glue('Figures/F7/20241208_umap_tumour_PD62341only_mutation_{mut}.pdf'), height = 4, width = 4)
     
-    ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2))+
+    ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
-      scale_color_manual(values = myCols, drop = FALSE)+
+      scale_color_manual(values = myCols,  )+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+ 
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment}'))
+      guides(size = "none")+
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment}'), col = 'category')
     ggsave(glue('Figures/F7/20241208_umap_tumour_PD62341only_mutation_{mut}_desc.pdf'), height = 4, width = 4)
 
   }
 
-  # muts in PD63383 tumour only
+  # if reads in PD63383 tumour only
   if (dim(reads[!is.na(seurat_clusters_PD62341)])[1] == 0 & dim(reads[!is.na(seurat_clusters_PD63383)])[1] > 0){
     
     reads = ai_counts_dt[(is.na(seurat_clusters_PD62341) & !is.na(seurat_clusters_PD63383)) & mut_ID == mut]
@@ -565,29 +570,33 @@ for (mut in muts_in_scrna){
       is.na(status) & !ident %in% tumour_PD63383, 'normal cells'))]
     umap_PD63383[, status2 := factor(status2, levels = c('tumour cells', 'normal cells', 'wt read', 'mutant read'))]
     
-    ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2))+
+    ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
-      scale_color_manual(values = myCols, drop = FALSE)+
+      scale_color_manual(values = myCols,  )+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'))
+      guides(size = "none")+
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'), col = 'category')
     ggsave(glue('Figures/F7/20241208_umap_tumour_PD63383only_mutation_{mut}.pdf'), height = 4, width = 4)  
     
-    ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2))+
+    ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
-      scale_color_manual(values = myCols, drop = FALSE)+
+      scale_color_manual(values = myCols,  )+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'))
+      guides(size = "none")+
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'), col = 'category')
     ggsave(glue('Figures/F7/20241208_umap_tumour_PD63383only_mutation_{mut}_desc.pdf'), height = 4, width = 4)  
     
   }
   
-  # reads seen in both PD62341 and PD63383 
+  # if reads in both PD62341 and PD63383 
   if (dim(reads[!is.na(seurat_clusters_PD62341)])[1] > 0 & dim(reads[!is.na(seurat_clusters_PD63383)])[1] > 0){
     
     reads_PD62341 = ai_counts_dt[!is.na(seurat_clusters_PD62341) & mut_ID == mut]
@@ -623,44 +632,53 @@ for (mut in muts_in_scrna){
     umap_PD63383[, status2 := factor(status2, levels = c('tumour cells', 'normal cells', 'wt read', 'mutant read'))]
     
     # plots with no description, nicely formatted name
-    p_PD62341 = ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2))+
+    p_PD62341 = ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
-      scale_color_manual(values = myCols, drop = FALSE)+
-      theme_classic(base_size = 13)+
-      coord_equal(ratio=1)+
-      xlim(c(-20, 20))+
-      ylim(c(-20, 20))+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}'))
-    p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2))+
-      geom_point()+
-      scale_color_manual(values = myCols, drop = FALSE)+
+      scale_color_manual(values = myCols,  )+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+ 
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'))
+      guides(size = "none")+
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}'), col = 'category')
     
-    grid.arrange(p_PD62341, p_PD63383, ncol = 2)
-    ggsave(glue('Figures/F7/20241208_umap_tumour_both_mutation_{mut}_desc.pdf'), height = 4, width = 8)
+    p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
+      geom_point()+
+      scale_color_manual(values = myCols,  )+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+      theme_classic(base_size = 13)+
+      coord_equal(ratio=1)+
+      xlim(c(-20, 20))+
+      ylim(c(-20, 20))+  
+      guides(size = "none")+
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'), col = 'category')
+    
+    plots = grid.arrange(p_PD62341, p_PD63383, ncol = 2)
+    ggsave(glue('Figures/F7/20241208_umap_tumour_both_mutation_{mut}.pdf'), plots, height = 4, width = 8)
     
     # plots with description of the class of the mutation
-    p_PD62341 = ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2))+
+    p_PD62341 = ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
         geom_point()+
-        scale_color_manual(values = myCols, drop = FALSE)+
+        scale_color_manual(values = myCols)+
+        scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
         theme_classic(base_size = 13)+
         coord_equal(ratio=1)+
         xlim(c(-20, 20))+
         ylim(c(-20, 20))+
-        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment}'))
+        guides(size = "none")+
+        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment}'), col = 'category')
     
-    p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2))+
+    p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
         geom_point()+
-        scale_color_manual(values = myCols, drop = FALSE)+
+        scale_color_manual(values = myCols)+
+        scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+  
         theme_classic(base_size = 13)+
         coord_equal(ratio=1)+
         xlim(c(-20, 20))+
         ylim(c(-20, 20))+ 
-        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'))
+        guides(size = "none")+
+        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'), col = 'category')
       
     plots = grid.arrange(p_PD62341, p_PD63383, ncol = 2)
     ggsave(glue('Figures/F7/20241208_umap_tumour_both_mutation_{mut}_desc.pdf'), plots, height = 4, width = 8)  
@@ -669,5 +687,5 @@ for (mut in muts_in_scrna){
 
 }
 
-
-
+###################################################################################################################################
+# ALL DONE!

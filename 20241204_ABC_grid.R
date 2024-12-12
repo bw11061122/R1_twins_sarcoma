@@ -676,7 +676,7 @@ out_sim_5k[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
 head(out_sim_5k)
 write.table(out_sim_5k, 'Out/F5/F5_ABC_out_sim_5k_20241208.txt')
 
-# is there a way I can use the matrix (from the output) to plot myself a tree to see what I think about it?
+# get histograms 
 for (s_value in 2:6){
   
   for (p_value in c(0.3, 0.5, 0.7)){
@@ -699,6 +699,90 @@ for (s_value in 2:6){
     dev.off()
     
   }  
+}
+
+###################################################################################################################################
+# Very useful plot to look at the output
+
+# Add sampling 
+# Take each VAF stored in the column, sample nr reads from Poisson w/ lambda 30, get sampled VAF 
+sim_sequencing = function(vafs, lambda = 30){
+  
+  vafs = vafs %>% strsplit(',') %>% unlist() %>% as.numeric() # create a list of VAF values from the character 
+  
+  if (length(vafs)==0){
+    return(0)
+  }
+  
+  else {
+  vafs_seq = c()
+    for (vaf in vafs){ 
+      depth = rpois(1, lambda) # sample nr of all reads sequenced from Poisson distribution, lambda = 30 
+      mtr = rbinom(1, size = depth, prob = vaf) # sample nr of mutant reads given coverage and true VAF 
+      vaf_seq = mtr / depth # calculate the VAF that would be estimated through sequencing 
+      vafs_seq = c(vafs_seq, vaf_seq)
+    } 
+  nr_muts_seq = length(vafs_seq[vafs_seq > 0.1]) # determine nr of mutations that would be estimated as present (VAF > 0.1)
+  return(vafs_seq)
+  }
+  
+}
+
+out_sim_5k[, vafs_shared_twin1_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_shared_twin1"]
+out_sim_5k[, vafs_shared_twin2_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_shared_twin2"]
+out_sim_5k[, vafs_spec_twin1_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_spec_twin1"]
+out_sim_5k[, vafs_spec_twin2_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_spec_twin2"]
+
+# add how many mutations would be observed 
+out_sim_5k[, nr_shared_twin1_seq := sapply(vafs_shared_twin1_seq, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being misclassified as twin specific due to sampling 
+out_sim_5k[, nr_shared_twin2_seq := sapply(vafs_shared_twin2_seq, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being misclassified as twin specific due to sampling 
+out_sim_5k[, nr_spec_twin1_seq := sapply(vafs_spec_twin1_seq, function(x) length(x[x > 0.1]))]
+out_sim_5k[, nr_spec_twin2_seq := sapply(vafs_spec_twin2_seq, function(x) length(x[x > 0.1]))]
+
+# calculate distance to observed statistics 
+
+# observed statistics 
+nr_shared_observed = 1
+nr_spec_twin1_observed = 6
+nr_spec_twin2_observed = 11
+vafs_shared_twin1_observed = 0.2
+vafs_shared_twin2_observed = 0.5
+vafs_spec_twin1_observed = c(0.48, 0.4, 0.4, 0.4, 0.4, 0.2)
+vafs_spec_twin2_observed = c(0.2, 0.2, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+sum_vafs_spec_twin1_observed = sum(vafs_spec_twin1_observed)
+sum_vafs_spec_twin2_observed = sum(vafs_spec_twin2_observed)
+
+# calculate distance
+out_sim_5k[, nr_shared_twin1_diff := nr_shared_twin1_seq - nr_shared_observed]
+out_sim_5k[, nr_shared_twin2_diff := nr_shared_twin2_seq - nr_shared_observed]
+out_sim_5k[, nr_spec_twin1_diff := nr_spec_twin1_seq - nr_spec_twin1_observed]
+out_sim_5k[, nr_spec_twin2_diff := nr_spec_twin2_seq - nr_spec_twin1_observed]
+
+# distance to 
+get_vaf_diff = function(my_list, sum_observed_vafs) {
+  sim_vafs = sum(my_list) # sum simulated (sequenced) vafs
+  result = sim_vafs - sum_observed_vafs  
+  return(result)
+}
+
+# Apply the function to each row of the data.table
+out_sim_5k[, vaf_shared_twin1_diff := mapply(get_vaf_diff, vafs_shared_twin1_seq, vafs_shared_twin1_observed)]
+out_sim_5k[, vaf_shared_twin2_diff := mapply(get_vaf_diff, vafs_shared_twin2_seq, vafs_shared_twin2_observed)]
+out_sim_5k[, vaf_spec_twin1_diff := mapply(get_vaf_diff, vafs_spec_twin1_seq, sum_vafs_spec_twin1_observed)]
+out_sim_5k[, vaf_spec_twin2_diff := mapply(get_vaf_diff, vafs_spec_twin2_seq, sum_vafs_spec_twin2_observed)]
+
+# plot the distance to observed statistics 
+summary_stats = c('nr_shared_twin1_diff', 'nr_shared_twin2_diff', 'nr_spec_twin1_diff', 'nr_spec_twin2_diff', 
+                  'vaf_shared_twin1_diff', 'vaf_shared_twin2_diff', 'vaf_spec_twin1_diff', 'vaf_spec_twin2_diff')
+
+for (stat in summary_stats){
+  
+  print(ggplot(out_sim_5k, aes(x = s2, y = out_sim_5k[[stat]]))+
+    geom_point()+ 
+    theme_classic(base_size = 13)+
+    labs(x = 'Number of post-ICM divisions', y = glue('difference to observed data {stat}'), title = glue('{stat}'), col = 'category'))
+ # ggsave(glue('Figures/F5/20241208_diff_to_stat_{stat}.pdf'), plots, height = 4, width = 4)  
+
 }
 
 ###################################################################################################################################
