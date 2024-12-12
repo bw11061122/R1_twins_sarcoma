@@ -7,6 +7,8 @@
 
 # INPUT: merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples
 # dataframe created in the script: 20241015_pileup_checks.R (pileup run 14/10/2024-15/10/2024)
+# low quality pileup
+# list of identified indels (to exclude substitutons next to indels)
 
 # OUTPUT:
 # 1 list of mutations which pass required filters and will be used for phylogeny reconstruction

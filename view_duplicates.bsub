@@ -1,0 +1,16 @@
+#!/bin/bash
+#BSUB -o /lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/logs/view_duplicates_PD62341_PD63383_%J.out
+#BSUB -e /lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/logs/view_duplicates_PD62341_PD63383_%J.err
+#BSUB -n 4
+#BSUB -M 500
+#BSUB -R 'select[mem>500] rusage[mem=500]'
+#BSUB -q normal
+#BSUB -G team274-grp
+ 
+SCRIPT_PATH=/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scripts/view_duplicates.sh
+ 
+bash $SCRIPT_PATH
+
+# to run:
+# cd /lustre/scratch126/casm/team274sb/bw18/twins_sarcoma
+# bsub < scripts/view_duplicates.bsub

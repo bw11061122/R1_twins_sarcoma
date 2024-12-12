@@ -1,0 +1,19 @@
+#!/bin/bash
+#BSUB -o /lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/logs/AlleleIntegrator_%J.out
+#BSUB -e /lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/logs/AlleleIntegrator_%J.err
+#BSUB -n 5
+#BSUB -M 40000
+#BSUB -R 'select[mem>40000] rusage[mem=40000]'
+#BSUB -q long
+#BSUB -G team274
+ 
+SCRIPT_PATH=/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scripts/AlleleIntegrator_scRNAgenotyping.r
+ 
+source /software/cellgen/team274/miniconda3/etc/profile.d/conda.sh
+conda activate alleleIntegrator
+ 
+Rscript $SCRIPT_PATH
+
+# to run:
+# cd /lustre/scratch126/casm/team274sb/bw18/twins_sarcoma
+# bsub < scripts/AlleleIntegrator_scRNAgenotyping.bsub
