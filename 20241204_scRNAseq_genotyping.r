@@ -687,5 +687,9 @@ for (mut in muts_in_scrna){
 
 }
 
+# which barcodes are you missing for the chr10;31333522 G>A?
+# one is not there bc high mt content (PD62341)
+# one (PD63383) is not there for VERY UNCLEAR reasons??
+
 ###################################################################################################################################
 # ALL DONE!

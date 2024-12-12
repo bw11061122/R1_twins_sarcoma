@@ -8,8 +8,7 @@
 # INPUT: 
 # 1 merged pileup dataframes with mutation calls (from CaVEMan) for tumour and normal samples
 # 2 list of mutations that passed required filters (255, 08/12/2024)
-# 3 telomere length file for each sample (telomere.cat)
-# 4 lists of twin-specific mutations
+# 3 lists of twin-specific mutations
 
 # OUTPUT:
 # 1 estimates of twin-twin transfusion in spleen samples (fraction of PD62341 and PD63383 cells in each sample)
@@ -59,10 +58,6 @@ twins_filtered_dt = twins_dt[mut_ID %in% muts]
 muts_assignment = fread('Out/F3/F3_muts_classes_255_20241208.csv')
 muts_PD62341_normal = muts_assignment[mut_class=='PD62341_specific_embryonic', mut_ID] %>% unlist()
 muts_PD63383_normal = muts_assignment[mut_class=='PD63383_specific_embryonic', mut_ID] %>% unlist()
-
-# Files with telomere length measurements (from telomerecat command)
-list_tel_files = paste0('Data/', list.files(path = "Data/", pattern = "*_telomere_length.csv"))
-telomere_dt = data.table(do.call(rbind, lapply(list_tel_files, function(x) read.csv(x, stringsAsFactors = FALSE))))
 
 ###################################################################################################################################
 # PLOT SETTINGS
@@ -368,60 +363,6 @@ ggplot(means_PD63383muts, aes(x=PD63383_nonspleen, y=PD62341_spleen))+
   xlim(c(0, 0.3))+
   ylim(c(0, 0.3))
 ggsave(glue('Figures/F4/20241208_spleen_vs_nonspleen_PD63383.pdf'), width=3, height=3)
-
-######################################################################################################
-# Checking telomere length 
-
-# documentation on the telomerecat module: https://telomerecat.readthedocs.io/en/latest/understanding_output.html
-
-# systematize column names
-setnames(telomere_dt, c('Sample'), 'sample')
-telomere_dt[, sample := tstrsplit(sample, '.', fixed = TRUE, keep = 1)]
-telomere_dt[, sample := factor(sample, levels = c(
-  'PD62341ad', 'PD62341aa', 'PD62341h', 'PD62341n', 'PD62341q', 'PD62341v',
-  'PD63383ak', 'PD63383bb', 'PD63383t', 'PD63383ae', 'PD63383u', 'PD63383w',
-  'PD62341ae', 'PD62341ag', 'PD62341aj', 'PD62341ak', 'PD62341am', 'PD62341ap', 'PD62341b', 'PD62341u',
-  'PD63383ap', 'PD63383aq'))] # specify order for plotting of samples such that normal / tumour samples plotted next to each other
-telomere_dt[, twin := factor(fcase(sample %in% samples_PD62341, 'PD62341', sample %in% samples_PD63383, 'PD63383'))]
-telomere_dt[, status := factor(fcase(sample %in% samples_normal, 'normal', sample %in% samples_tumour, 'tumour'))]
-telomere_dt[, sample_type := factor(paste(twin, status, sep = ', '))]
-telomere_dt[, sample_type2 := factor(fcase(status == 'tumour', 'tumour', 
-                                                 status == 'normal' & twin == 'PD62341', 'PD62341 normal',
-                                                 status == 'normal' & twin == 'PD63383', 'PD63383 normal'))]
-telomere_dt[, tissue := factor(fcase(
-  sample %in% c('PD62341ad', 'PD63383ak'), 'cerebellum',
-  sample %in% c('PD62341aa', 'PD63383bb'), 'skin',
-  sample %in% c('PD62341v', 'PD63383w'), 'spleen',
-  sample %in% c('PD62341h', 'PD63383t'), 'liver',
-  sample %in% c('PD62341q', 'PD63383u'), 'pancreas',
-  sample %in% c('PD62341n', 'PD63383ae'), 'heart', 
-  sample %in% samples_tumour, 'tumour'
-))]
-
-# check telomere length across samples 
-# note: if we thought this was more interesting, you should use SD to show this data properly 
-
-# plot values for each sample separately
-ggplot(telomere_dt, aes(x = sample, y = Length, col = sample_type2))+
-  geom_point(size=2.5)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Sample', y = 'Telomere length (bp)', col = 'Sample category')+
-  ggtitle(glue('Telomere lengths across samples'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  ylim(c(0, 9000))
-ggsave(glue('Figures/F4/20241208_telomere_lengths_from0.pdf'), height = 3, width = 6.5)
-
-# compare telomere length between tissues of each twin 
-ggplot(telomere_dt[status=='normal'], aes(x = tissue, y = Length, col = twin))+
-  geom_point(size=3)+
-  theme_classic(base_size = 14)+
-  labs(x = 'Tissue', y = 'Telomere length (bp)', col = 'Twin')+
-  ggtitle(glue('Telomere lengths across normal tissues'))+
-  scale_color_manual(values = c(col_PD62341, col_PD63383))+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  ylim(c(0, 9000))
-ggsave(glue('Figures/F4/20241208_telomere_lengths_by_tissue_from0.pdf'), height = 3, width = 6.5)
 
 ######################################################################################################
 # Check if there are any possible driver mutations of clonal hem in the set of normal mutations which could affect uneven transfusion b/n twins?
