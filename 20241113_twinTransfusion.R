@@ -335,7 +335,7 @@ means_PD62341muts[, PD63383_spleen_fPD62341 := PD63383_spleen / PD62341_nonsplee
 
 ggplot(means_PD62341muts, aes(x=PD62341_nonspleen, y=PD62341_spleen))+
   geom_point(size=2.5, color = col_PD62341)+ 
-  theme_classic(base_size = 10)+
+  theme_classic(base_size = 12)+
   labs(x = 'VAF PD62341 (non-spleen)', y = 'VAF PD62341 (spleen)')+
   ggtitle(glue('PD62341-specific mutations'))+
   coord_equal(ratio = 1)+
@@ -356,7 +356,7 @@ means_PD63383muts[, PD63383_spleen_fPD63383 := PD63383_spleen / PD63383_nonsplee
 
 ggplot(means_PD63383muts, aes(x=PD63383_nonspleen, y=PD62341_spleen))+
   geom_point(size=2.5, color = col_PD63383)+ 
-  theme_classic(base_size = 10)+
+  theme_classic(base_size = 12)+
   labs(x = 'VAF PD63383 (non-spleen)', y = 'VAF PD62341 (spleen)')+
   ggtitle(glue('PD63383-specific mutations'))+
   coord_equal(ratio = 1)+

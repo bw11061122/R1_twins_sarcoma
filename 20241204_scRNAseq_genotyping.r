@@ -66,10 +66,12 @@ samples_scRNAseq = c('NB13652544', 'NB13652545', 'NB13652546',
 
 ai_counts_dt = data.table()
 for (sample in samples_scRNAseq){
-  ai_counts = fread(paste0('scRNAseq/Data/', sample, '_somaticVar_scRNA_alleleCounts.tsv'), sep='\t', fill = TRUE, header=TRUE)
+  ai_counts = fread(paste0('Data/', sample, '_somaticVar_scRNA_alleleCounts.tsv'), sep='\t', fill = TRUE, header=TRUE)
   ai_counts[, sample_ID := sample]
   ai_counts_dt = rbind(ai_counts_dt, ai_counts)
 }
+
+aiissue = fread('Data/NB13760629_somaticVar_scRNA_alleleCounts.tsv', sep = '\t')
 
 # load Seurat object with UMAP-based clustering 
 tumour_PD62341_clusters = readRDS(file = "Out/F6/F6_tPD62341.agg.rds")
@@ -686,10 +688,6 @@ for (mut in muts_in_scrna){
   }
 
 }
-
-# which barcodes are you missing for the chr10;31333522 G>A?
-# one is not there bc high mt content (PD62341)
-# one (PD63383) is not there for VERY UNCLEAR reasons??
 
 ###################################################################################################################################
 # ALL DONE!
