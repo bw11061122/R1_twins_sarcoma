@@ -365,6 +365,51 @@ ggplot(means_PD63383muts, aes(x=PD63383_nonspleen, y=PD62341_spleen))+
 ggsave(glue('Figures/F4/20241208_spleen_vs_nonspleen_PD63383.pdf'), width=3, height=3)
 
 ######################################################################################################
+# plot estimates of fraction of cells from the other twin in PD62341 spleen and PD63383 spleen
+
+# add estimate of the other cell fraction
+means_PD62341muts[, PD62341_spleen_fPD63383 := 1 - PD62341_spleen_fPD62341]
+means_PD62341muts[, PD63383_spleen_fPD63383 := 1 - PD63383_spleen_fPD62341]
+
+means_PD63383muts[, PD62341_spleen_fPD62341 := 1 - PD62341_spleen_fPD63383]
+means_PD63383muts[, PD63383_spleen_fPD62341 := 1 - PD63383_spleen_fPD63383]
+
+means_PD62341_agg = apply(means_PD62341muts[,6:9], 2, mean)
+means_PD63383_agg = apply(means_PD63383muts[,6:9], 2, mean)
+means_PD62341_agg = data.table(param = names(means_PD62341_agg), value = as.numeric(means_PD62341_agg))
+means_PD63383_agg = data.table(param = names(means_PD63383_agg), value = as.numeric(means_PD63383_agg))
+means_PD62341_agg[, est := 'PD62341_muts']
+means_PD63383_agg[, est := 'PD63383_muts']
+
+means_agg = rbind(means_PD62341_agg, means_PD63383_agg)
+
+# convert to wide format and calculate mean for each parameter
+means_agg_dt = dcast(means_agg, est ~ param, value.var = "value")
+means_agg_dt_means = apply(means_agg_dt[,2:5], 2, mean)
+
+# now can show the composition of each sample on a barchart
+means_agg_finalEst = data.table(param = names(means_agg_dt_means), value = as.numeric(means_agg_dt_means))
+means_agg_finalEst[, sample := tstrsplit(param, '_', fixed = TRUE, keep = 1)]
+means_agg_finalEst[, composition := tstrsplit(param, '_', fixed = TRUE, keep = 3)]
+
+means_agg_finalEst[, sample := factor(fcase(
+  sample == 'PD62341', 'PD62341\nspleen',
+  sample == 'PD63383', 'PD63383\nspleen'
+))]
+means_agg_finalEst[, composition := factor(fcase(
+  composition == 'fPD62341', 'PD62341 cells',
+  composition == 'fPD63383', 'PD63383 cells'
+))]
+
+ggplot(means_agg_finalEst, aes(x=sample, y=value, fill=composition))+
+  geom_bar(stat = 'identity')+
+  theme_classic(base_size=14)+
+  scale_fill_manual(values = c(col_PD62341, col_PD63383))+
+  labs(x = 'Sample', y = glue('Cell fraction'), col = 'Cell origin')+
+  ggtitle(glue('Estimates of fraction of cells from the other twin in spleen samples'))
+ggsave(glue('Figures/F4/20241208_twin_cell_transfer_est.pdf'), width=5, height=4)
+
+######################################################################################################
 # Check if there are any possible driver mutations of clonal hem in the set of normal mutations which could affect uneven transfusion b/n twins?
 # NB those would have to be twins-specific and present in blood cells; very unlikely 
 
@@ -377,6 +422,7 @@ CH_genes = c('ZBTB33', 'ZNF318', 'ZNF234', 'SPRED2', 'SH2B3', 'SRCAP', 'SIK3', '
 paste("Number of possible CH-genes with mutations:", length(twins_dt[Gene %in% CH_genes & Effect != 'intronic', Gene] %>% unlist() %>% unique()))
 twins_dt_filters[Gene %in% CH_genes & Effect != 'intronic' & f7_likelyGermline_bothTwins==0, c('mut_ID', 'Gene', 'sum_req_filters'), with=FALSE] 
 # none of those pass the QC, so likely artefacts; the rest of those mutations are likely germline
+# therefore, we conclude that some form of CH is highly unlikely to explain the directional transfer of blood cells
 
 ######################################################################################################
 # ALL DONE 

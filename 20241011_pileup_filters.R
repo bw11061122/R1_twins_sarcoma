@@ -337,7 +337,7 @@ dim(twins_dt[f6_lowQualRatio==1])[1] # 14,368
 dim(twins_dt[f7_likelyGermline_bothTwins==1])[1] # 352,219
 
 ######################################################################################################
-# FILTER OUT MUTATIONS THAT DO NOT PASS FILTERS 
+# FILTER OUT MUTATIONS THAT DO NOT PASS QC / GERMLINE FILTERS 
 
 # Specify required filters 
 columns_req_filters = c('f1_mappedY', 'f2_FailedIndelNearby30', 'f3_lowDepthNormal', 'f3_highDepthNormal', 
@@ -420,7 +420,7 @@ dev.off()
 twins_dt[, mut_cat := factor(fcase(
   f7_likelyGermline_bothTwins == 1, 'germline', # 351,943
   mut_ID %in% muts_included == 1 & !mut_ID %in% muts_normal_all, 'included, other', # 452
-  mut_ID %in% muts_included == 1 & mut_ID %in% muts_normal_all, 'included, likely germline' # mutations that could be germline # 617
+  mut_ID %in% muts_included == 1 & mut_ID %in% muts_normal_all, 'included, in all normal samples' # mutations that could be germline # 617
 ))]
 
 # there are ~333k germline mutations: to avoid over-plotting, sample 5k germline mutations 
@@ -481,22 +481,22 @@ paste('Number of mutations with unusual coverage compared to the chromosome (to 
 twins_dt[, mut_cat2 := factor(fcase(
   mut_ID %in% muts_normal_all, 'included, present in all samples',
   !mut_ID %in% muts_normal_all, 'all other mutations'))]
-
 # specify plotting colors 
-my_colors = c(col_background, col_normal)
-names(my_colors) = levels(twins_dt[, mut_cat2])
+my_colors = c('all other mutations' = col_background, 'included, present in all samples' = col_normal)
+my_alpha = c('all other mutations' = 0.1, 'included, present in all samples' = 1)
 
 # plot distribution of coverage across all chromosomes 
 for (chr in Chrom){
   dt = twins_dt[mut_ID %in% muts_passed_qc & Chrom == chr]
   length = as.numeric(dt[,Chrom_length] %>% unique()) 
   nr = dim(dt)[1]
-  ggplot(dt, aes(x = pos, y = dep_all_normal, col = mut_cat2, alpha = mut_cat2, order = mut_cat2))+
+  dt <- dt[order(mut_cat2 == "all other mutations", decreasing = TRUE)]
+  ggplot(dt, aes(x = pos, y = dep_all_normal, col = mut_cat2, alpha = mut_cat2))+
     geom_point(size=1.5)+
     guides(alpha = "none")+ # remove legend for alpha 
     theme_classic(base_size = 15)+
-    scale_color_manual(values = c(my_colors))+
-    scale_alpha_discrete(range = c(0.1, 0.8))+
+    scale_color_manual(values = my_colors)+
+    scale_alpha_discrete(range = my_alpha)+
     labs(x = 'Genomic position', y = 'Coverage (normal samples)', col = 'Mutation class')+
     ggtitle(glue('{chr}'))+
     xlim(c(0, length))+
@@ -511,7 +511,7 @@ for (chr in Chrom){
 
 # Show mutations excluded by filtering 
 twins_dt[, mut_cat3 := factor(fcase(
-  f8_excludeCovThreshold == 1, 'all normal samples, likely germline',
+  f8_excludeCovThreshold == 1, 'all normal samples, excluded',
   mut_ID %in% muts_normal_all & f8_excludeCovThreshold == 0, 'all normal samples, retained',
   !mut_ID %in% muts_normal_all & f7_likelyGermline_bothTwins == 0, 'other', 
   f7_likelyGermline_bothTwins == 1, 'germline'
@@ -521,8 +521,8 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   geom_point(size=1.5, alpha = 0.5)+
   theme_classic(base_size = 12)+
   labs(x = 'Coverage (normal samples)', y = 'VAF (normal samples)', col = 'Mutation category')+
-  ggtitle(glue('VAF vs coverage: mutations in all normal samples (617)\nexcluded by coverage'))+
-  scale_color_manual(values = c(col_normal_all_removed, col_normal_all, col_germline, col_other))+
+  ggtitle(glue('VAF vs coverage: mutations excluded by coverage'))+
+  scale_color_manual(values = c(col_normal_all_removed, col_other, col_germline, col_normal_all))+
   ylim(c(0, 0.75))+
   guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   xlim(c(0, 900))
@@ -580,19 +580,18 @@ twins_dt[, f9_germlineCN := as.numeric(mut_ID %in% muts_exclude)]
 paste('Number of mutations which are likely germline on CN regions, to exclude:', length(muts_exclude)) # 527
 
 twins_dt[, mut_cat4 := factor(fcase(
-  (mut_ID %in% muts_exclude) & mut_ID %in% muts_included, 'present in all normal samples (excluded)',
-  (!mut_ID %in% muts_exclude & mut_ID %in% muts_normal_all), 'present in all normal samples (retained)',
-  (!mut_ID %in% muts_exclude & !mut_ID %in% muts_normal_all) & mut_ID %in% muts_included, 'other mutations (retained)',
-  mut_ID %in% muts_germline, 'germline', 
-  !mut_ID %in% muts_germline & !mut_ID %in% muts_included, 'other'
+  (mut_ID %in% muts_exclude) & mut_ID %in% muts_included, 'all normal samples, excluded',
+  (!mut_ID %in% muts_exclude & mut_ID %in% muts_normal_all), 'all normal samples, retained',
+  (!mut_ID %in% muts_exclude & !mut_ID %in% muts_normal_all) & mut_ID %in% muts_included, 'other',
+  mut_ID %in% muts_germline, 'germline'
 ))]
 
 ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep_all_normal, y = vaf_all_normal, col = mut_cat4))+
   geom_point(size=1.5, alpha = 0.5)+
   theme_classic(base_size = 12)+
   labs(x = 'Coverage (normal samples)', y = 'VAF (normal samples)', col = 'Mutation category')+
-  ggtitle(glue('VAF vs coverage: mutations in all normal samples (617)\nexclude by coverage or clustering'))+
-  scale_color_manual(values = c(col_germline, col_other, col_normal_all_removed, col_normal_all))+
+  ggtitle(glue('VAF vs coverage: mutations excluded by coverage or clustering'))+
+  scale_color_manual(values = c(col_normal_all_removed, col_other, col_germline, col_normal_all))+
   guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))+
   xlim(c(0, 900))
@@ -608,10 +607,10 @@ ggplot(twins_dt_filtered, aes(x = dep_all_normal, y = log10(min_diff), colour = 
   geom_point(alpha= 0.6)+
   theme_classic(base_size = 13)+
   labs(x = 'coverage (Aggregated normal samples)', y = 'log10(distance to nearest mutation)', colour = 'Mutation category')+
-  ggtitle('cov vs distance to nearest mutation; 1069 included mutations')+
+  ggtitle('1069 mutations')+
   guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   scale_color_manual(values = c(col_normal_all_removed, col_other))
-ggsave('Figures/F1/20241208_covVslogDistance_covClustersExcluded.pdf', height = 4, width = 4)
+ggsave('Figures/F1/20241208_covVslogDistance_covClustersExcluded.pdf', height = 4, width = 6)
 
 # update required filters and create a new mutation set (after filtering likely germline CN)
 columns_req_filters2 = c('f1_mappedY', 'f2_FailedIndelNearby30', 'f3_lowDepthNormal', 'f3_highDepthNormal', 
@@ -646,6 +645,9 @@ paste('Number of mutations that passed QC, to use for final phylogeny:', length(
 
 # Save final list of mutations to a txt file
 write.table(muts_final, 'Out/F1/F1_mutations_final_20241208_255.txt', col.names = F, row.names = F, quote = F)
+
+# Add column to indicate which mutations passed QC
+twins_dt[, f10_manualQC := as.numeric(!mut_ID %in% muts_final)]
 
 ######################################################################################################
 # PLOT DISTIRBUTON OF MUTATION CLASSES AFTER FILTERING 
@@ -854,7 +856,8 @@ ggsave('Figures/F1/20241208_mut_trins_finalSet255.pdf', width = 8, height = 2.5)
 # Create a series of plots that show what happens when you progressively apply different filters
 # filters in the order of which removes the most mutations first 
 filters = c('f7_likelyGermline_bothTwins', 'f6_lowQualRatio', 'f2_FailedIndelNearby30',
-            'f4_mtrAndVaf', 'f3_lowDepthNormal', 'f5_strandBias', 'f3_highDepthNormal', 'f1_mappedY')
+            'f4_mtrAndVaf', 'f3_lowDepthNormal', 'f5_strandBias', 'f3_highDepthNormal', 'f1_mappedY', 
+            'f9_germlineCN', 'f10_manualQC')
 
 # show mutations RETAINED after a given filter is applied
 for (f in filters){
@@ -931,9 +934,13 @@ for (i in seq_along(filters)){
 }
 
 # show mutations EXCLUDED after each filter is applied  
+filters = c('f7_likelyGermline_bothTwins', 'f6_lowQualRatio', 'f2_FailedIndelNearby30',
+            'f4_mtrAndVaf', 'f3_lowDepthNormal', 'f5_strandBias', 'f3_highDepthNormal',
+            'f9_germlineCN', 'f10_manualQC')
+
 for (i in seq_along(filters)){
   
-  if (i > 1 & i < 8){
+  if (i > 1){
     
     previous_filters = filters[1:(i-1)]
     current_filter=filters[i]

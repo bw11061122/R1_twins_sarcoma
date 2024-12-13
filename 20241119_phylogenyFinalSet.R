@@ -361,10 +361,9 @@ setdiff(muts, muts_assigned)
 # "chr3_195014637_A_G" "chr4_15905566_C_T"  "chr5_44907911_G_A"  "chr8_137568368_T_A"
 muts_tumour = c(muts_tumour, 'chr5_44907911_G_A', 'chr8_137568368_T_A') 
 # not assigned to tumour because also present in PD62341q (VAF = 0.11-0.12); however absent from n, v, ad therefore likely due to tumour infiltration, especially that VAF in some tumour samples is ~0.5
-
-muts_PD63383_normal = c(muts_PD63383_normal, 'chr4_15905566_C_T', 'chr3_195014637_A_G') # present in some PD63383 samples and PD62341v
+muts_PD63383_normal = c(muts_PD63383_normal, 'chr4_15905566_C_T') # present in some PD63383 samples and PD62341v
 # chr4_15905566_C_T looks very likely to be PD63383-specific
-# chr3_195014637_A_G could be shared or PD63383 specific, I need to double check with Henry (it looks like it has too high VAF to not be shared with PD62341, even excluding PD62341v)
+# chr3_195014637_A_G I am not sure if this is real and how I would interpret it, need to double check with Henry (it looks like it has too high VAF to not be shared with PD62341, even excluding PD62341v)
 
 # Create and save a dataframe with all mut IDs used to reconstruct phylogeny (255) and assignment to the group
 muts_classes = data.table(muts)
@@ -574,6 +573,16 @@ ggsave('Figures/F3/20241208_earlyPhylo_aggvaf_withCI_mutsPD63383.pdf', height = 
 # order by VAF (in PD62341)
 agg_vaf_dt[, mut_ID := factor(mut_ID, levels = {
   agg_vaf_dt[twin=='PD62341', .(mean_col = mean(vaf)), by = mut_ID][order(mean_col), mut_ID]})]
+
+ggplot(agg_vaf_dt[mut_ID %in% muts_all_normal], aes(x = vaf, y = mut_ID, color = twin, group = twin))+
+  geom_point(size = 2) + 
+  theme_classic(base_size = 12)+
+  labs(x = 'VAF', y = 'Mutation', col = 'Twin')+
+  ggtitle(glue('Mutation present in both twins'))+
+  scale_color_manual(values = c(col_PD62341, col_PD63383))+
+  xlim(c(0, 0.8))+
+  geom_errorbar(aes(xmin = lowerCI, xmax = upperCI, width = 0))
+ggsave('Figures/F3/20241208_earlyPhylo_aggvaf_withCI_mutsshared_aggCI.pdf', height = 1.5, width = 5)
 
 ggplot(agg_vaf_dt[mut_ID %in% muts_PD62341_normal], aes(x = vaf, y = mut_ID, color = twin, group = twin))+
   geom_point(size = 2) + 
@@ -843,6 +852,19 @@ pheatmap(mut_eet,
          fontsize=10, cexCol=2) 
 dev.off()
 
+pdf('Figures/F3/20241208_heatmap_muts_earlyDev_withTumour_noRownames.pdf')
+pheatmap(mut_eet,
+         cellwidth=10, cellheight=10,
+         annotation_col = col_annotation_tumour,
+         annotation_colors = annotation_colors_tumour,
+         main="Early embryonic mutations", 
+         legend = T, 
+         treeheight_row = 0,
+         cluster_rows = F, cluster_cols = F, 
+         show_rownames = F, show_colnames = T,
+         fontsize=10, cexCol=2) 
+dev.off()
+
 # Show VAF across aggregated samples, adding tumour samples 
 agg_vaf_dt_PD62341 = twins_filtered_dt[, c('mut_ID', 'agg_normal_PD62341_clean_vaf', 'agg_normal_PD62341_clean_vafLowerCI', 'agg_normal_PD62341_clean_vafUpperCI'), with=FALSE]
 agg_vaf_dt_PD62341[,twin := 'PD62341']
@@ -913,6 +935,15 @@ agg_vaf_dt_tumour2[, sample_type := factor(fcase(
 agg_vaf_dt_tumour2[, mut_ID := factor(mut_ID, levels = {
   agg_vaf_dt[, .(mean_col = mean(vaf)), by = mut_ID][order(mean_col), mut_ID]})]
 
+ggplot(agg_vaf_dt_tumour2[mut_ID %in% muts_all_normal], aes(x = vaf, y = mut_ID, color = sample_type, group = sample_type))+
+  geom_point(size = 2) + 
+  theme_classic(base_size = 12)+
+  labs(x = 'VAF', y = 'Mutation', col = 'Sample')+
+  scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
+  xlim(c(0, 0.8))+
+  geom_errorbar(aes(xmin = lowerCI, xmax = upperCI, width = 0))
+ggsave('Figures/F3/20241208_aggvaf_withCI_earlyMutsShared_withTumourAgg.pdf', height = 1.5, width = 5.5)
+
 ggplot(agg_vaf_dt_tumour2[mut_ID %in% muts_PD62341_normal], aes(x = vaf, y = mut_ID, color = sample_type, group = sample_type))+
   geom_point(size = 2) + 
   theme_classic(base_size = 12)+
@@ -921,7 +952,7 @@ ggplot(agg_vaf_dt_tumour2[mut_ID %in% muts_PD62341_normal], aes(x = vaf, y = mut
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
   xlim(c(0, 0.8))+
   geom_errorbar(aes(xmin = lowerCI, xmax = upperCI, width = 0))
-ggsave('Figures/F3/20241208_aggvaf_withCI_earlyMutsPD62341_withTumourAgg.pdf', height = 2.5, width = 5)
+ggsave('Figures/F3/20241208_aggvaf_withCI_earlyMutsPD62341_withTumourAgg.pdf', height = 2.5, width = 5.5)
 
 ggplot(agg_vaf_dt_tumour2[mut_ID %in% muts_PD63383_normal], aes(x = vaf, y = mut_ID, color = sample_type, group = sample_type))+
   geom_point(size = 2) + 
@@ -931,7 +962,7 @@ ggplot(agg_vaf_dt_tumour2[mut_ID %in% muts_PD63383_normal], aes(x = vaf, y = mut
   scale_color_manual(values = c(col_PD62341, col_PD63383, col_tumour))+
   xlim(c(0, 0.8))+
   geom_errorbar(aes(xmin = lowerCI, xmax = upperCI, width = 0))
-ggsave('Figures/F3/20241208_aggvaf_withCI_earlyMutsPD63383_withTumourAgg.pdf', height = 3.5, width = 5)
+ggsave('Figures/F3/20241208_aggvaf_withCI_earlyMutsPD63383_withTumourAgg.pdf', height = 3.5, width = 5.5)
 
 # show the presence of early mutations in each sample, now including the tumour samples from both twins
 twins_vaf_melt = data.table::melt(twins_filtered_dt[, c('mut_ID', samples_vaf), with=FALSE], id.vars = 'mut_ID')

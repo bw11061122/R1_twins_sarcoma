@@ -328,11 +328,11 @@ ggplot(median_VAFs_melt, aes(x=sample2, y=value, fill=composition))+
   geom_bar(stat = 'identity')+
   theme_classic(base_size=14)+
   scale_fill_manual(values = c(col_normal, col_tumour))+
-  facet_wrap(~status, scales = 'free', nrow=2)+
+  facet_wrap(~status, scales = 'free', nrow=1)+
   labs(x = 'Sample', y = glue('Cell fraction'), col = 'Cell type')+
   ggtitle(glue('Estimates of tumour and normal cell fraction for each sample'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Figures/F2/20241208_tumour_normal_content_est_26muts.pdf'), width=8, height=8)
+ggsave(glue('Figures/F2/20241208_tumour_normal_content_est_26muts.pdf'), width=12, height=4)
 
 ######################################################################################################
 # OUTPUT 1: SAVE TABLES WITH ESTIMATES OF NORMAL + TUMOUR CELL FRACTION AND PURITY

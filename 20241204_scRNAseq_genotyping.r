@@ -72,8 +72,8 @@ for (sample in samples_scRNAseq){
 }
 
 # load Seurat object with UMAP-based clustering 
-tumour_PD62341_clusters = readRDS(file = "Out/F6/tPD62341.agg.rds")
-tumour_PD63383_clusters = readRDS(file = "Out/F6/tPD63383.agg.rds")
+tumour_PD62341_clusters = readRDS(file = "Out/F6/F6_tPD62341.agg.rds")
+tumour_PD63383_clusters = readRDS(file = "Out/F6/F6_tPD63383.agg.rds")
 
 # load list of final mutations used for the phylogeny
 muts_assignment = fread('Out/F3/F3_muts_classes_255_20241208.csv', sep = ',', header = TRUE)
