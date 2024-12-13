@@ -50,19 +50,19 @@ setwd('/Users/bw18/Desktop/1SB')
 
 # Read the input data 
 # PD62341 tumour 
-tumourPD62341.1 = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB13652544/filtered_feature_bc_matrix/") # lane 1
-tumourPD62341.2 = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB13652545/filtered_feature_bc_matrix/") # lane 2
-tumourPD62341.3 = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB13652546/filtered_feature_bc_matrix/") # lane 3
+tumourPD62341.1 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13652544/filtered_feature_bc_matrix/") # lane 1
+tumourPD62341.2 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13652545/filtered_feature_bc_matrix/") # lane 2
+tumourPD62341.3 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13652546/filtered_feature_bc_matrix/") # lane 3
 
 # PD63383 tumour 
-tumourPD63383.1 = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB13760628/filtered_feature_bc_matrix/") # lane 1
-tumourPD63383.2 = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB13760629/filtered_feature_bc_matrix/") # lane 2
-tumourPD63383.3 = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB13760630/filtered_feature_bc_matrix/") # lane 3
+tumourPD63383.1 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13760628/filtered_feature_bc_matrix/") # lane 1
+tumourPD63383.2 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13760629/filtered_feature_bc_matrix/") # lane 2
+tumourPD63383.3 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13760630/filtered_feature_bc_matrix/") # lane 3
 
 # PD62341 tumour (frozen, nuclear)
-tumourPD63383.1n = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB14599068/filtered_feature_bc_matrix/") # lane 1
-tumourPD63383.2n = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB14599069/filtered_feature_bc_matrix/") # lane 2
-tumourPD63383.3n = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB14599070/filtered_feature_bc_matrix/") # lane 3
+tumourPD63383.1n = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB14599068/filtered_feature_bc_matrix/") # lane 1
+tumourPD63383.2n = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB14599069/filtered_feature_bc_matrix/") # lane 2
+tumourPD63383.3n = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB14599070/filtered_feature_bc_matrix/") # lane 3
 
 # Genes that can be excluded from clustering (e.g., ribosomal genes)
 # List of genes from Matthew Young (github scRNAseq kidney paper https://github.com/constantAmateur/scKidneyTumors)

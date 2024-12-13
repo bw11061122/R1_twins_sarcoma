@@ -8,7 +8,7 @@
 # INPUT: 
 # 1 .tsv dataframes generated from alleleIntegrator
 # allele integrator ran 04/12/2024; jobID 664854
-# downloaded files from the farm via rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scRNA_genotyping/output/" /Users/bw18/Desktop/1SB/scRNAseq/Data/
+# downloaded files from the farm via rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/scRNA_genotyping/output/" /Users/bw18/Desktop/1SB/Data/scRNAseq/
 # 2 data frame with final 255 mutations (ID + assignment to informative group on the phylogeny)
 # 3 Seurat object with clusters (generated from tumour from either twin separately)
 
@@ -19,6 +19,7 @@
 # LIBRARIES 
 
 # Load needed libraries
+library(Seurat)
 library(data.table)
 library(dplyr)
 library(ggplot2)
@@ -66,12 +67,12 @@ samples_scRNAseq = c('NB13652544', 'NB13652545', 'NB13652546',
 
 ai_counts_dt = data.table()
 for (sample in samples_scRNAseq){
-  ai_counts = fread(paste0('Data/', sample, '_somaticVar_scRNA_alleleCounts.tsv'), sep='\t', fill = TRUE, header=TRUE)
+  ai_counts = fread(paste0('Data/scRNAseq/', sample, '_somaticVar_scRNA_alleleCounts.tsv'), sep='\t', fill = TRUE, header=TRUE)
   ai_counts[, sample_ID := sample]
   ai_counts_dt = rbind(ai_counts_dt, ai_counts)
 }
 
-aiissue = fread('Data/NB13760629_somaticVar_scRNA_alleleCounts.tsv', sep = '\t')
+aiissue = fread('Data/scRNAseq/NB13760629_somaticVar_scRNA_alleleCounts.tsv', sep = '\t')
 
 # load Seurat object with UMAP-based clustering 
 tumour_PD62341_clusters = readRDS(file = "Out/F6/F6_tPD62341.agg.rds")
@@ -377,7 +378,7 @@ ai_counts_dt$seurat_clusters_PD63383 = meta_PD63383$seurat_clusters[match(ai_cou
 
 # EXAMPLE
 # ATCCGAATCCAGTAGT-CG_SB_NB13652545 is the first barcode not assigned to either PD62341 / PD63383 clusters 
-tumourPD62341.2 = Read10X(data.dir = "scRNAseq/Data/CG_SB_NB13652545/filtered_feature_bc_matrix/") # lane 2
+tumourPD62341.2 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13652545/filtered_feature_bc_matrix/") # lane 2
 tPD62341.2 = CreateSeuratObject(counts = tumourPD62341.2, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
 tPD62341.2@meta.data$CellID = rownames(tPD62341.2@meta.data) 
 "ATCCGAATCCAGTAGT-1" %in% tPD62341.2@meta.data$CellID # FALSE 

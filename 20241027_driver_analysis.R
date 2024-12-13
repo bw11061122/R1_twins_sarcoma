@@ -36,7 +36,7 @@ twins_PDv38is = grep("PDv38is", names(twins_dt), value = TRUE)
 twins_dt[, c(twins_PDv38is) := NULL]
 
 # Import list of driver genes (from Henry Lee-Six, 12/11/2024)
-driver_genes_dt = fread('Data/HLS_fibromatoses_driver_list_with_fusions.csv', header=T)
+driver_genes_dt = fread('Data/Drivers/HLS_fibromatoses_driver_list_with_fusions.csv', header=T)
 driver_genes = driver_genes_dt[, gene] %>% unlist()
 
 # Genes identified through my google / literature search (as associated with sarcomas)
@@ -60,8 +60,8 @@ paste('Number of likely germline mutations:', length(muts_germline)) # 332,974
 twins_dt_indels = fread('Data/3434_indels_20241112.txt', sep = '\t') # import dataset with indels 
 # to see how this file was generated, search README.txt under the data 12/11/2024
 
-# Import rearrangement calls (see README.txt for the data location on the farm and file transfer script) 
-rearrangements = list.files("Data", full.names = TRUE, pattern = "removed_header.bedpe")
+# Import rearrangement calls from BRASS (see README.txt for the data location on the farm and file transfer script) 
+rearrangements = list.files("Data/Brass/", full.names = TRUE, pattern = "removed_header.bedpe")
 rearr_calls = rbindlist(lapply(rearrangements, fread), fill = TRUE)
 
 # Subset the SNV dt to only include mutations that passed basic QC
