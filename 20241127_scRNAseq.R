@@ -13,20 +13,6 @@
 # 1 basic scRNA-seq analysis (QC + clustering) 
 
 ###################################################################################################################################
-# QUESTIONS AND THOUGHTS 
-
-# There are three files as each was sequenced on a different lane
-# How do I aggregate samples from each lanes? # should I somehow merge the counts? 
-# Based on GitHub here: https://github.com/satijalab/seurat/discussions/4197, you can but you would need to go back to fastq - you cannot do this on the matrix data
-# An alternative (which they seem to be against here?) is to use Seurat integrate 
-# Seurat v5 enables integration via IntegrateLayers function - is this appropriate to use in this case?
-
-# Do I check whether there are differences between runs (lanes)? > likely yes 
-# I imagine this could be done by checking if samples from different runs cluster on a PCA etc.
-
-# Should I exclude cells with too many counts (UMIs) or features? e.g., possible doublets?
-
-###################################################################################################################################
 # LIBRARIES
 library(Seurat)
 library(ggplot2)
@@ -239,9 +225,9 @@ DimPlot(tPD62341.1_filtered, reduction = "pca", label = TRUE, group.by = 'Phase'
 dev.off() # kind of separate but not very clear? not sure if I should do anything about this 
 
 ###################################################################################################################################
-# BASIC QC, PREPROCESSING, CLUSTERING - FOR EACH SAMPLE SEPARATELY 
+# BASIC QC, PREPROCESSING, CLUSTERING - FUNCTION  
 
-# Create a function that takes the Seurat Object and carries out basic pre-processing, clustering etc.
+# Create a function that takes the Read10X() output and allows to perform basic QC and preprocessing
 sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, count_threshold, n_pcs, resolution, min_dist, nn){
   
   # Required arguments
@@ -249,28 +235,33 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
   # sample_name = name of the sample to be used in plots etc.
   # mt_threshold = % of mt reads above which a cell is excluded
   # feature_threshold = min nr of features (genes) identified in a cell
-  # count_threshold = min nr of counts (molecules) identified in a cell
+  # count_threshold = min nr of counts (molecules / UMIs) identified in a cell
+  # n_pcs = number of PCs to be used for clustering
+  # resolution = resolution to be used for clustering
+  # min_dist = minimum distance (for UMAP)
+  # nn = number of neighbours (for UMAP)
   
   # Initialize Seurat objects with the raw (non-normalized data)
   # Optional settings when reading in the file: 
   # min.cells = Include features detected in at least this many cells
   # min.features = Include cells where at least this many features are detected
   
-  # read the data into the Seurat object 
+  # create Seurat object  
   seurat = CreateSeuratObject(counts = data, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
   
   # calculate the percentage mt content 
   seurat[["percent.mt"]] = PercentageFeatureSet(seurat, pattern = "^MT-")
   
+  # add CellID to the metadata 
+  seurat@meta.data$CellID = rownames(seurat@meta.data) # add the cellID to the metadata
+  meta = seurat@meta.data # create a dt with all the metadata of interest, including cell ID 
+  
+  # QC plots: mt content, nr of counts, nr of features 
   # plot the distribution of the mt content in each sample 
   pdf(glue('Figures/F6/20241208_1_hist_mt_content_{sample_name}.pdf'), height = 4.5, width = 4.5)
   hist(seurat[["percent.mt"]] %>% unlist(), xlab = '% mt content', main = glue('{sample_name}'), breaks = 100)
   abline(v = mt_threshold, col = 'red', lwd = 2.5)   
   dev.off()
-  
-  # add CellID to the metadata 
-  seurat@meta.data$CellID = rownames(seurat@meta.data) # add the cellID to the metadata
-  meta = seurat@meta.data # create a dt with all the metadata of interest, including cell ID 
   
   # nCountRNA is the total number of molecules detected in each cell 
   pdf(glue('Figures/F6/20241208_1_hist_nCountRNA_{sample_name}.pdf'), height = 4, width = 8)
@@ -278,7 +269,7 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
   par(mfrow=c(1,2))
   hist(ncounts_rna[ncounts_rna < 2500], xlab = 'nCountRNA', main = sample_name, breaks = 100)
   hist(ncounts_rna, xlab = 'nCountRNA', main = sample_name, breaks = 100)
-  dev.off() # 1000 sounds reasonable based on the hist 
+  dev.off() 
   
   # nFeatureRNA is the number of genes detected in each cell 
   pdf(glue('Figures/F6/20241208_1_hist_nFeatureRNA_{sample_name}.pdf'), height = 4, width = 8)
@@ -286,12 +277,12 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
   par(mfrow=c(1,2))
   hist(nfeatures_rna[nfeatures_rna < 2000], xlab = 'nFeatureRNA', main = sample_name, breaks = 100)
   hist(nfeatures_rna, xlab = 'nFeatureRNA', main = sample_name, breaks = 100)
-  dev.off() # 300 sounds reasonable based on the hist 
+  dev.off()
 
-  # we can also plot those 3 QC parameters and save them to results files
+  # plot QC parameters and save them to results files
   pdf(glue('Figures/F6/20241208_2_vlnPlotQC_{sample_name}.pdf'), height = 4, width = 8)
   print(VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3))
-  dev.off() # I don't see how those plots would help anyone choose the lower threshold for counts and features 
+  dev.off()  
   
   # plot QC features against one another 
   pdf(glue('Figures/F6/20241208_3_featureScatter_{sample_name}.pdf'), height = 4, width = 8)
@@ -301,9 +292,9 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
   dev.off()
   
   # which cells to keep?
-  keeprows = meta[meta$nCount_RNA > count_threshold,] # require number of UMIs to be higher than minimum (1000 UMIs)
-  keeprows = keeprows[keeprows$nFeature_RNA > feature_threshold,] # require number of features to be higher than minimum (300 genes)
-  keeprows = keeprows[keeprows$percent.mt <= mt_threshold,] # exclude cells with mitochondrial content above a threshold (10%)
+  keeprows = meta[meta$nCount_RNA > count_threshold,] # require number of UMIs to be higher than minimum (default 1000 UMIs)
+  keeprows = keeprows[keeprows$nFeature_RNA > feature_threshold,] # require number of features to be higher than minimum (default 300 genes)
+  keeprows = keeprows[keeprows$percent.mt <= mt_threshold,] # exclude cells with mitochondrial content above a threshold (default 10%)
   cellids_keep = rownames(keeprows) # which CellIDs to keep 
   seurat_filtered = subset(seurat, subset = CellID %in% cellids_keep) # select cells of interest
   
@@ -312,7 +303,7 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
                               grep('MALAT1',rownames(seurat_filtered),value=TRUE), # contamination - why are we excluding this? how do we know this is contamination
                               grep('^HB[BGMQDAZE][12]?_',rownames(seurat_filtered),value=TRUE), # contamination (apparently you should filter out blood markers)
                               grep('^MT-',rownames(seurat_filtered),value=TRUE), # mt genes  
-                              grep(excludeGenes,rownames(seurat_filtered),value=TRUE) # housekeeping genes
+                              grep(excludeGenes,rownames(seurat_filtered),value=TRUE) # housekeeping genes (from Matthew Young's GitHub)
   ))
   keep_features=setdiff(rownames(seurat_filtered), genes_to_exclude)
   seurat_filtered = subset(seurat_filtered, features=keep_features)
@@ -320,10 +311,10 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
   # run standard Seurat pipeline 
   seurat_filtered = NormalizeData(object = seurat_filtered, normalization.method = "LogNormalize", scale.factor = 10000) # default 1e4
   seurat_filtered = FindVariableFeatures(seurat_filtered, selection.method = "vst", nfeatures = 2000) # default 2k 
-  seurat_filtered = ScaleData(seurat_filtered, vars.to.regress = "percent.mt") # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
-  seurat_filtered = RunPCA(seurat_filtered, npcs = n_pcs, features=VariableFeatures(object =seurat_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
+  seurat_filtered = ScaleData(seurat_filtered) # Data scaling performed by default on the 2,000 variable features, some tutorials recommend regressing out mt content  
+  seurat_filtered = RunPCA(seurat_filtered, npcs = n_pcs, features=VariableFeatures(object = seurat_filtered), verbose = F) # npcs = number of PCs to compute and store (50 by default)
   
-  # Determine how many PCs to include in downstream analysis 
+  # Elbow plot 
   pdf(glue('Figures/F6/20241208_4_elbowPlot_{sample_name}.pdf'), height = 4, width = 8)
   print(ElbowPlot(seurat_filtered, ndims = 50)) # use 50 PCs 
   dev.off()
@@ -342,22 +333,20 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
   ggsave(glue('Figures/F6/20241208_4_varianceExplained_{sample_name}.pdf'), height = 4, width = 4)
   
   # Clustering 
-  seurat_filtered = FindNeighbors(seurat_filtered, dims = 1:20, verbose = T)
+  seurat_filtered = FindNeighbors(seurat_filtered, dims = 1:n_pcs, verbose = T)
   seurat_filtered = FindClusters(seurat_filtered, resolution = resolution, verbose = T)
-  seurat_filtered = RunUMAP(seurat_filtered, dims = 1:20, verbose = T, min.dist = min_dist, n.neighbors = nn)
+  seurat_filtered = RunUMAP(seurat_filtered, dims = 1:n_pcs, verbose = T, min.dist = min_dist, n.neighbors = nn)
   
   # Plot outcomes of clustering 
+  # UMAP
   pdf(glue('Figures/F6/20241208_5_umap_{sample_name}.pdf'), height = 4, width = 4)
   print(DimPlot(seurat_filtered, reduction = "umap", label = TRUE))
   dev.off() 
   
+  # PCA
   pdf(glue('Figures/F6/20241208_5_pca_{sample_name}.pdf'), height = 4, width = 4)
   print(DimPlot(seurat_filtered, reduction = "pca", label = TRUE))
   dev.off()
-  
-  # OUTPUT
-  # Save the processed file with clusters
-  saveRDS(seurat_filtered, file = glue("Out/F6/{sample_name}.rds"))
   
   # Identify features and look at markers 
   seurat_filtered.markers = FindAllMarkers(seurat_filtered, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
@@ -392,23 +381,24 @@ sc_preprocessing = function(data, sample_name, mt_threshold, feature_threshold, 
   seurat_filtered = CellCycleScoring(seurat_filtered, s.features = s.genes, g2m.features = g2m.genes, set.ident = FALSE)
   # set.ident = TRUE sets the identity of the Seurat object to the cell-cycle phase, I don't want that
   
-  # Color UMAP by cell cycle phase (based on expression of cell cycle genes)
+  # Plot clusters, color by inferred cell cycle phase
+  # UMAP
   pdf(glue('Figures/F6/20241208_9_umap_{sample_name}_cellCycle.pdf'), height = 4, width = 4)
   print(DimPlot(seurat_filtered, reduction = "umap", label = TRUE, group.by = 'Phase'))
-  dev.off() # don't see a separate clusters of proliferating cells :(
+  dev.off() 
+  # PCA 
   pdf(glue('Figures/F6/20241208_9_pca_{sample_name}_cellCycle.pdf'), height = 4, width = 4)
   print(DimPlot(seurat_filtered, reduction = "pca", label = TRUE, group.by = 'Phase'))
-  dev.off() # kind of separate but not very clear? not sure if I should do anything about this 
+  dev.off() 
+  
+  # OUTPUT
+  # Save the processed file with clusters
+  saveRDS(seurat_filtered, file = glue("Out/F6/F6_{sample_name}.rds"))
   
 }
 
 ###################################################################################################################################
-# INTEGRATION OF SAMPLES FROM DIFFERENT LANES
-
-# at what point should I integrate samples from different lanes?
-# I think the most common way to do this is to integrate the .fastq reads at the stage of running CellRanger
-# However, I also found this https://ucdavis-bioinformatics-training.github.io/2020-August-intro-scRNAseq/data_analysis/scRNA_Workshop-PART1_fixed#:~:text=Load%20the%20Cell%20Ranger%20Matrix,can%20aggregate%20them%20in%20R.
-# which seems to suggest that you can integrate samples from multiple lanes when running Seurat (after CellRanger, working on CellRanger count matrix)
+# ANALYSE ALL LANES (AGGREGATED TOGETHER)
 
 # Samples 
 # I have the following samples (these are tumour samples!)
@@ -422,33 +412,32 @@ PD63383_ids = c("CG_SB_NB13760628", "CG_SB_NB13760629", "CG_SB_NB13760630")
 data.loc = "/Users/bw18/Desktop/1SB"
 
 PD62341.d = sapply(PD62341_ids, function(i){
-  d10x = Read10X(file.path(data.loc, "scRNAseq/Data", i, "filtered_feature_bc_matrix"))
+  d10x = Read10X(file.path(data.loc, "Data/scRNAseq", i, "filtered_feature_bc_matrix"))
   colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
   d10x
 })
 PD62341.data = do.call("cbind", PD62341.d)
 
 PD63383.d = sapply(PD63383_ids, function(i){
-  d10x = Read10X(file.path(data.loc, "scRNAseq/Data", i, "filtered_feature_bc_matrix"))
+  d10x = Read10X(file.path(data.loc, "Data/scRNAseq", i, "filtered_feature_bc_matrix"))
   colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
   d10x
 })
 PD63383.data = do.call("cbind", PD63383.d)
 
-# Pre-processing of tumour data with specified parameters  
-sc_preprocessing(PD62341.data, 'tPD62341.agg', 10, 300, 1000, 50, 0.2, 0.5, 50) 
-sc_preprocessing(PD63383.data, 'tPD63383.agg', 10, 300, 1000, 50, 0.2, 0.5, 50) 
-
 # Analyse datasets from both twins together 
 tumour_sc_ids = c("CG_SB_NB13652544", "CG_SB_NB13652545", "CG_SB_NB13652546", "CG_SB_NB13760628", "CG_SB_NB13760629", "CG_SB_NB13760630")
 tumour_sc.d = sapply(tumour_sc_ids, function(i){
-  d10x = Read10X(file.path(data.loc, "scRNAseq/Data", i, "filtered_feature_bc_matrix"))
+  d10x = Read10X(file.path(data.loc, "Data/scRNAseq", i, "filtered_feature_bc_matrix"))
   colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
   d10x
 })
-
 tumour_sc.data = do.call("cbind", tumour_sc.d)
-sc_preprocessing(tumour_sc.data, 'tumour_sc.agg', 10, 300, 1000, 50, 0.1, 0.5, 50)
+
+# Pre-processing of tumour data with specified parameters  
+sc_preprocessing(PD62341.data, '20241214_tPD62341.agg', 10, 300, 1000, 75, 0.4, 0.5, 50) 
+sc_preprocessing(PD63383.data, '20241214_tPD63383.agg', 10, 300, 1000, 75, 0.4, 0.5, 50) 
+sc_preprocessing(tumour_sc.data, '20241214_tumour_sc.agg', 10, 300, 1000, 75, 0.4, 0.5, 50)
 
 ###################################################################################################################################
 # NUCLEAR RNA-seq 
@@ -457,7 +446,11 @@ sc_preprocessing(tumour_sc.data, 'tumour_sc.agg', 10, 300, 1000, 50, 0.1, 0.5, 5
 
 # read the data into the Seurat object 
 tPD63383.nucl.1 = CreateSeuratObject(counts = tumourPD63383.1n, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
-paste('Number of cells in the single nuclear dataset:', dim(tPD63383.nucl.1)[2]) # 194 so too few to be useful
+paste('Number of cells in the single nuclear dataset:', dim(tPD63383.nucl.1)[2]) # 194 barcodes (nuclei) only 
+tPD63383.nucl.2 = CreateSeuratObject(counts = tumourPD63383.2n, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
+paste('Number of cells in the single nuclear dataset:', dim(tPD63383.nucl.2)[2]) # 182 barcodes (nuclei) only 
+tPD63383.nucl.3 = CreateSeuratObject(counts = tumourPD63383.3n, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
+paste('Number of cells in the single nuclear dataset:', dim(tPD63383.nucl.3)[2]) # 118 barcodes (nuclei) only 
 
 
 

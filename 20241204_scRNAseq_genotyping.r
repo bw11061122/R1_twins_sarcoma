@@ -72,11 +72,9 @@ for (sample in samples_scRNAseq){
   ai_counts_dt = rbind(ai_counts_dt, ai_counts)
 }
 
-aiissue = fread('Data/scRNAseq/NB13760629_somaticVar_scRNA_alleleCounts.tsv', sep = '\t')
-
 # load Seurat object with UMAP-based clustering 
-tumour_PD62341_clusters = readRDS(file = "Out/F6/F6_tPD62341.agg.rds")
-tumour_PD63383_clusters = readRDS(file = "Out/F6/F6_tPD63383.agg.rds")
+tumour_PD62341_clusters = readRDS(file = "Out/F6/F6_20241214_tPD62341.agg.rds")
+tumour_PD63383_clusters = readRDS(file = "Out/F6/F6_20241214_tPD63383.agg.rds")
 
 # load list of final mutations used for the phylogeny
 muts_assignment = fread('Out/F3/F3_muts_classes_255_20241208.csv', sep = ',', header = TRUE)
@@ -241,6 +239,16 @@ paste('Number of cells with >= 1 read spanning mutation position:', length(ai_co
 paste('Number of reads spanning mutation position (across all cells):', sum(ai_counts_dt[, Tot])) # 748
 paste('Number of cells with reads spanning > 1 mutant positions:', sum(duplicated(ai_counts_dt[, barcode]))) # 34 
 
+# Cells w/ reads spanning only 1 mutation
+barcodes_counts = data.table(table(ai_counts_dt[, barcode]))
+barcodes_1mut = barcodes_counts[N==1, V1] %>% unlist() # 660
+barcodes_2mut = barcodes_counts[N==2, V1] %>% unlist() # 30
+barcodes_3mut = barcodes_counts[N==3, V1] %>% unlist() # 2 
+
+ai_counts_dt[barcode %in% barcodes_1mut, sum(Tot)] # 681 
+ai_counts_dt[barcode %in% barcodes_2mut, sum(Tot)] # 61
+ai_counts_dt[barcode %in% barcodes_3mut, sum(Tot)] # 6 
+
 # Histogram of reads
 pdf('Figures/F7/20241208_genotyping_hist_Tot.pdf', height = 3, width = 4)
 hist(ai_counts_dt[, Tot], xlab = 'Number of reads over a position per cell',
@@ -248,7 +256,7 @@ hist(ai_counts_dt[, Tot], xlab = 'Number of reads over a position per cell',
 dev.off()
 
 # check the number of reads makes sense given that 
-table(ai_counts_dt[, Tot]) # 706 + 38 + 4 = 745
+table(ai_counts_dt[, Tot]) # 706 + 38 + 4 = 748
 
 # Add source of the sample (ie, tumour from which twin)
 ai_counts_dt[, twin := factor(fcase(
@@ -259,7 +267,8 @@ ai_counts_dt[, twin := factor(fcase(
 table(ai_counts_dt[, sample_ID]) 
 # identified cells from all samples, more in PD62341 than PD63383 (> likely more cells); roughly even between lanes 
 table(ai_counts_dt[, twin])
-# 486 barcodes from twin 1, 240 from twin 2 (726)
+paste('Number of cells with reads from PD62341:', length(ai_counts_dt[twin == 'PD62341', barcode] %>% unlist() %>% unique()))
+paste('Number of cells with reads from PD63383:', length(ai_counts_dt[twin == 'PD63383', barcode] %>% unlist() %>% unique()))
 
 # Add mutation identity and features 
 
@@ -287,14 +296,33 @@ paste('Number of mutant positions with reads in scRNA-seq:', length(ai_counts_dt
 paste('Number of reads reporting wt variant:', sum(ai_counts_dt[status=='wt', Tot])) # 723 
 paste('Number of reads reporting mutation:', sum(ai_counts_dt[status=='mutant', Tot])) # 25 
   
+# quick barchart with counts of mutations per status
+status = c('wt', 'mutant')
+N = c(sum(ai_counts_dt[status=='wt', Tot]), sum(ai_counts_dt[status=='mutant', Tot]))
+status_counts = data.table(cbind(status, N))
+status_counts[, N := as.numeric(N)]
+status_counts[, status := as.factor(status)]
+ggplot(status_counts, aes(x = status, y = N, fill = status))+
+  geom_bar(stat = 'identity')+
+  geom_text(aes(label=N), vjust=-0.5) +
+  scale_fill_manual(values = c(col_mutant, col_wt))+
+  theme_classic(base_size = 13)+
+  theme(legend.position="none")+
+  labs(x = 'Status', y = 'Number of reads', title = glue('Count of wt and mutant reads'))
+ggsave(glue('Figures/F7/20241208_mut_wt_read_counts.pdf'), height = 4, width = 4)
+
+# how many mutations have reads reporting the mutant allele?
+paste('Number of mutations with mutant reads seen in scRNA-seq:', length(ai_counts_dt[status=='mutant', mut_ID %>% unique()])) # 8 
+paste('Number of mutations with mutant reads seen in scRNA-seq:', length(ai_counts_dt[status=='wt', mut_ID %>% unique()])) # 87
+
 # is each mutation seen only once across all cells, or multiple times?
 mut_counts = data.table(table(ai_counts_dt[, mut_ID]))
 pdf('Figures/F7/20241208_genotyping_hist_mutID.pdf', height = 5, width = 5)
-hist(mut_counts[,N], xlab = 'Number of times mutation seen', main = 'Mutation occurrence', breaks = 40)
+hist(mut_counts[,N], xlab = 'Number of reads spanning mutation', main = 'Mutation occurrence', breaks = 40)
 dev.off()
 
-# which mutation is seen > 100 times?
-muts_10reads = mut_counts[N>10, V1] %>% unlist()
+# which mutation is seen > 10 times?
+muts_10reads = mut_counts[N>=10, V1] %>% unlist()
 twins_filtered_dt[mut_ID %in% muts_10reads, c('mut_ID', 'Gene', 'Effect'), with=FALSE]
 # I checked positions which are not annotated to a gene in the CaVEMan pileup output on Jbrowse (tracks > protein-coding):
 # chr10_31333522_G_A - ZEB1 (non-coding region)
@@ -319,6 +347,13 @@ mut_counts_status_wide = merge(mut_counts_status_wide, twins_filtered_dt[, c('mu
 mut_counts_status_wide = merge(mut_counts_status_wide, ai_counts_dt[, c('mut_ID', 'sample_ID', 'twin')], by = 'mut_ID')
 mut_counts_status_wide[!duplicated(mut_counts_status_wide)]
 
+# what mutations are those?
+table(ai_counts_dt[, mut_class])
+table(ai_counts_dt[status== 'wt', mut_class])
+table(ai_counts_dt[status == 'mutant', mut_class]) # mostly tumour but you get embryonic ones!
+
+###################################################################################################################################
+# VAF + CIs for each mutant position identified 
 # for each mutation, calculate its VAF in the scRNA-seq data 
 positions_identified = ai_counts_dt[, mut_ID] %>% unlist() %>% unique()
 
@@ -345,6 +380,9 @@ for (mut in positions_identified){
 setnames(vafs_scrnaseq, c('V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7'), 
          c('mut_ID', 'mtr_all', 'dep_all', 'mtr_PD62341', 'dep_PD62341', 'mtr_PD63383', 'dep_PD63383'))
 vafs_scrnaseq[, names(vafs_scrnaseq)[2:7] := lapply(.SD, as.numeric), .SDcols = !c(1)]
+vafs_scrnaseq[, vaf_all := mtr_all / dep_all]
+vafs_scrnaseq[, vaf_PD62341 := mtr_PD62341 / dep_PD62341]
+vafs_scrnaseq[, vaf_PD63383 := mtr_PD63383 / dep_PD63383]
 vafs_scrnaseq[, vaf_all_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_all, mtr_all/dep_all)]
 vafs_scrnaseq[, vaf_all_upperCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.95, dep_all, mtr_all/dep_all)]
 vafs_scrnaseq[, vaf_PD62341_lowerCI := mapply(function(a, s, p) qbinom(a, s, p) / s, 0.05, dep_PD62341, mtr_PD62341/dep_PD62341)]
@@ -354,11 +392,7 @@ vafs_scrnaseq[, vaf_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) 
 
 # add annotation - what kind of mutation is this
 vafs_scrnaseq = merge(vafs_scrnaseq, muts_assignment, by = 'mut_ID')
-
-# what mutations are those?
-table(ai_counts_dt[, mut_class])
-table(ai_counts_dt[status== 'wt', mut_class])
-table(ai_counts_dt[status == 'mutant', mut_class]) # mostly tumour but you get embryonic ones!
+vafs_scrnaseq[vaf_all > 0 & dep_all >= 10, c('mut_ID', 'vaf_PD62341', 'vaf_PD63383', 'mut_class'), with=F]
 
 ###################################################################################################################################
 # Integrate analysis with clusters
@@ -373,23 +407,45 @@ ai_counts_dt[, CellID := paste0(barcodeID, '-CG_SB_', sample_ID)]
 ai_counts_dt$seurat_clusters_PD62341 = meta_PD62341$seurat_clusters[match(ai_counts_dt$CellID,meta_PD62341$CellID)]
 ai_counts_dt$seurat_clusters_PD63383 = meta_PD63383$seurat_clusters[match(ai_counts_dt$CellID,meta_PD63383$CellID)]
 
-# why are some cells apparently not captured? are they removed through QC?
-# this affects 226/755 cells so weird if all removed via QC 
+paste('Number of barcodes assigned to PD62341 cluster:', length(ai_counts_dt[!is.na(seurat_clusters_PD62341), barcode] %>% unlist() %>% unique())) # 368
+paste('Number of barcodes assigned to PD63383 cluster:', length(ai_counts_dt[!is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 130
 
-# EXAMPLE
-# ATCCGAATCCAGTAGT-CG_SB_NB13652545 is the first barcode not assigned to either PD62341 / PD63383 clusters 
-tumourPD62341.2 = Read10X(data.dir = "Data/scRNAseq/CG_SB_NB13652545/filtered_feature_bc_matrix/") # lane 2
-tPD62341.2 = CreateSeuratObject(counts = tumourPD62341.2, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
-tPD62341.2@meta.data$CellID = rownames(tPD62341.2@meta.data) 
-"ATCCGAATCCAGTAGT-1" %in% tPD62341.2@meta.data$CellID # FALSE 
-# so why does my scRNA-seq AlleleIntegrator output say otherwise?
+###################################################################################################################################
+# Why are some barcodes missing cluster annotation?
+
+paste('Number of barcodes assigned to cluster for both twins:', length(ai_counts_dt[!is.na(seurat_clusters_PD62341) & !is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 0 - no cells assigned to both (that's good)
+paste('Number of barcodes missing a cluster:', length(ai_counts_dt[is.na(seurat_clusters_PD62341) & is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 194
+# 194 cells are not assigned to any cluster either from PD62341 or PD63383 
+
+cells_missing = ai_counts_dt[is.na(seurat_clusters_PD62341) & is.na(seurat_clusters_PD63383), CellID] %>% unlist() %>% unique() 
+
+# Are those barcodes identified in the CellRanger output?
+tumour_ids = c("CG_SB_NB13652544", "CG_SB_NB13652545", "CG_SB_NB13652546", "CG_SB_NB13760628", "CG_SB_NB13760629", "CG_SB_NB13760630")
+tumour.d = sapply(tumour_ids, function(i){
+  d10x = Read10X(file.path(data.loc, "Data/scRNAseq", i, "filtered_feature_bc_matrix"))
+  colnames(d10x) = paste(sapply(strsplit(colnames(d10x),split="-"),'[[',1L),i,sep="-")
+  d10x
+})
+tumour.data = do.call("cbind", tumour.d)
+
+cells_all = colnames(tumour.data) 
+
+paste('Number of barcodes missing annotation present in CellRanger output:', sum(cells_missing %in% cells_all)) # 110 cells were present in the CellRanger output but tossed out from clustering due to QC issues
+
+# Is there anything special about barcodes which are not in the CellRanger output at all?
+table(ai_counts_dt[CellID %in% setdiff(cells_missing, cells_all), sample_ID])
+# not clustered in one sample - those cells are identified across all samples
+# what could be the reason for this? are some cells pre-filtered by CellRanger and so not included in the matrix output?
+
+###################################################################################################################################
+# Cluster annotation + genotyping (for cells where it is possible to do so)
 
 # add information on variant presence in a given cluster 
 # create a dataframe with cells assigned to PD62341 tumour clusters, report no read / wt read / mutant read
 PD62341_reads = ai_counts_dt[twin=='PD62341' & !is.na(seurat_clusters_PD62341), c('CellID', 'status'), with=FALSE]
 PD63383_reads = ai_counts_dt[twin=='PD63383' & !is.na(seurat_clusters_PD63383), c('CellID', 'status'), with=FALSE]
 
-# remove duplicate cells because for the moment I don't know what to do with those
+# remove duplicate cells 
 PD62341_reads = PD62341_reads[!duplicated(PD62341_reads[,CellID])]
 PD63383_reads = PD63383_reads[!duplicated(PD63383_reads[,CellID])]
 
@@ -403,81 +459,9 @@ tumour_PD62341_clusters = AddMetaData(tumour_PD62341_clusters, metadata = PD6234
 rownames(PD63383_reads) = PD63383_reads$CellID
 tumour_PD63383_clusters = AddMetaData(tumour_PD63383_clusters, metadata = PD63383_reads)
 
-umap_data = FetchData(tumour_PD62341_clusters, vars = c("umap_1", "umap_2", "status"))
-umap_data = data.table(umap_data)
-umap_data[, status2 := factor(fcase(
-  status == 'mutant', 'mutant read',
-  status == 'wt', 'wt read',
-  is.na(status), 'no reads mapped'
-))]
-umap_data[, status2 := factor(status2, levels = c('no reads mapped', 'wt read', 'mutant read'))]
-ggplot(setorder(umap_data, status2), aes(umap_1, umap_2, color = status2, order = status2))+
-  geom_point()+
-  scale_color_manual(values = myCols)+
-  theme_classic(base_size = 13)+
-  coord_equal(ratio=1)+
-  xlim(c(-20, 20))+
-  ylim(c(-20, 20))+
-  labs(title = 'Reads spanning mutant positions\nPD62341 tumour', x = 'UMAP 1', y = 'UMAP 2', col = 'Read')
-ggsave('Figures/F7/20241208_umap_all_mutations_PD62341tumour.pdf', height = 5, width = 5)
-# it looks like there are way more than there actually are
+# Plot in which cells / clusters reads spanning each mutation were found (wt / mutant)
 
-# look at tumour mutations only 
-# add information on variant presence in a given cluster 
-# create a dataframe with cells assigned to PD62341 tumour clusters, report no read / wt read / mutant read
-tumour_reads = ai_counts_dt[(!is.na(seurat_clusters_PD62341) | is.na(seurat_clusters_PD63383)) & mut_class %in% c('tumour', 'tumour_PD62341_only', 'tumour_PD63383_only'), c('CellID', 'status'), with=FALSE]
-normal_reads = ai_counts_dt[(!is.na(seurat_clusters_PD62341) | is.na(seurat_clusters_PD63383)) & mut_class %in% c('PD62341_specific_embryonic', 'PD63383_specific_embryonic'), c('CellID', 'status'), with=FALSE]
-
-# remove duplicate cells because for the moment I don't know what to do with those
-tumour_reads = tumour_reads[!duplicated(tumour_reads[,CellID])]
-normal_reads = normal_reads[!duplicated(normal_reads[,CellID])]
-
-rownames(tumour_reads) = tumour_reads$CellID
-tumour_PD62341_clusters = AddMetaData(tumour_PD62341_clusters, metadata = tumour_reads)
-
-# OK, I'm afraid we will need some more umap customization 
-umap_data = FetchData(tumour_PD62341_clusters, vars = c("umap_1", "umap_2", "status"))
-umap_data = data.table(umap_data)
-umap_data[, status2 := factor(fcase(
-  status == 'mutant', 'mutant read',
-  status == 'wt', 'wt read',
-  is.na(status), 'no reads mapped'
-))]
-umap_data[, status2 := factor(status2, levels = c('no reads mapped', 'wt read', 'mutant read'))]
-ggplot(setorder(umap_data, status2), aes(umap_1, umap_2, color = status2, order = status2))+
-  geom_point()+
-  scale_color_manual(values = myCols)+
-  theme_classic(base_size = 13)+
-  coord_equal(ratio=1)+
-  xlim(c(-20, 20))+
-  ylim(c(-20, 20))+
-  labs(x = 'UMAP 1', y = 'UMAP 2', title = 'Tumour mutations positions\nPD62341 tumour', col = 'Read')
-ggsave('Figures/F7/20241208_umap_tumour_mutations.pdf', height = 5, width = 5)
-
-rownames(normal_reads) = normal_reads$CellID
-tumour_PD62341_clusters = AddMetaData(tumour_PD62341_clusters, metadata = normal_reads)
-umap_data = FetchData(tumour_PD62341_clusters, vars = c("umap_1", "umap_2", "status"))
-umap_data = data.table(umap_data)
-umap_data[, status2 := factor(fcase(
-  status == 'mutant', 'mutant read',
-  status == 'wt', 'wt read',
-  is.na(status), 'no reads mapped'
-))]
-umap_data[, status2 := factor(status2, levels = c('no reads mapped', 'wt read', 'mutant read'))]
-ggplot(setorder(umap_data, status2), aes(umap_1, umap_2, color = status2, order = status2))+
-  geom_point()+
-  scale_color_manual(values = myCols)+
-  theme_classic(base_size = 13)+
-  coord_equal(ratio=1)+
-  xlim(c(-20, 20))+
-  ylim(c(-20, 20))+
-  labs(x = 'UMAP 1', y = 'UMAP 2', title = 'Normal mutations positions\nPD62341 tumour', col = 'Read')
-ggsave('Figures/F7/20241208_umap_normal_mutations.pdf', height = 5, width = 5)
-# okay can I check which clusters are those mutations in 
-
-###################################################################################################################################
-# Make the plot for each mutation separately
-
+# label tumour cells w/ a different color 
 # get all clusters with mean expression of NR5A1 (SF1, tumour marker) > 1
 gene_expression_PD62341 = FetchData(tumour_PD62341_clusters, vars = c('NR5A1', "ident"))
 tumour_PD62341 = aggregate(gene_expression_PD62341[, 'NR5A1', drop=FALSE  ],
@@ -530,7 +514,7 @@ for (mut in muts_in_scrna){
     ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
       scale_color_manual(values = myCols)+
-      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
@@ -542,7 +526,7 @@ for (mut in muts_in_scrna){
     ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
       scale_color_manual(values = myCols,  )+
-      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
@@ -576,7 +560,7 @@ for (mut in muts_in_scrna){
     ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
       scale_color_manual(values = myCols,  )+
-      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
@@ -588,7 +572,7 @@ for (mut in muts_in_scrna){
     ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
       scale_color_manual(values = myCols,  )+
-      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
@@ -638,7 +622,7 @@ for (mut in muts_in_scrna){
     p_PD62341 = ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
       scale_color_manual(values = myCols,  )+
-      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
@@ -649,7 +633,7 @@ for (mut in muts_in_scrna){
     p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
       scale_color_manual(values = myCols,  )+
-      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+      scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+
       theme_classic(base_size = 13)+
       coord_equal(ratio=1)+
       xlim(c(-20, 20))+
@@ -664,7 +648,7 @@ for (mut in muts_in_scrna){
     p_PD62341 = ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
         geom_point()+
         scale_color_manual(values = myCols)+
-        scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+
+        scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+
         theme_classic(base_size = 13)+
         coord_equal(ratio=1)+
         xlim(c(-20, 20))+
@@ -675,7 +659,7 @@ for (mut in muts_in_scrna){
     p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
         geom_point()+
         scale_color_manual(values = myCols)+
-        scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 0.5, 'mutant read' = 0.5))+  
+        scale_size_manual(values = c('tumour cells' = 0.1, 'normal cells' = 0.1, 'wt read' = 1.5, 'mutant read' = 1.5))+  
         theme_classic(base_size = 13)+
         coord_equal(ratio=1)+
         xlim(c(-20, 20))+
