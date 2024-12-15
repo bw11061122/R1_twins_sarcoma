@@ -884,6 +884,438 @@ ggplot(out_sim_s2_seq200_melt[mixing==TRUE], aes(x = s2, y = value))+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
 ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_200xSeq.pdf'), height = 8, width = 8)  
 
+# save the simulation output to a file
+# convert columns to character or it screams otherwise
+out_sim_s2 = apply(out_sim_s2, 2, as.character)
+write.table(out_sim_s2, 'Out/F5/F5_20241215_out_sim_s2_2to6_mixingVsNomixing.csv', sep = ',', quote=F, row.names=F)
+
+###################################################################################################################################
+# SIMULATION: run with 2 varying parameter (s2, p)
+
+# what are the reasonable parameter values?
+# x, y, sd1, sd2 = for x and y, anything big will do
+# sd1, sd2 = does Henry have any intuition for this? I was thinking sd1 > sd2, but not sure otherwise
+# s1 = 3-5?
+# s2 = 2-6?
+# n = 2-6
+# p = 0.25, 0.5, 0.75 (can try more fine-grained but realistically 0.2-0.8)
+# mu1, mu2 = 2 for before ZGA and 0.5 for after ZGA
+
+# set fixed parameters 
+x = 100
+y = 100
+sd1 = 10
+sd2 = 3
+s1 = 3
+n = 3
+mu1 = 2
+mu2 = 0.5
+
+# observed statistics 
+nr_shared_observed = 1
+nr_spec_twin1_observed = 6
+nr_spec_twin2_observed = 12
+vafs_shared_twin1_observed = 0.2
+vafs_shared_twin2_observed = 0.5
+vafs_spec_twin1_observed = c(0.48, 0.4, 0.4, 0.4, 0.4, 0.2)
+vafs_spec_twin2_observed = c(0.2, 0.2, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+sum_vafs_spec_twin1_observed = sum(vafs_spec_twin1_observed)
+sum_vafs_spec_twin2_observed = sum(vafs_spec_twin2_observed)
+
+# set seed
+seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
+print(paste0("Random seed used in the simulation: ", seed))
+set.seed(seed)
+
+# create an empty dt to store mutations for each cell on the phylogeny
+muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
+# create an empty dt to store simulation results in 
+out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
+                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
+                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
+
+# test out from s2 in 2 to 6 (2-6 ICM cell divisions)
+for (s2 in 2:7){
+  
+  for (p in c(0.5, 0.7)){
+    
+    # run 100 simulations for each parameter value 
+    for (rep in 1:1000){
+      
+      if (rep == 1000){
+        print(rep)
+      }
+      
+      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = p)
+      
+      out_muts = out[[2]]
+      out_sim = get_output(out_muts)
+      
+      out_grid = out[[1]]
+      if (rep == 1000){
+        draw_area(out_grid)
+        ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
+      }
+    }
+  }
+}
+
+out_sim_s2p_bisect = data.table(out_sim)
+out_sim_s2p_bisect[, mixing := FALSE]
+
+# make sure that relevant columns in out_sim are numeric
+num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_twin1', 'nr_twin2')
+out_sim_s2p_bisect[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+
+# ADD SEQUENCING SIMULATION TO DEPTHS 30x (1 SAMPLE) AND 200x (AGGREGATED)
+
+# add VAFs observed "after sequencing" to 30x coverage (1 WGS sample)
+out_sim_s2p_bisect[, vafs_shared_twin1_seq30 := lapply(vafs_shared_twin1, sim_sequencing, lambda = 30)] # vafs of shared mutations in twin1 
+out_sim_s2p_bisect[, vafs_shared_twin2_seq30 := lapply(vafs_shared_twin2, sim_sequencing, lambda = 30)] # vafs of shared mutations in twin1
+out_sim_s2p_bisect[, vafs_spec_twin1_seq30 := lapply(vafs_spec_twin1, sim_sequencing, lambda = 30)]
+out_sim_s2p_bisect[, vafs_spec_twin2_seq30 := lapply(vafs_spec_twin2, sim_sequencing, lambda = 30)]
+# add how many mutations would be observed based on the sequenced VAF (from sequencing to 30x)
+out_sim_s2p_bisect[, nr_shared_twin1_seq30 := sapply(vafs_shared_twin1_seq30, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_bisect[, nr_shared_twin2_seq30 := sapply(vafs_shared_twin2_seq30, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_bisect[, nr_spec_twin1_seq30 := sapply(vafs_spec_twin1_seq30, function(x) length(x[x > 0.1]))]
+out_sim_s2p_bisect[, nr_spec_twin2_seq30 := sapply(vafs_spec_twin2_seq30, function(x) length(x[x > 0.1]))]
+
+# add VAFs observed "after sequencing" to 200x coverage (all WGS samples aggregated)
+out_sim_s2p_bisect[, vafs_shared_twin1_seq200 := lapply(vafs_shared_twin1, sim_sequencing, lambda = 200)] # vafs of shared mutations in twin1 
+out_sim_s2p_bisect[, vafs_shared_twin2_seq200 := lapply(vafs_shared_twin2, sim_sequencing, lambda = 200)] # vafs of shared mutations in twin1
+out_sim_s2p_bisect[, vafs_spec_twin1_seq200 := lapply(vafs_spec_twin1, sim_sequencing, lambda = 200)]
+out_sim_s2p_bisect[, vafs_spec_twin2_seq200 := lapply(vafs_spec_twin2, sim_sequencing, lambda = 200)]
+# add how many mutations would be observed based on the sequenced VAF 
+out_sim_s2p_bisect[, nr_shared_twin1_seq200 := sapply(vafs_shared_twin1_seq200, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_bisect[, nr_shared_twin2_seq200 := sapply(vafs_shared_twin2_seq200, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_bisect[, nr_spec_twin1_seq200 := sapply(vafs_spec_twin1_seq200, function(x) length(x[x > 0.1]))]
+out_sim_s2p_bisect[, nr_spec_twin2_seq200 := sapply(vafs_spec_twin2_seq200, function(x) length(x[x > 0.1]))]
+
+# CALCULATE DIFFERENCE TO SUMMARY STATISTICS 
+# determine difference between observed and simulated data (raw - w/o "sequencing")
+out_sim_s2p_bisect[, nr_shared_diff_raw := nr_shared - nr_shared_observed]
+out_sim_s2p_bisect[, nr_spec_twin1_diff_raw := nr_twin1 - nr_spec_twin1_observed]
+out_sim_s2p_bisect[, nr_spec_twin2_diff_raw := nr_twin2 - nr_spec_twin2_observed]
+out_sim_s2p_bisect[, vafs_shared_twin1 := lapply(vafs_shared_twin1, char_to_list)]
+out_sim_s2p_bisect[, vafs_shared_twin2 := lapply(vafs_shared_twin2, char_to_list)]
+out_sim_s2p_bisect[, vafs_spec_twin1 := lapply(vafs_spec_twin1, char_to_list)]
+out_sim_s2p_bisect[, vafs_spec_twin2 := lapply(vafs_spec_twin2, char_to_list)]
+out_sim_s2p_bisect[, vaf_shared_twin1_diff_raw := mapply(get_vaf_diff, vafs_shared_twin1, vafs_shared_twin1_observed)]
+out_sim_s2p_bisect[, vaf_shared_twin2_diff_raw := mapply(get_vaf_diff, vafs_shared_twin2, vafs_shared_twin2_observed)]
+out_sim_s2p_bisect[, vaf_spec_twin1_diff_raw := mapply(get_vaf_diff, vafs_spec_twin1, sum_vafs_spec_twin1_observed)]
+out_sim_s2p_bisect[, vaf_spec_twin2_diff_raw := mapply(get_vaf_diff, vafs_spec_twin2, sum_vafs_spec_twin2_observed)]
+
+# difference between simulated (sequenced) and observed statistics (sequencing to 30x)
+out_sim_s2p_bisect[, nr_shared_twin1_diff_seq30 := nr_shared_twin1_seq30 - nr_shared_observed]
+out_sim_s2p_bisect[, nr_shared_twin2_diff_seq30 := nr_shared_twin2_seq30 - nr_shared_observed]
+out_sim_s2p_bisect[, nr_spec_twin1_diff_seq30 := nr_spec_twin1_seq30 - nr_spec_twin1_observed]
+out_sim_s2p_bisect[, nr_spec_twin2_diff_seq30 := nr_spec_twin2_seq30 - nr_spec_twin2_observed]
+out_sim_s2p_bisect[, vaf_shared_twin1_diff_seq30 := mapply(get_vaf_diff, vafs_shared_twin1_seq30, vafs_shared_twin1_observed)]
+out_sim_s2p_bisect[, vaf_shared_twin2_diff_seq30 := mapply(get_vaf_diff, vafs_shared_twin2_seq30, vafs_shared_twin2_observed)]
+out_sim_s2p_bisect[, vaf_spec_twin1_diff_seq30 := mapply(get_vaf_diff, vafs_spec_twin1_seq30, sum_vafs_spec_twin1_observed)]
+out_sim_s2p_bisect[, vaf_spec_twin2_diff_seq30 := mapply(get_vaf_diff, vafs_spec_twin2_seq30, sum_vafs_spec_twin2_observed)]
+
+# difference between simulated (sequenced) and observed statistics (sequencing to 200x)
+out_sim_s2p_bisect[, nr_shared_twin1_diff_seq200 := nr_shared_twin1_seq200 - nr_shared_observed]
+out_sim_s2p_bisect[, nr_shared_twin2_diff_seq200 := nr_shared_twin2_seq200 - nr_shared_observed]
+out_sim_s2p_bisect[, nr_spec_twin1_diff_seq200 := nr_spec_twin1_seq200 - nr_spec_twin1_observed]
+out_sim_s2p_bisect[, nr_spec_twin2_diff_seq200 := nr_spec_twin2_seq200 - nr_spec_twin2_observed]
+out_sim_s2p_bisect[, vaf_shared_twin1_diff_seq200 := mapply(get_vaf_diff, vafs_shared_twin1_seq200, vafs_shared_twin1_observed)]
+out_sim_s2p_bisect[, vaf_shared_twin2_diff_seq200 := mapply(get_vaf_diff, vafs_shared_twin2_seq200, vafs_shared_twin2_observed)]
+out_sim_s2p_bisect[, vaf_spec_twin1_diff_seq200 := mapply(get_vaf_diff, vafs_spec_twin1_seq200, sum_vafs_spec_twin1_observed)]
+out_sim_s2p_bisect[, vaf_spec_twin2_diff_seq200 := mapply(get_vaf_diff, vafs_spec_twin2_seq200, sum_vafs_spec_twin2_observed)]
+
+# repeat, but now allow for cell mixing 
+
+# set seed
+seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
+print(paste0("Random seed used in the simulation: ", seed))
+set.seed(seed)
+
+# create an empty dt to store mutations for each cell on the phylogeny
+muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
+# create an empty dt to store simulation results in 
+out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
+                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
+                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
+
+# test out from s2 in 2 to 6 (2-6 ICM cell divisions)
+for (s2 in 2:7){
+  
+  for (p in c(0.3, 0.5, 0.7)){
+    
+    # run 100 simulations for each parameter value 
+    for (rep in 1:1000){
+      
+      if (rep == 1000){
+        print(rep)
+      }
+      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = p, cell_mixing = TRUE)
+      
+      out_muts = out[[2]]
+      out_sim = get_output(out_muts)
+      
+      out_grid = out[[1]]
+      if (rep == 1000){
+        draw_area(out_grid)
+        ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}_mixing.pdf'), width = 4, height = 4)
+      }
+    }
+  }
+}
+
+# make sure that relevant columns in out_sim are numeric
+num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_twin1', 'nr_twin2')
+out_sim[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+
+out_sim_s2p_mixing = data.table(out_sim)
+out_sim_s2p_mixing[, s2p_mixing := TRUE]
+
+# add VAFs observed "after sequencing" to 30x coverage (1 WGS sample)
+out_sim_s2p_mixing[, vafs_shared_twin1_seq30 := lapply(vafs_shared_twin1, sim_sequencing, lambda = 30)] # vafs of shared mutations in twin1 
+out_sim_s2p_mixing[, vafs_shared_twin2_seq30 := lapply(vafs_shared_twin2, sim_sequencing, lambda = 30)] # vafs of shared mutations in twin1
+out_sim_s2p_mixing[, vafs_spec_twin1_seq30 := lapply(vafs_spec_twin1, sim_sequencing, lambda = 30)]
+out_sim_s2p_mixing[, vafs_spec_twin2_seq30 := lapply(vafs_spec_twin2, sim_sequencing, lambda = 30)]
+# add how many mutations would be observed based on the sequenced VAF (from sequencing to 30x)
+out_sim_s2p_mixing[, nr_shared_twin1_seq30 := sapply(vafs_shared_twin1_seq30, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_mixing[, nr_shared_twin2_seq30 := sapply(vafs_shared_twin2_seq30, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_mixing[, nr_spec_twin1_seq30 := sapply(vafs_spec_twin1_seq30, function(x) length(x[x > 0.1]))]
+out_sim_s2p_mixing[, nr_spec_twin2_seq30 := sapply(vafs_spec_twin2_seq30, function(x) length(x[x > 0.1]))]
+
+# add VAFs observed "after sequencing" to 200x coverage (all WGS samples aggregated)
+out_sim_s2p_mixing[, vafs_shared_twin1_seq200 := lapply(vafs_shared_twin1, sim_sequencing, lambda = 200)] # vafs of shared mutations in twin1 
+out_sim_s2p_mixing[, vafs_shared_twin2_seq200 := lapply(vafs_shared_twin2, sim_sequencing, lambda = 200)] # vafs of shared mutations in twin1
+out_sim_s2p_mixing[, vafs_spec_twin1_seq200 := lapply(vafs_spec_twin1, sim_sequencing, lambda = 200)]
+out_sim_s2p_mixing[, vafs_spec_twin2_seq200 := lapply(vafs_spec_twin2, sim_sequencing, lambda = 200)]
+# add how many mutations would be observed based on the sequenced VAF 
+out_sim_s2p_mixing[, nr_shared_twin1_seq200 := sapply(vafs_shared_twin1_seq200, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_mixing[, nr_shared_twin2_seq200 := sapply(vafs_shared_twin2_seq200, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
+out_sim_s2p_mixing[, nr_spec_twin1_seq200 := sapply(vafs_spec_twin1_seq200, function(x) length(x[x > 0.1]))]
+out_sim_s2p_mixing[, nr_spec_twin2_seq200 := sapply(vafs_spec_twin2_seq200, function(x) length(x[x > 0.1]))]
+
+# CALCULATE DIFFERENCE TO SUMMARY STATISTICS 
+# determine difference between observed and simulated data (raw - w/o "sequencing")
+out_sim_s2p_mixing[, nr_shared_diff_raw := nr_shared - nr_shared_observed]
+out_sim_s2p_mixing[, nr_spec_twin1_diff_raw := nr_twin1 - nr_spec_twin1_observed]
+out_sim_s2p_mixing[, nr_spec_twin2_diff_raw := nr_twin2 - nr_spec_twin2_observed]
+out_sim_s2p_mixing[, vafs_shared_twin1 := lapply(vafs_shared_twin1, char_to_list)]
+out_sim_s2p_mixing[, vafs_shared_twin2 := lapply(vafs_shared_twin2, char_to_list)]
+out_sim_s2p_mixing[, vafs_spec_twin1 := lapply(vafs_spec_twin1, char_to_list)]
+out_sim_s2p_mixing[, vafs_spec_twin2 := lapply(vafs_spec_twin2, char_to_list)]
+out_sim_s2p_mixing[, vaf_shared_twin1_diff_raw := mapply(get_vaf_diff, vafs_shared_twin1, vafs_shared_twin1_observed)]
+out_sim_s2p_mixing[, vaf_shared_twin2_diff_raw := mapply(get_vaf_diff, vafs_shared_twin2, vafs_shared_twin2_observed)]
+out_sim_s2p_mixing[, vaf_spec_twin1_diff_raw := mapply(get_vaf_diff, vafs_spec_twin1, sum_vafs_spec_twin1_observed)]
+out_sim_s2p_mixing[, vaf_spec_twin2_diff_raw := mapply(get_vaf_diff, vafs_spec_twin2, sum_vafs_spec_twin2_observed)]
+
+# difference between simulated (sequenced) and observed statistics (sequencing to 30x)
+out_sim_s2p_mixing[, nr_shared_twin1_diff_seq30 := nr_shared_twin1_seq30 - nr_shared_observed]
+out_sim_s2p_mixing[, nr_shared_twin2_diff_seq30 := nr_shared_twin2_seq30 - nr_shared_observed]
+out_sim_s2p_mixing[, nr_spec_twin1_diff_seq30 := nr_spec_twin1_seq30 - nr_spec_twin1_observed]
+out_sim_s2p_mixing[, nr_spec_twin2_diff_seq30 := nr_spec_twin2_seq30 - nr_spec_twin2_observed]
+out_sim_s2p_mixing[, vaf_shared_twin1_diff_seq30 := mapply(get_vaf_diff, vafs_shared_twin1_seq30, vafs_shared_twin1_observed)]
+out_sim_s2p_mixing[, vaf_shared_twin2_diff_seq30 := mapply(get_vaf_diff, vafs_shared_twin2_seq30, vafs_shared_twin2_observed)]
+out_sim_s2p_mixing[, vaf_spec_twin1_diff_seq30 := mapply(get_vaf_diff, vafs_spec_twin1_seq30, sum_vafs_spec_twin1_observed)]
+out_sim_s2p_mixing[, vaf_spec_twin2_diff_seq30 := mapply(get_vaf_diff, vafs_spec_twin2_seq30, sum_vafs_spec_twin2_observed)]
+
+# difference between simulated (sequenced) and observed statistics (sequencing to 200x)
+out_sim_s2p_mixing[, nr_shared_twin1_diff_seq200 := nr_shared_twin1_seq200 - nr_shared_observed]
+out_sim_s2p_mixing[, nr_shared_twin2_diff_seq200 := nr_shared_twin2_seq200 - nr_shared_observed]
+out_sim_s2p_mixing[, nr_spec_twin1_diff_seq200 := nr_spec_twin1_seq200 - nr_spec_twin1_observed]
+out_sim_s2p_mixing[, nr_spec_twin2_diff_seq200 := nr_spec_twin2_seq200 - nr_spec_twin2_observed]
+out_sim_s2p_mixing[, vaf_shared_twin1_diff_seq200 := mapply(get_vaf_diff, vafs_shared_twin1_seq200, vafs_shared_twin1_observed)]
+out_sim_s2p_mixing[, vaf_shared_twin2_diff_seq200 := mapply(get_vaf_diff, vafs_shared_twin2_seq200, vafs_shared_twin2_observed)]
+out_sim_s2p_mixing[, vaf_spec_twin1_diff_seq200 := mapply(get_vaf_diff, vafs_spec_twin1_seq200, sum_vafs_spec_twin1_observed)]
+out_sim_s2p_mixing[, vaf_spec_twin2_diff_seq200 := mapply(get_vaf_diff, vafs_spec_twin2_seq200, sum_vafs_spec_twin2_observed)]
+
+# SAVE SIMULATION RESULTS
+# save simulation results to out
+out_sim_s2p = rbind(out_sim_s2p_bisect, out_sim_s2p_mixing)
+
+# define which summary statistics are of interest
+summary_stats_raw = c("nr_shared_diff_raw", "nr_spec_twin1_diff_raw",   
+                      "nr_spec_twin2_diff_raw",  "vaf_shared_twin1_diff_raw", "vaf_shared_twin2_diff_raw",
+                      "vaf_spec_twin1_diff_raw",   "vaf_spec_twin2_diff_raw")
+summary_stats_seq30 = c("nr_shared_twin1_diff_seq30",  "nr_shared_twin2_diff_seq30",  "nr_spec_twin1_diff_seq30",   
+                        "nr_spec_twin2_diff_seq30",  "vaf_shared_twin1_diff_seq30", "vaf_shared_twin2_diff_seq30",
+                        "vaf_spec_twin1_diff_seq30",   "vaf_spec_twin2_diff_seq30")
+summary_stats_seq200 = c("nr_shared_twin1_diff_seq200",  "nr_shared_twin2_diff_seq200",  "nr_spec_twin1_diff_seq200",   
+                         "nr_spec_twin2_diff_seq200",  "vaf_shared_twin1_diff_seq200", "vaf_shared_twin2_diff_seq200",
+                         "vaf_spec_twin1_diff_seq200",   "vaf_spec_twin2_diff_seq200")
+
+# melt results dt
+out_sim_sp2_sub_raw = out_sim_s2p[, c('s2', 'p', summary_stats_raw, 'mixing'), with=FALSE]
+out_sim_s2p_raw_melt = data.table::melt(out_sim_s2_sub_raw, id.vars = c('s2', 'p', 'mixing'))
+out_sim_s2p_raw_melt[, variable := as.factor(variable)]
+out_sim_s2p_raw_melt[, s2:= as.factor(s2)]
+out_sim_s2p_raw_melt[, p:= as.factor(p)]
+
+# compare values of summary statistics for different summary stats
+ggplot(out_sim_s2p_raw_melt, aes(x = s2, y = value, col = mixing))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 3)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_raw_melt[mixing==FALSE], aes(x = s2, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 3)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_raw_melt[mixing==TRUE], aes(x = s2, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 3)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
+
+# plots to test the importance of asymmetry 
+ggplot(out_sim_s2p_raw_melt, aes(x = p, y = value, col = mixing))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 3)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col = 'Cell mixing')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_raw_melt[mixing==FALSE], aes(x = p, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 3)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_raw_melt[mixing==TRUE], aes(x = p, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 3)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col)
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
+
+# results (sequencing to 30x coverage)
+out_sim_s2p_sub_seq30 = out_sim_s2p[, c('s2', 'p', summary_stats_seq30, 'mixing'), with=FALSE]
+out_sim_s2p_seq30_melt = data.table::melt(out_sim_s2p_sub_seq30, id.vars = c('s2', 'p', 'mixing'))
+out_sim_s2p_seq30_melt[, variable := as.factor(variable)]
+out_sim_s2p_seq30_melt[, s2:= as.factor(s2)]
+out_sim_s2p_seq30_melt[, p:= as.factor(p)]
+
+# compare values of summary statistics for different summary stats
+ggplot(out_sim_s2p_seq30_melt, aes(x = s2, y = value, col = mixing))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq30_melt[mixing==FALSE], aes(x = s2, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq30_melt[mixing==TRUE], aes(x = s2, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq30_melt, aes(x = p, y = value, col = mixing))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col = 'Cell mixing')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_30xSeq_p.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq30_melt[mixing==FALSE], aes(x = p, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_30xSeq_p.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq30_melt[mixing==TRUE], aes(x = p, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col)
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_30xSeq_p.pdf'), height = 8, width = 8)  
+
+# results cf sequencing to depth 200
+out_sim_s2p_sub_seq200 = out_sim_s2p[, c('s2', 'p', summary_stats_seq200, 'mixing'), with=FALSE]
+out_sim_s2p_seq200_melt = data.table::melt(out_sim_s2p_sub_seq200, id.vars = c('s2', 'p', 'mixing'))
+out_sim_s2p_seq200_melt[, variable := as.factor(variable)]
+out_sim_s2p_seq200_melt[, s2:= as.factor(s2)]
+out_sim_s2p_seq200_melt[, p:= as.factor(s2)]
+
+# compare values of summary statistics for different summary stats
+ggplot(out_sim_s2p_seq200_melt, aes(x = s2, y = value, col = mixing))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq200_melt[mixing==FALSE], aes(x = s2, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq200_melt[mixing==TRUE], aes(x = s2, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq200_melt, aes(x = p, y = value, col = mixing))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col = 'Cell mixing')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_200xSeq_p.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq200_melt[mixing==FALSE], aes(x = p, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data')
+ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_200xSeq_p.pdf'), height = 8, width = 8)  
+
+ggplot(out_sim_s2p_seq200_melt[mixing==TRUE], aes(x = p, y = value))+
+  geom_boxplot()+
+  facet_wrap(~variable, nrow = 4)+
+  theme_classic(base_size = 13)+
+  geom_hline(yintercept = 0, color = 'black')+
+  labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col)
+ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_200xSeq_p.pdf'), height = 8, width = 8)  
+
+# save the simulation output to a file
+# convert columns to character or it screams otherwise
+out_sim_s2p = apply(out_sim_s2p, 2, as.character)
+write.table(out_sim_s2p, 'Out/F5/F5_20241215_out_sim_s2_2to7_p3values_mixingVsNomixing.csv', sep = ',', quote=F, row.names=F)
+
 ###################################################################################################################################
 # SIMULATION: test three varying parameters 
 
@@ -922,8 +1354,6 @@ for (s2 in 2:7){
   
   for (p in c(0.25, 0.5, 0.75)){
     
-    for (n in c(3, 8, 13)){
-      
       for (rep in 1:100){
         
         # keep track of simulations
