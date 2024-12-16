@@ -410,6 +410,11 @@ ggplot(means_agg_finalEst, aes(x=sample, y=value, fill=composition))+
 ggsave(glue('Figures/F4/20241208_twin_cell_transfer_est.pdf'), width=5, height=4)
 
 ######################################################################################################
+# Save the table with estimates of cell fraction from each mutation to a file
+write.csv(means_PD62341muts, 'Out/F4/F4_transfusion_estimates_fromPD62341muts_20241208.csv', quote=F, row.names=F)
+write.csv(means_PD63383muts, 'Out/F4/F4_transfusion_estimates_fromPD63383muts_20241208.csv', quote=F, row.names=F)
+
+######################################################################################################
 # Check if there are any possible driver mutations of clonal hem in the set of normal mutations which could affect uneven transfusion b/n twins?
 # NB those would have to be twins-specific and present in blood cells; very unlikely 
 

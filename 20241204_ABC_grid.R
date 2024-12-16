@@ -935,9 +935,7 @@ out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s
                    vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
 
 # test out from s2 in 2 to 6 (2-6 ICM cell divisions)
-for (s2 in 2:7){
-  
-  for (p in c(0.5, 0.7)){
+for (p in c(0.3, 0.5, 0.7)){
     
     # run 100 simulations for each parameter value 
     for (rep in 1:1000){
@@ -946,7 +944,7 @@ for (s2 in 2:7){
         print(rep)
       }
       
-      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = p)
+      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = 4, p = p)
       
       out_muts = out[[2]]
       out_sim = get_output(out_muts)
@@ -956,7 +954,6 @@ for (s2 in 2:7){
         draw_area(out_grid)
         ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
       }
-    }
   }
 }
 
