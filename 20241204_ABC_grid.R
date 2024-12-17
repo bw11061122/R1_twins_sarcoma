@@ -935,16 +935,18 @@ out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s
                    vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
 
 # test out from s2 in 2 to 6 (2-6 ICM cell divisions)
-for (p in c(0.3, 0.5, 0.7)){
-    
+for (s2 in c(3, 4, 5, 6, 7)){
+  
+  for (p in c(0.3, 0.5, 0.7)){
+  
     # run 100 simulations for each parameter value 
     for (rep in 1:1000){
       
-      if (rep == 1000){
-        print(rep)
+      if (rep == 1){
+        print(c(s2, p, rep))
       }
       
-      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = 4, p = p)
+      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = p)
       
       out_muts = out[[2]]
       out_sim = get_output(out_muts)
@@ -954,6 +956,8 @@ for (p in c(0.3, 0.5, 0.7)){
         draw_area(out_grid)
         ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
       }
+   
+    }
   }
 }
 
@@ -1066,7 +1070,7 @@ num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_
 out_sim[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
 
 out_sim_s2p_mixing = data.table(out_sim)
-out_sim_s2p_mixing[, s2p_mixing := TRUE]
+out_sim_s2p_mixing[, mixing := TRUE]
 
 # add VAFs observed "after sequencing" to 30x coverage (1 WGS sample)
 out_sim_s2p_mixing[, vafs_shared_twin1_seq30 := lapply(vafs_shared_twin1, sim_sequencing, lambda = 30)] # vafs of shared mutations in twin1 
@@ -1140,8 +1144,8 @@ summary_stats_seq200 = c("nr_shared_twin1_diff_seq200",  "nr_shared_twin2_diff_s
                          "vaf_spec_twin1_diff_seq200",   "vaf_spec_twin2_diff_seq200")
 
 # melt results dt
-out_sim_sp2_sub_raw = out_sim_s2p[, c('s2', 'p', summary_stats_raw, 'mixing'), with=FALSE]
-out_sim_s2p_raw_melt = data.table::melt(out_sim_s2_sub_raw, id.vars = c('s2', 'p', 'mixing'))
+out_sim_s2p_sub_raw = out_sim_s2p[, c('s2', 'p', summary_stats_raw, 'mixing'), with=FALSE]
+out_sim_s2p_raw_melt = data.table::melt(out_sim_s2p_sub_raw, id.vars = c('s2', 'p', 'mixing'))
 out_sim_s2p_raw_melt[, variable := as.factor(variable)]
 out_sim_s2p_raw_melt[, s2:= as.factor(s2)]
 out_sim_s2p_raw_melt[, p:= as.factor(p)]
