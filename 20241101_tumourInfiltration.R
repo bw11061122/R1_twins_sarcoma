@@ -178,14 +178,14 @@ twins_filtered_dt[, sum_normal_PD63383_mtr_vaf := apply(.SD, 1, function(x) min(
 # 2 mutations private to the tumour and absent from normal samples (expected VAF in normal = 0)
 
 # 1 select mutations which are expected to be clonal in the tumour 
-pdf('Figures/F2/20241208_hist_muts255_mean_median.pdf', width = 4, height = 4)
+pdf('FiguresAdd/F2/F2_hist_muts255_mean_median.pdf', width = 4, height = 4)
 hist(twins_filtered_dt[, vaf_all_tumour], breaks=30, xlab = 'VAF', xlim=c(0,1), main = 'VAF in aggregated tumour samples\n(255 mutations)')
 abline(v = median(twins_filtered_dt[, vaf_all_tumour]), col = 'blue', lwd = 2)
 abline(v = mean(twins_filtered_dt[, vaf_all_tumour]), col = 'red', lwd = 2)
 dev.off()
 
 # indicate the threshold above which mutations can be considered clonal
-pdf('Figures/F2/20241208_hist_muts_tumourThreshold.pdf', width = 4, height = 4)
+pdf('FiguresMain/SF3/F2_hist_muts_tumourThreshold.pdf', width = 4, height = 4)
 hist(twins_filtered_dt[, vaf_all_tumour], breaks=30, xlab = 'VAF', xlim=c(0,1), main = 'VAF in aggregated tumour samples\n(255 mutations)')
 abline(v = 0.2, col = 'purple', lwd = 3)
 dev.off()
@@ -212,7 +212,7 @@ for (sample in samples_normal){
     labs(x = 'VAF (total tumour)', y = glue('VAF in {sample}'))+
     ggtitle(glue('{sample}'))+
     coord_equal(ratio = 1)
-  ggsave(glue('Figures/F2/20241208_vaf_tumour_vs_normal_{sample}_35muts.pdf'), width=4.5, height=4.5)
+  ggsave(glue('FiguresAdd/F2/F2_vaf_tumour_vs_normal_{sample}_35muts.pdf'), width=4.5, height=4.5)
 }
 
 # Add labels for normal PD63383 samples which are clean (show no tumour infiltration) 
@@ -268,7 +268,7 @@ for (sample in samples_normal){
     labs(x = 'VAF (total tumour)', y = glue('VAF ({sample})'), col = 'Mutation category')+
     ggtitle(glue('{sample}'))+
     coord_equal(ratio=1)
-  ggsave(glue('Figures/F2/20241208_vaf_tumour_vs_normal_{sample}_35muts_tumourVsShared.pdf'), width=6, height=4)
+  ggsave(glue('FiguresMain/SF3/F2_vaf_tumour_vs_normal_{sample}_35muts_tumourVsShared.pdf'), width=6, height=4)
 }
 
 # Plot histogram of VAF for selected mutations in each tumour sample 
@@ -276,7 +276,7 @@ for (sample in samples_tumour){
   s_vaf = paste0(sample, '_VAF')
   sample_vaf_all = twins_filtered_dt[mut_ID %in% muts_tumour_specific, ..s_vaf] %>% unlist()
   
-  pdf(glue('Figures/F2/20241208_hist_tumour_vaf_all_{sample}_26muts.pdf'), width=4.5, height=3.5)
+  pdf(glue('FiguresAdd/F2/F2_hist_tumour_vaf_all_{sample}_26muts.pdf'), width=4.5, height=3.5)
   hist(sample_vaf_all, xlab = 'VAF', main = glue('{sample}'), xlim = c(0, 1))
   abline(v=median(sample_vaf_all),col="blue")
   abline(v=mean(sample_vaf_all),col='red')
@@ -332,7 +332,7 @@ ggplot(median_VAFs_melt, aes(x=sample2, y=value, fill=composition))+
   labs(x = 'Sample', y = glue('Cell fraction'), col = 'Cell type')+
   ggtitle(glue('Estimates of tumour and normal cell fraction for each sample'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-ggsave(glue('Figures/F2/20241208_tumour_normal_content_est_26muts.pdf'), width=12, height=4)
+ggsave(glue('FiguresMain/SF3/F2_tumour_normal_content_est_26muts.pdf'), width=12, height=4)
 
 ######################################################################################################
 # OUTPUT 1: SAVE TABLES WITH ESTIMATES OF NORMAL + TUMOUR CELL FRACTION AND PURITY
@@ -393,14 +393,14 @@ for (sample in samples_normal){
     coord_equal(ratio=1)+
     labs(x = 'VAF (total tumour)', y = glue('VAF ({sample})'), col = 'Mutation category')+
     ggtitle(glue('{sample}'))
-  ggsave(glue('Figures/F2/20241208_vaf_tumour_vs_normal_{sample}_col_both_8muts.pdf'), width=6, height=4.5)
+  ggsave(glue('FiguresAdd/F2/F2_vaf_tumour_vs_normal_{sample}_col_both_8muts.pdf'), width=6, height=4.5)
 }
 
 # Plot histogram of VAF for selected mutations in each tumour sample 
 for (sample in samples_tumour){
   s_vaf = paste0(sample, '_VAF')
   sample_vaf_all = twins_filtered_vaf[mut_ID %in% muts_tumour_specific_2, ..s_vaf] %>% unlist()
-  pdf(glue('Figures/F2/20241208_hist_tumour_vaf_all_{sample}_8muts.pdf'), width=4.5, height=3.5)
+  pdf(glue('FiguresAdd/F2/F2_hist_tumour_vaf_all_{sample}_8muts.pdf'), width=4.5, height=3.5)
   hist(sample_vaf_all, xlab = 'VAF', main = glue('{sample}'), xlim = c(0, 1))
   abline(v=median(sample_vaf_all),col="blue")
   abline(v=mean(sample_vaf_all),col='red')
@@ -482,7 +482,3 @@ mean_VAFs_dt_3[, purity_est := round(purity, 1)]
 # OUTPUT 3: SAVE TABLES WITH ESTIMATES OF NORMAL + TUMOUR CELL FRACTION AND PURITY
 write.table(median_VAFs_dt_3, 'Out/F2/F2_estimates_tumour_cont_3muts_median_chr1_18_20241208.csv', sep = ',', quote=F, row.names=F)
 write.table(mean_VAFs_dt_3, 'Out/F2/F2_estimates_tumour_cont_3muts_mean_chr1_18_20241208.csv', sep = ',', quote=F, row.names=F)
-
-
-
-

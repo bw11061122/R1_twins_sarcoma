@@ -247,7 +247,7 @@ ggplot(mut_PD62341_melt[status=='normal'], aes(x=mut_ID, y=value, colour=sample_
   ggtitle(glue('PD62341-specific mutations'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
-ggsave(glue('FiguresAdd/F4/20241208_vaf_dist_PD62341_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
+ggsave(glue('FiguresAdd/F4/F4_vaf_dist_PD62341_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
 
 ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_type2, alpha=sample_type2, order=sample_type2))+
   geom_point(size=2)+
@@ -259,7 +259,7 @@ ggplot(mut_PD63383_melt[status=='normal'], aes(x=mut_ID, y=value, color=sample_t
   ggtitle(glue('PD63383-specific mutations'))+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
   ylim(c(0, 0.7))
-ggsave(glue('FiguresAdd/F4/20241208_vaf_dist_PD63383_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
+ggsave(glue('FiguresAdd/F4/F4_vaf_dist_PD63383_muts_samples_normal_labelspleen.pdf'), width=7, height=4.5)
 
 # Mutation on the y axis
 ggplot(mut_PD62341_melt[status=='normal'], aes(x=value, y=mut_ID, colour=sample_type2, alpha=sample_type2, order=sample_type2))+
@@ -271,7 +271,7 @@ ggplot(mut_PD62341_melt[status=='normal'], aes(x=value, y=mut_ID, colour=sample_
   guides(alpha = "none")+
   ggtitle(glue('PD62341-specific mutations'))+
   xlim(c(0, 0.8))
-ggsave(glue('FiguresMain/Fig3/20241208_vaf_dist_PD62341_muts_samples_normal_labelspleen_yaxis.pdf'), width=6.5, height=2.5)
+ggsave(glue('FiguresMain/Fig3/F4_vaf_dist_PD62341_muts_samples_normal_labelspleen_yaxis.pdf'), width=6.5, height=2.5)
 
 ggplot(mut_PD63383_melt[status=='normal'], aes(x=value, y=mut_ID, color=sample_type2, alpha=sample_type2, order=sample_type2))+
   geom_point(size=2)+
@@ -282,7 +282,7 @@ ggplot(mut_PD63383_melt[status=='normal'], aes(x=value, y=mut_ID, color=sample_t
   guides(alpha = "none")+
   ggtitle(glue('PD63383-specific mutations'))+
   xlim(c(0, 0.8))
-ggsave(glue('FiguresMain/Fig3/20241208_vaf_dist_PD63383_muts_samples_normal_labelspleen_yaxis.pdf'), width=6.5, height=3.5)
+ggsave(glue('FiguresMain/Fig3/F4_vaf_dist_PD63383_muts_samples_normal_labelspleen_yaxis.pdf'), width=6.5, height=3.5)
 
 # Correlation between PD62341v for PD63383 specific mutations 
 # PD62341-specific mutations
@@ -299,7 +299,7 @@ for (sample_name in samples_normal_PD63383){
     coord_equal(ratio=1)+
     xlim(c(0, 0.6))+
     ylim(c(0, 0.6))
-  ggsave(glue('FiguresAdd/F4/20241208_vaf_dist_PD62341_muts_samples_PD62341agg_vs_{sample_name}.pdf'), width=4, height=4)
+  ggsave(glue('FiguresAdd/F4/F4_vaf_dist_PD62341_muts_samples_PD62341agg_vs_{sample_name}.pdf'), width=4, height=4)
 }
 
 # PD63383-specific mutations
@@ -316,7 +316,7 @@ for (sample_name in samples_normal_PD62341){
     coord_equal(ratio=1)+
     xlim(c(0, 0.3))+
     ylim(c(0, 0.3))
-  ggsave(glue('FiguresAdd/F4/20241208_vaf_dist_PD63383_muts_samples_PD63383agg_vs_{sample_name}.pdf'), width=3, height=3)
+  ggsave(glue('FiguresAdd/F4/F4_vaf_dist_PD63383_muts_samples_PD63383agg_vs_{sample_name}.pdf'), width=3, height=3)
 }
 
 # Quantification of PD62341 spleen contamination with PD63383 spleen 
@@ -341,7 +341,7 @@ ggplot(means_PD62341muts, aes(x=PD62341_nonspleen, y=PD62341_spleen))+
   coord_equal(ratio = 1)+
   xlim(c(0, 0.5))+
   ylim(c(0, 0.5))
-ggsave(glue('FiguresAdd/F4/20241208_spleen_vs_nonspleen_PD62341.pdf'), width=3, height=3)
+ggsave(glue('FiguresAdd/F4/F4_spleen_vs_nonspleen_PD62341.pdf'), width=3, height=3)
 
 # do the same for PD63383 specific mutations
 means_PD63383muts_spleen_PD62341 = mut_PD63383_melt[sample == 'PD62341v', c('mut_ID', 'value'), with=FALSE]
@@ -362,7 +362,7 @@ ggplot(means_PD63383muts, aes(x=PD63383_nonspleen, y=PD62341_spleen))+
   coord_equal(ratio = 1)+
   xlim(c(0, 0.3))+
   ylim(c(0, 0.3))
-ggsave(glue('FiguresAdd/F4/20241208_spleen_vs_nonspleen_PD63383.pdf'), width=3, height=3)
+ggsave(glue('FiguresAdd/F4/F4_spleen_vs_nonspleen_PD63383.pdf'), width=3, height=3)
 
 ######################################################################################################
 # plot estimates of fraction of cells from the other twin in PD62341 spleen and PD63383 spleen
@@ -407,7 +407,7 @@ ggplot(means_agg_finalEst, aes(x=sample, y=value, fill=composition))+
   scale_fill_manual(values = c(col_PD62341, col_PD63383))+
   labs(x = 'Sample', y = glue('Cell fraction'), col = 'Cell origin')+
   ggtitle(glue('Estimates of fraction of cells from the other twin in spleen samples'))
-ggsave(glue('FiguresMain/Fig3/20241208_twin_cell_transfer_est.pdf'), width=5, height=4)
+ggsave(glue('FiguresMain/Fig3/F4_twin_cell_transfer_est.pdf'), width=5, height=4)
 
 ######################################################################################################
 # Save the table with estimates of cell fraction from each mutation to a file

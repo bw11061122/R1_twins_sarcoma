@@ -576,3 +576,20 @@ rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/sc
 rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/bw18/twins_sarcoma/logs/*_664854.out" /Users/bw18/Desktop/1SB/Out/F7/
 
 rsync -avhu bw18@farm22:"/nfs/users/nfs_b/bw18/3434_indels.txt" /Users/bw18/Desktop/1SB/Data/3434_indels_20241112.txt
+
+#########################################################################################
+# 2024-12-18
+# Allele Integrator seems to be coming up with barcodes that don't exist in the Cell Ranger output so investigating what is going on 
+
+# check barcodes in 
+cd /lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/RMS/cellranger800_count_30855_CG_SB_NB8113359_GRCh38-1_2_0/filtered_feature_bc_matrix
+
+rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/RMS/cellranger800_count_30855_CG_SB_NB8113359_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq
+
+rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47089_CG_SB_NB13652544_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13652544.tsv.gz
+rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47089_CG_SB_NB13652545_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13652545.tsv.gz
+rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47089_CG_SB_NB13652546_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13652546.tsv.gz
+
+rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47451_CG_SB_NB13760628_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13760628.tsv.gz
+rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47451_CG_SB_NB13760629_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13760629.tsv.gz
+rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47451_CG_SB_NB13760630_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13760630.tsv.gz

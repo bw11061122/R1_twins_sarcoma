@@ -60,6 +60,12 @@ paste('Number of mutations that passed required filters:', length(muts)) # 255
 # Create dataframe with mutations that passed current filters 
 twins_filtered_dt = twins_dt[mut_ID %in% muts]
 
+# Samples 
+# I have the following samples (these are tumour samples!)
+# PD62341 fresh: CG_SB_NB13652544, CG_SB_NB13652545, CG_SB_NB13652546
+# PD63383 fresh: CG_SB_NB13760628, CG_SB_NB13760629, CG_SB_NB13760630
+# PD63383 frozen (nuclear): CG_SB_NB14599068, CG_SB_NB14599069, CG_SB_NB14599070 - not used due to QC failure
+
 # load AlleleIntegrator output from all samples 
 samples_scRNAseq = c('NB13652544', 'NB13652545', 'NB13652546',
                      'NB13760628', 'NB13760629', 'NB13760630')
@@ -250,7 +256,7 @@ ai_counts_dt[barcode %in% barcodes_2mut, sum(Tot)] # 61
 ai_counts_dt[barcode %in% barcodes_3mut, sum(Tot)] # 6 
 
 # Histogram of reads
-pdf('Figures/F7/20241208_genotyping_hist_Tot.pdf', height = 3, width = 4)
+pdf('FiguresMain/SF4/F7_genotyping_hist_Tot.pdf', height = 3, width = 4)
 hist(ai_counts_dt[, Tot], xlab = 'Number of reads over a position per cell',
      main = 'Read number per cell') # only 1 or 2 reads (in 25 cases), 4 reads observed in 1 case
 dev.off()
@@ -309,7 +315,7 @@ ggplot(status_counts, aes(x = status, y = N, fill = status))+
   theme_classic(base_size = 13)+
   theme(legend.position="none")+
   labs(x = 'Status', y = 'Number of reads', title = glue('Count of wt and mutant reads'))
-ggsave(glue('Figures/F7/20241208_mut_wt_read_counts.pdf'), height = 4, width = 4)
+ggsave(glue('FiguresMain/SF4/F7_mut_wt_read_counts.pdf'), height = 4, width = 4)
 
 # how many mutations have reads reporting the mutant allele?
 paste('Number of mutations with mutant reads seen in scRNA-seq:', length(ai_counts_dt[status=='mutant', mut_ID %>% unique()])) # 8 
@@ -317,7 +323,7 @@ paste('Number of mutations with mutant reads seen in scRNA-seq:', length(ai_coun
 
 # is each mutation seen only once across all cells, or multiple times?
 mut_counts = data.table(table(ai_counts_dt[, mut_ID]))
-pdf('Figures/F7/20241208_genotyping_hist_mutID.pdf', height = 5, width = 5)
+pdf('FiguresAdd/F7/F7_genotyping_hist_mutID.pdf', height = 5, width = 5)
 hist(mut_counts[,N], xlab = 'Number of reads spanning mutation', main = 'Mutation occurrence', breaks = 40)
 dev.off()
 
@@ -350,7 +356,7 @@ mut_counts_status_wide[!duplicated(mut_counts_status_wide)]
 # what mutations are those?
 table(ai_counts_dt[, mut_class])
 table(ai_counts_dt[status== 'wt', mut_class])
-table(ai_counts_dt[status == 'mutant', mut_class]) # mostly tumour but you get embryonic ones!
+table(ai_counts_dt[status == 'mutant', mut_class]) # mostly tumour but also some embryonic ones
 
 ###################################################################################################################################
 # VAF + CIs for each mutant position identified 
@@ -411,6 +417,11 @@ paste('Number of barcodes assigned to PD62341 cluster:', length(ai_counts_dt[!is
 paste('Number of barcodes assigned to PD63383 cluster:', length(ai_counts_dt[!is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 130
 
 ###################################################################################################################################
+# Save DT with all mutations identified in scRNA-seq (ie mutant read reported)
+mut_counts_status_wide[mut_ID=='mutant']
+
+
+###################################################################################################################################
 # Why are some barcodes missing cluster annotation?
 
 paste('Number of barcodes assigned to cluster for both twins:', length(ai_counts_dt[!is.na(seurat_clusters_PD62341) & !is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 0 - no cells assigned to both (that's good)
@@ -418,8 +429,10 @@ paste('Number of barcodes missing a cluster:', length(ai_counts_dt[is.na(seurat_
 # 194 cells are not assigned to any cluster either from PD62341 or PD63383 
 
 cells_missing = ai_counts_dt[is.na(seurat_clusters_PD62341) & is.na(seurat_clusters_PD63383), CellID] %>% unlist() %>% unique() 
+paste('Number of missing cells:', length(cells_missing)) # 194
 
 # Are those barcodes identified in the CellRanger output?
+data.loc = "/Users/bw18/Desktop/1SB"
 tumour_ids = c("CG_SB_NB13652544", "CG_SB_NB13652545", "CG_SB_NB13652546", "CG_SB_NB13760628", "CG_SB_NB13760629", "CG_SB_NB13760630")
 tumour.d = sapply(tumour_ids, function(i){
   d10x = Read10X(file.path(data.loc, "Data/scRNAseq", i, "filtered_feature_bc_matrix"))
@@ -429,13 +442,28 @@ tumour.d = sapply(tumour_ids, function(i){
 tumour.data = do.call("cbind", tumour.d)
 
 cells_all = colnames(tumour.data) 
-
-paste('Number of barcodes missing annotation present in CellRanger output:', sum(cells_missing %in% cells_all)) # 110 cells were present in the CellRanger output but tossed out from clustering due to QC issues
+paste('Number of barcodes missing annotation present in CellRanger output:', sum(cells_missing %in% cells_all)) 
+# 110 cells were present in the CellRanger output but tossed out from clustering due to QC issues
+paste('Number of barcodes missing annotation absent from CellRanger output:', length(setdiff(cells_missing, cells_all))) 
+# 84 cells were absent from the CellRanger output 
 
 # Is there anything special about barcodes which are not in the CellRanger output at all?
-table(ai_counts_dt[CellID %in% setdiff(cells_missing, cells_all), sample_ID])
+cells_absent_cellranger = setdiff(cells_missing, cells_all)
+table(ai_counts_dt[CellID %in% cells_absent_cellranger, sample_ID])
 # not clustered in one sample - those cells are identified across all samples
 # what could be the reason for this? are some cells pre-filtered by CellRanger and so not included in the matrix output?
+
+# I got a barcode file from Nathan from /lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/RMS/cellranger800_count_30855_CG_SB_NB8113359_GRCh38-1_2_0/filtered_feature_bc_matrix
+# why was I given this, this makes no sense - is this even from any of the samples that I have?
+barcodes_52544 = fread('Data/scRNAseq/barcodes_NB13652544.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
+barcodes_52545 = fread('Data/scRNAseq/barcodes_NB13652545.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
+barcodes_52546 = fread('Data/scRNAseq/barcodes_NB13652546.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
+barcodes_60628 = fread('Data/scRNAseq/barcodes_NB13760628.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
+barcodes_60629 = fread('Data/scRNAseq/barcodes_NB13760629.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
+barcodes_60630 = fread('Data/scRNAseq/barcodes_NB13760630.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
+barcodes_all = c(barcodes_52544, barcodes_52545, barcodes_52546, barcodes_60628, barcodes_60629, barcodes_60630)
+
+sum(cells_absent_cellranger %in% barcodes_all) # 0 
 
 ###################################################################################################################################
 # Cluster annotation + genotyping (for cells where it is possible to do so)
@@ -473,6 +501,19 @@ tumour_PD63383 = aggregate(gene_expression_PD63383[, 'NR5A1', drop=FALSE ],
                           by = list(cluster = gene_expression_PD63383$ident), FUN = mean) %>%  
                           filter(NR5A1 > 1) %>% pull(cluster)
 
+# change the name of mut class (nicer formatting for the plot)
+muts_assignment[, mut_class_desc := factor(fcase(
+  mut_class == '1_normal_sample', 'found in 1 normal sample',
+  mut_class == '1_tumour_sample', 'found in 1 tumour sample',
+  mut_class == 'PD63383_specific_embryonic', 'early embryonic, PD63383-specific',
+  mut_class == 'PD62341_specific_embryonic', 'early embryonic, PD62341-specific',
+  mut_class == 'shared_early_embryonic', 'early embryonic, shared',
+  mut_class == 'tumour', 'tumour-specific',
+  mut_class == 'tumour_PD62341_only', 'tumour, PD62341-specific',
+  mut_class == 'tumour_PD63383_only', 'tumour, PD63383-specific',
+  mut_class == 'unassigned', 'unassigned'
+))]
+
 # list of mutant positions with reads spanning those in scRNA-seq
 muts_in_scrna = ai_counts_dt[, mut_ID] %>% unlist() %>% unique()
 
@@ -482,7 +523,7 @@ for (mut in muts_in_scrna){
   mut_name = gsub("_(.*?)_(.*?)_", ";\\1 \\2>", mut)
   
   # determine which mutation class this mutation was assigned to
-  mut_assignment = as.character(muts_assignment[mut_ID == mut, mut_class])
+  mut_assignment = as.character(muts_assignment[mut_ID == mut, mut_class_desc])
   
   # find which cells (barcodes) report reads with the mutation
   reads = ai_counts_dt[mut_ID == mut]
@@ -521,7 +562,7 @@ for (mut in muts_in_scrna){
       ylim(c(-20, 20))+ 
       guides(size = "none")+
       labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}'), col = 'category')
-    ggsave(glue('Figures/F7/20241208_umap_tumour_PD62341only_mutation_{mut}.pdf'), height = 4, width = 4)
+    ggsave(glue('FiguresMain/SF4/F7_umap_tumour_PD62341only_mutation_{mut}.pdf'), height = 4, width = 4)
     
     ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
@@ -533,7 +574,7 @@ for (mut in muts_in_scrna){
       ylim(c(-20, 20))+ 
       guides(size = "none")+
       labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment}'), col = 'category')
-    ggsave(glue('Figures/F7/20241208_umap_tumour_PD62341only_mutation_{mut}_desc.pdf'), height = 4, width = 4)
+    ggsave(glue('FiguresAdd/F7/F7_umap_tumour_PD62341only_mutation_{mut}_desc.pdf'), height = 4, width = 4)
 
   }
 
@@ -567,7 +608,7 @@ for (mut in muts_in_scrna){
       ylim(c(-20, 20))+
       guides(size = "none")+
       labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'), col = 'category')
-    ggsave(glue('Figures/F7/20241208_umap_tumour_PD63383only_mutation_{mut}.pdf'), height = 4, width = 4)  
+    ggsave(glue('FiguresMain/SF4/F7_umap_tumour_PD63383only_mutation_{mut}.pdf'), height = 4, width = 4)  
     
     ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
@@ -579,7 +620,7 @@ for (mut in muts_in_scrna){
       ylim(c(-20, 20))+
       guides(size = "none")+
       labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'), col = 'category')
-    ggsave(glue('Figures/F7/20241208_umap_tumour_PD63383only_mutation_{mut}_desc.pdf'), height = 4, width = 4)  
+    ggsave(glue('FiguresAdd/F7/F7_umap_tumour_PD63383only_mutation_{mut}_desc.pdf'), height = 4, width = 4)  
     
   }
   
@@ -597,7 +638,7 @@ for (mut in muts_in_scrna){
     
     # add metadata to clusters 
     tumour_PD62341_clusters = AddMetaData(tumour_PD62341_clusters, metadata = reads_PD62341)
-    tumour_PD63383_clusters = AddMetaData(tumour_PD63383_clusters, metadata = reads)
+    tumour_PD63383_clusters = AddMetaData(tumour_PD63383_clusters, metadata = reads_PD63383)
       
     # show presence in tumour from PD62341 
     umap_PD62341 = FetchData(tumour_PD62341_clusters, vars = c("umap_1", "umap_2", "status", "ident"))
@@ -642,7 +683,7 @@ for (mut in muts_in_scrna){
       labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'), col = 'category')
     
     plots = grid.arrange(p_PD62341, p_PD63383, ncol = 2)
-    ggsave(glue('Figures/F7/20241208_umap_tumour_both_mutation_{mut}.pdf'), plots, height = 4, width = 8)
+    ggsave(glue('FiguresMain/SF4/F7_umap_tumour_both_mutation_{mut}.pdf'), plots, height = 4, width = 8)
     
     # plots with description of the class of the mutation
     p_PD62341 = ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
@@ -668,7 +709,7 @@ for (mut in muts_in_scrna){
         labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'), col = 'category')
       
     plots = grid.arrange(p_PD62341, p_PD63383, ncol = 2)
-    ggsave(glue('Figures/F7/20241208_umap_tumour_both_mutation_{mut}_desc.pdf'), plots, height = 4, width = 8)  
+    ggsave(glue('FiguresAdd/F7/F7_umap_tumour_both_mutation_{mut}_desc.pdf'), plots, height = 4, width = 8)  
     
   }
 
