@@ -451,7 +451,3 @@ tPD63383.nucl.2 = CreateSeuratObject(counts = tumourPD63383.2n, project = "twins
 paste('Number of cells in the single nuclear dataset:', dim(tPD63383.nucl.2)[2]) # 182 barcodes (nuclei) only 
 tPD63383.nucl.3 = CreateSeuratObject(counts = tumourPD63383.3n, project = "twins.sarcoma", names.field = 1, names.delim = "_", meta.data = NULL)
 paste('Number of cells in the single nuclear dataset:', dim(tPD63383.nucl.3)[2]) # 118 barcodes (nuclei) only 
-
-
-
-

@@ -400,6 +400,10 @@ vafs_scrnaseq[, vaf_PD63383_upperCI := mapply(function(a, s, p) qbinom(a, s, p) 
 vafs_scrnaseq = merge(vafs_scrnaseq, muts_assignment, by = 'mut_ID')
 vafs_scrnaseq[vaf_all > 0 & dep_all >= 10, c('mut_ID', 'vaf_PD62341', 'vaf_PD63383', 'mut_class'), with=F]
 
+# OUTPUT 
+# save dt with number of mutant reads, mutation VAF in both twins, assignment based on genomic data
+
+
 ###################################################################################################################################
 # Integrate analysis with clusters
 
@@ -415,11 +419,6 @@ ai_counts_dt$seurat_clusters_PD63383 = meta_PD63383$seurat_clusters[match(ai_cou
 
 paste('Number of barcodes assigned to PD62341 cluster:', length(ai_counts_dt[!is.na(seurat_clusters_PD62341), barcode] %>% unlist() %>% unique())) # 368
 paste('Number of barcodes assigned to PD63383 cluster:', length(ai_counts_dt[!is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 130
-
-###################################################################################################################################
-# Save DT with all mutations identified in scRNA-seq (ie mutant read reported)
-mut_counts_status_wide[mut_ID=='mutant']
-
 
 ###################################################################################################################################
 # Why are some barcodes missing cluster annotation?
@@ -447,23 +446,10 @@ paste('Number of barcodes missing annotation present in CellRanger output:', sum
 paste('Number of barcodes missing annotation absent from CellRanger output:', length(setdiff(cells_missing, cells_all))) 
 # 84 cells were absent from the CellRanger output 
 
-# Is there anything special about barcodes which are not in the CellRanger output at all?
-cells_absent_cellranger = setdiff(cells_missing, cells_all)
-table(ai_counts_dt[CellID %in% cells_absent_cellranger, sample_ID])
-# not clustered in one sample - those cells are identified across all samples
-# what could be the reason for this? are some cells pre-filtered by CellRanger and so not included in the matrix output?
-
-# I got a barcode file from Nathan from /lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/RMS/cellranger800_count_30855_CG_SB_NB8113359_GRCh38-1_2_0/filtered_feature_bc_matrix
-# why was I given this, this makes no sense - is this even from any of the samples that I have?
-barcodes_52544 = fread('Data/scRNAseq/barcodes_NB13652544.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
-barcodes_52545 = fread('Data/scRNAseq/barcodes_NB13652545.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
-barcodes_52546 = fread('Data/scRNAseq/barcodes_NB13652546.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
-barcodes_60628 = fread('Data/scRNAseq/barcodes_NB13760628.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
-barcodes_60629 = fread('Data/scRNAseq/barcodes_NB13760629.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
-barcodes_60630 = fread('Data/scRNAseq/barcodes_NB13760630.tsv', sep = '\t', header = FALSE)[,V1] %>% unlist()
-barcodes_all = c(barcodes_52544, barcodes_52545, barcodes_52546, barcodes_60628, barcodes_60629, barcodes_60630)
-
-sum(cells_absent_cellranger %in% barcodes_all) # 0 
+# We solved this with Nathan: essentially, the missing barcodes were excluded from the filtered matrix in CellRanger output
+# barcodes that were returned by AlleleIntegrator but missing from CellRanger filtered correspond to empty / poor quality GEMs
+# AlleleIntegrator does QC of reads, but not of cells
+# Given that I need to know if a given GEM is tumour vs normal, I have to exclude barcodes missing from filtered CellRanger from the analysis 
 
 ###################################################################################################################################
 # Cluster annotation + genotyping (for cells where it is possible to do so)
