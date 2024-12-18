@@ -402,7 +402,9 @@ vafs_scrnaseq[vaf_all > 0 & dep_all >= 10, c('mut_ID', 'vaf_PD62341', 'vaf_PD633
 
 # OUTPUT 
 # save dt with number of mutant reads, mutation VAF in both twins, assignment based on genomic data
-
+vafs_muts = vafs_scrnaseq[vaf_all > 0, c('mut_ID', 'mtr_PD62341', 'dep_PD62341', 'vaf_PD62341', 'mtr_PD63383', 'dep_PD63383', 'vaf_PD63383', 'mut_class'), with=F]
+setnames(vafs_muts, 'mut_class', 'mutation category (in WGS)')
+write.table(vafs_muts, 'Out/F7/F7_20241218_vafs_muts_scrnaseq.csv', row.names=F, quote=F, sep = ',')
 
 ###################################################################################################################################
 # Integrate analysis with clusters
