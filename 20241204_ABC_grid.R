@@ -605,7 +605,7 @@ for (s2 in 2:6){
     out_grid = out[[1]]
     if (rep == 100){
       draw_area(out_grid)
-      ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
+      ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
     }
     
   }
@@ -707,7 +707,7 @@ for (s2 in 2:6){
     out_grid = out[[1]]
     if (rep == 100){
       draw_area(out_grid)
-      ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}_mixing.pdf'), width = 4, height = 4)
+      ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}_mixing.pdf'), width = 4, height = 4)
     }
     
   }
@@ -804,7 +804,7 @@ ggplot(out_sim_s2_raw_melt, aes(x = s2, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_uncorrectedSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_uncorrectedSeq.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2_raw_melt[mixing==FALSE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -812,7 +812,7 @@ ggplot(out_sim_s2_raw_melt[mixing==FALSE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_uncorrectedSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_uncorrectedSeq.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2_raw_melt[mixing==TRUE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -820,7 +820,7 @@ ggplot(out_sim_s2_raw_melt[mixing==TRUE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_uncorrectedSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_uncorrectedSeq.pdf'), height = 8, width = 8)  
 
 # results (sequencing to 30x coverage)
 out_sim_s2_sub_seq30 = out_sim_s2[, c('s2', summary_stats_seq30, 'mixing'), with=FALSE]
@@ -835,7 +835,7 @@ ggplot(out_sim_s2_seq30_melt, aes(x = s2, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_30xSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_30xSeq.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2_seq30_melt[mixing==FALSE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -843,7 +843,7 @@ ggplot(out_sim_s2_seq30_melt[mixing==FALSE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_30xSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_30xSeq.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2_seq30_melt[mixing==TRUE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -851,7 +851,7 @@ ggplot(out_sim_s2_seq30_melt[mixing==TRUE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_30xSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_30xSeq.pdf'), height = 8, width = 8)  
 
 # results cf sequencing to depth 200
 out_sim_s2_sub_seq200 = out_sim_s2[, c('s2', summary_stats_seq200, 'mixing'), with=FALSE]
@@ -866,7 +866,7 @@ ggplot(out_sim_s2_seq200_melt, aes(x = s2, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_200xSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_200xSeq.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2_seq200_melt[mixing==FALSE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -874,7 +874,7 @@ ggplot(out_sim_s2_seq200_melt[mixing==FALSE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_200xSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_200xSeq.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2_seq200_melt[mixing==TRUE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -882,12 +882,43 @@ ggplot(out_sim_s2_seq200_melt[mixing==TRUE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_200xSeq.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_200xSeq.pdf'), height = 8, width = 8)  
 
 # save the simulation output to a file
 # convert columns to character or it screams otherwise
 out_sim_s2 = apply(out_sim_s2, 2, as.character)
 write.table(out_sim_s2, 'Out/F5/F5_20241215_out_sim_s2_2to6_mixingVsNomixing.csv', sep = ',', quote=F, row.names=F)
+
+# does this work for a combo s2 = 2 and p = 0.3
+muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
+# create an empty dt to store simulation results in 
+out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
+                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
+                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
+
+# test out from s2 in 2 to 6 (2-6 ICM cell divisions)
+for (p in c(0.3, 0.5, 0.7)){
+    
+    # run 100 simulations for each parameter value 
+    for (rep in 1:1000){
+      
+      if (rep == 1){
+        print(c(p, rep))
+      }
+      
+      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = 2, p = p)
+      
+      out_muts = out[[2]]
+      out_sim = get_output(out_muts)
+      
+      out_grid = out[[1]]
+      if (rep == 1000){
+        draw_area(out_grid)
+        ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
+      }
+      
+    }
+  }
 
 ###################################################################################################################################
 # SIMULATION: run with 2 varying parameter (s2, p)
@@ -895,7 +926,7 @@ write.table(out_sim_s2, 'Out/F5/F5_20241215_out_sim_s2_2to6_mixingVsNomixing.csv
 # what are the reasonable parameter values?
 # x, y, sd1, sd2 = for x and y, anything big will do
 # sd1, sd2 = does Henry have any intuition for this? I was thinking sd1 > sd2, but not sure otherwise
-# s1 = 3-5?
+# s1 = set to 4
 # s2 = 2-6?
 # n = 2-6
 # p = 0.25, 0.5, 0.75 (can try more fine-grained but realistically 0.2-0.8)
@@ -935,7 +966,7 @@ out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s
                    vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
 
 # test out from s2 in 2 to 6 (2-6 ICM cell divisions)
-for (s2 in c(3, 4, 5, 6, 7)){
+for (s2 in c(2:7)){
   
   for (p in c(0.3, 0.5, 0.7)){
   
@@ -954,9 +985,8 @@ for (s2 in c(3, 4, 5, 6, 7)){
       out_grid = out[[1]]
       if (rep == 1000){
         draw_area(out_grid)
-        ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
+        ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
       }
-   
     }
   }
 }
@@ -1059,7 +1089,7 @@ for (s2 in 2:7){
       out_grid = out[[1]]
       if (rep == 1000){
         draw_area(out_grid)
-        ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}_mixing.pdf'), width = 4, height = 4)
+        ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}_mixing.pdf'), width = 4, height = 4)
       }
     }
   }
@@ -1157,7 +1187,7 @@ ggplot(out_sim_s2p_raw_melt, aes(x = s2, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_raw_melt[mixing==FALSE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -1165,7 +1195,7 @@ ggplot(out_sim_s2p_raw_melt[mixing==FALSE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_raw_melt[mixing==TRUE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -1173,7 +1203,7 @@ ggplot(out_sim_s2p_raw_melt[mixing==TRUE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_uncorrectedSeq_s2.pdf'), height = 8, width = 8)  
 
 # plots to test the importance of asymmetry 
 ggplot(out_sim_s2p_raw_melt, aes(x = p, y = value, col = mixing))+
@@ -1182,7 +1212,7 @@ ggplot(out_sim_s2p_raw_melt, aes(x = p, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_raw_melt[mixing==FALSE], aes(x = p, y = value))+
   geom_boxplot()+
@@ -1190,7 +1220,7 @@ ggplot(out_sim_s2p_raw_melt[mixing==FALSE], aes(x = p, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_raw_melt[mixing==TRUE], aes(x = p, y = value))+
   geom_boxplot()+
@@ -1198,7 +1228,7 @@ ggplot(out_sim_s2p_raw_melt[mixing==TRUE], aes(x = p, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_uncorrectedSeq_p.pdf'), height = 8, width = 8)  
 
 # results (sequencing to 30x coverage)
 out_sim_s2p_sub_seq30 = out_sim_s2p[, c('s2', 'p', summary_stats_seq30, 'mixing'), with=FALSE]
@@ -1214,7 +1244,7 @@ ggplot(out_sim_s2p_seq30_melt, aes(x = s2, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq30_melt[mixing==FALSE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -1222,7 +1252,7 @@ ggplot(out_sim_s2p_seq30_melt[mixing==FALSE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq30_melt[mixing==TRUE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -1230,7 +1260,7 @@ ggplot(out_sim_s2p_seq30_melt[mixing==TRUE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_30xSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq30_melt, aes(x = p, y = value, col = mixing))+
   geom_boxplot()+
@@ -1238,7 +1268,7 @@ ggplot(out_sim_s2p_seq30_melt, aes(x = p, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_30xSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_30xSeq_p.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq30_melt[mixing==FALSE], aes(x = p, y = value))+
   geom_boxplot()+
@@ -1246,7 +1276,7 @@ ggplot(out_sim_s2p_seq30_melt[mixing==FALSE], aes(x = p, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_30xSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_30xSeq_p.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq30_melt[mixing==TRUE], aes(x = p, y = value))+
   geom_boxplot()+
@@ -1254,7 +1284,7 @@ ggplot(out_sim_s2p_seq30_melt[mixing==TRUE], aes(x = p, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_30xSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_30xSeq_p.pdf'), height = 8, width = 8)  
 
 # results cf sequencing to depth 200
 out_sim_s2p_sub_seq200 = out_sim_s2p[, c('s2', 'p', summary_stats_seq200, 'mixing'), with=FALSE]
@@ -1270,7 +1300,7 @@ ggplot(out_sim_s2p_seq200_melt, aes(x = s2, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq200_melt[mixing==FALSE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -1278,7 +1308,7 @@ ggplot(out_sim_s2p_seq200_melt[mixing==FALSE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq200_melt[mixing==TRUE], aes(x = s2, y = value))+
   geom_boxplot()+
@@ -1286,7 +1316,7 @@ ggplot(out_sim_s2p_seq200_melt[mixing==TRUE], aes(x = s2, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Number of post-ICM divisions', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_200xSeq_s2.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq200_melt, aes(x = p, y = value, col = mixing))+
   geom_boxplot()+
@@ -1294,7 +1324,7 @@ ggplot(out_sim_s2p_seq200_melt, aes(x = p, y = value, col = mixing))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col = 'Cell mixing')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cfMixing_200xSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cfMixing_200xSeq_p.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq200_melt[mixing==FALSE], aes(x = p, y = value))+
   geom_boxplot()+
@@ -1302,7 +1332,7 @@ ggplot(out_sim_s2p_seq200_melt[mixing==FALSE], aes(x = p, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data')
-ggsave(glue('Figures/F5/20241208_diff_to_stat_noMixing_200xSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_noMixing_200xSeq_p.pdf'), height = 8, width = 8)  
 
 ggplot(out_sim_s2p_seq200_melt[mixing==TRUE], aes(x = p, y = value))+
   geom_boxplot()+
@@ -1310,7 +1340,7 @@ ggplot(out_sim_s2p_seq200_melt[mixing==TRUE], aes(x = p, y = value))+
   theme_classic(base_size = 13)+
   geom_hline(yintercept = 0, color = 'black')+
   labs(x = 'Proportion of cells allocated to twin1', y = 'Difference to observed data', col)
-ggsave(glue('Figures/F5/20241208_diff_to_stat_cellMixing_200xSeq_p.pdf'), height = 8, width = 8)  
+ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_200xSeq_p.pdf'), height = 8, width = 8)  
 
 # save the simulation output to a file
 # convert columns to character or it screams otherwise
@@ -1372,7 +1402,7 @@ for (s2 in 2:7){
         # save a sample grid for each set of parameter combinations
         if (rep == 1){
           draw_area(out_grid)
-          ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
+          ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
         }
       }
     }
@@ -1468,7 +1498,7 @@ for (stat in summary_stats){
           geom_point()+ 
           theme_classic(base_size = 13)+
           labs(x = 'Number of post-ICM divisions', y = glue('difference to observed data {stat}'), title = glue('{stat}'), col = 'category')
-  ggsave(glue('Figures/F5/20241208_diff_to_stat_{stat}.pdf'), height = 4, width = 4)  
+  ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_{stat}.pdf'), height = 4, width = 4)  
   
 }
 
@@ -1508,7 +1538,7 @@ for (s2 in 2:6){
       if (rep == 100){ # save grid to output for each parameter combination  
         out_grid = out[[1]]
         draw_area(out_grid)
-        ggsave(glue('Figures/F5/20241208_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{pf}.pdf'), width = 4, height = 4)
+        ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{pf}.pdf'), width = 4, height = 4)
       }
     
     }
@@ -1528,15 +1558,15 @@ for (s_value in 2:6){
     nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
     nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
     
-    pdf(glue('Figures/F5/20241208_sim_out_hist_sharedMuts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    pdf(glue('FiguresAdd/F5/F5_sim_out_hist_sharedMuts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
     hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
     dev.off()
   
-    pdf(glue('Figures/F5/20241208_sim_out_hist_twin1Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    pdf(glue('FiguresAdd/F5/F5_sim_out_hist_twin1Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
     hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
     dev.off()
 
-    pdf(glue('Figures/F5/20241208_sim_out_hist_twin2Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
+    pdf(glue('FiguresAdd/F5/F5_sim_out_hist_twin2Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
     hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
     dev.off()
     

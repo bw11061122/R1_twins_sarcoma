@@ -291,7 +291,7 @@ paste('Number of mutations which low HQ / LQ ratio:', dim(twins_dt[f6_lowQualRat
 ######################################################################################################
 # 7 FILTERING BASED ON GERMLINE (LOW QUALITY PILEUP) 
 
-bin_test_less <- function(a, b, p = 0.5) {
+bin_test_less = function(a, b, p = 0.5) {
   if (b > 0) {binom.test(a, b, 0.5, alternative = c("less"), conf.level = 0.95)$p.value}
   else {2}} # if no reads are mapped at all, return 2 so these cases can be easily identified and excluded
 
@@ -353,7 +353,7 @@ muts_included = twins_dt[sum_req_filters==0, mut_ID] %>% unlist()
 paste('Number of mutations that pass required filters (1):', dim(twins_dt[sum_req_filters==0])[1]) # 1069  
 write.table(muts_included, 'Out/F1/F1_mutations_include_20241208_1069.txt', quote = FALSE, col.names = F, row.names = F)
 
-# SAVE PUTATIVE GERMLINE MUTATIONS TO A TXT FILE( (only include mutations retained after QC))
+# SAVE PUTATIVE GERMLINE MUTATIONS TO A TXT FILE (only include mutations retained after QC)
 muts_germline = twins_dt[sum_req_filters==1 & f7_likelyGermline_bothTwins==1, mut_ID] %>% unlist() # 332,974
 paste('Number of likely germline mutations:', length(muts_germline)) # 332,974
 write.table(muts_germline, 'Out/F1/F1_mutations_putativeGermline_20241208.txt', quote = FALSE, col.names = F, row.names = F)
@@ -369,6 +369,14 @@ write.csv(twins_dt, 'Out/F1/F1_twins_dt_20241208_1069.csv', quote = FALSE, row.n
 # SAVE THE DATAFRAME TO A FILE (MUTATION + FILTERING STATUS ONLY)
 twins_dt_info = twins_dt[, c('mut_ID', columns_req_filters, 'sum_req_filters'), with=FALSE]
 write.csv(twins_dt_info, 'Out/F1/F1_twins_status_filters_20241208_1069.csv', quote = FALSE, row.names = F)
+
+# SAVE PILEUP DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS) FOR NON-GERMLINE MUTATIONS ONLY
+twins_dt_nongermline = twins_dt[f7_likelyGermline_bothTwins==0]
+write.csv(twins_dt_nongermline, 'Out/F1/F1_twins_dt_nongermline_20241208_1069.csv', quote = FALSE, row.names = F)
+
+# SAVE THE DATAFRAME TO A FILE (MUTATION + FILTERING STATUS ONLY) FOR NON-GERMLINE MUTATIONS ONLY
+twins_dt_nongermline_info = twins_dt_nongermline[, c('mut_ID', columns_req_filters, 'sum_req_filters'), with=FALSE]
+write.csv(twins_dt_nongermline_info, 'Out/F1/F1_twins_nongermline_status_filters_20241208_1069.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # FILTERING 2: EXCLUDE GERMLINE MUTATIONS ON COPY NUMBER REGIONS
@@ -410,7 +418,7 @@ paste('Number of mutations identified in all normal samples:', length(muts_norma
 # 617 mutations is implausible for the early embryo, suggests unfiltered germline variants 
 
 # Is the VAF of those mutations < 0.5?
-pdf('Figures/F1/20241208_hist_vaf_muts_in_all_normal_samples.pdf', width = 4.2, height = 3.2)
+pdf('FiguresAdd/F1/F1_hist_vaf_muts_in_all_normal_samples.pdf', width = 4.2, height = 3.2)
 hist(twins_dt_filtered[mut_ID %in% muts_normal_all, vaf_all_normal] %>% unlist(), 
      xlab = 'VAF (agg normal samples)', main = 'Mutations in all normal samples (617)', xlim = c(0, 1), breaks=30)
 abline(v = median(twins_dt_filtered[mut_ID %in% muts_normal_all, vaf_all_normal]), col = 'purple', lwd = 2.5)
@@ -437,7 +445,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_germline_sample, muts_included)], aes(x = dep
   guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))+
   xlim(c(0, 900))
-ggsave(glue('Figures/F1/20241208_vaf_vs_dep_allNormalMuts.pdf'), height=4, width=6)
+ggsave(glue('FiguresMain/SF2/F1_vaf_vs_dep_allNormalMuts.pdf'), height=4, width=6)
 
 # analyse distribution of coverage in retained mutations
 # are non-filtered germline mutations on regions of copy number change? can be identified through elevated coverage
@@ -506,7 +514,7 @@ for (chr in Chrom){
     geom_hline(yintercept = as.numeric(dt[,median_dep_chr] %>% unique()), col = 'purple', linetype = 'dashed', size = 0.6, alpha = 0.8)+
     geom_hline(yintercept = as.numeric(dt[,upper_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)+
     geom_hline(yintercept = as.numeric(dt[,lower_dep] %>% unique()), col = 'black', linetype = 'dashed', size = 0.6, alpha = 0.8)
-  ggsave(glue('Figures/F1/20241208_dep_normal_{chr}_col_mutsAllNormal_thresholds.pdf'), height=3, width=5.5)
+  ggsave(glue('FiguresAdd/F1/F1_dep_normal_{chr}_col_mutsAllNormal_thresholds.pdf'), height=3, width=5.5)
 }
 
 # Show mutations excluded by filtering 
@@ -526,7 +534,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   ylim(c(0, 0.75))+
   guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   xlim(c(0, 900))
-ggsave(glue('Figures/F1/20241208_vaf_vs_dep_allNormalMuts_covExcluded.pdf'), height=4, width=6)
+ggsave(glue('FiguresMain/SF2/F1_vaf_vs_dep_allNormalMuts_covExcluded.pdf'), height=4, width=6)
 
 # All mutations in the cluster are likely to be affected by the copy number change
 # Therefore, identify and remove all mutations in clusters (even if a given mutation is still within the coverage threshold)
@@ -595,7 +603,7 @@ ggplot(twins_dt[mut_ID %in% c(muts_included, muts_germline_sample)], aes(x = dep
   guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   ylim(c(0, 0.75))+
   xlim(c(0, 900))
-ggsave(glue('Figures/F1/20241208_vaf_vs_dep_allNormalMuts_covClusterExcluded.pdf'), height=4, width=6)
+ggsave(glue('FiguresMain/SF2/F1_vaf_vs_dep_allNormalMuts_covClusterExcluded.pdf'), height=4, width=6)
 
 # check the clustering of mutations removed based on germline filter
 twins_dt_filtered[, mut_germlineCN := factor(fcase(
@@ -610,7 +618,7 @@ ggplot(twins_dt_filtered, aes(x = dep_all_normal, y = log10(min_diff), colour = 
   ggtitle('1069 mutations')+
   guides(color = guide_legend(override.aes = list(alpha = 1) ) )+
   scale_color_manual(values = c(col_normal_all_removed, col_other))
-ggsave('Figures/F1/20241208_covVslogDistance_covClustersExcluded.pdf', height = 4, width = 6)
+ggsave('FiguresMain/SF2/F1_covVslogDistance_covClustersExcluded.pdf', height = 4, width = 6)
 
 # update required filters and create a new mutation set (after filtering likely germline CN)
 columns_req_filters2 = c('f1_mappedY', 'f2_FailedIndelNearby30', 'f3_lowDepthNormal', 'f3_highDepthNormal', 
@@ -632,6 +640,14 @@ write.csv(twins_dt, 'Out/F1/F1_twins_dt_20241208_542.csv', quote = FALSE, row.na
 # SAVE THE DATAFRAME TO A FILE (MUTATION + FILTERING STATUS ONLY)
 twins_dt_info2 = twins_dt[, c('mut_ID', columns_req_filters2, 'sum_req_filters2'), with=FALSE]
 write.csv(twins_dt_info2, 'Out/F1/F1_twins_status_filters_20241208_542.csv', quote = FALSE, row.names = F)
+
+# SAVE PILEUP DATAFRAME TO A FILE (INCUDING ALL CLASSES OF FILTERS) FOR NON-GERMLINE MUTATIONS ONLY
+twins_dt_nongermline2 = twins_dt[f7_likelyGermline_bothTwins==0 & f9_germlineCN==0]
+write.csv(twins_dt_nongermline2, 'Out/F1/F1_twins_dt_nongermline_20241208_542.csv', quote = FALSE, row.names = F)
+
+# SAVE THE DATAFRAME TO A FILE (MUTATION + FILTERING STATUS ONLY) FOR NON-GERMLINE MUTATIONS ONLY
+twins_dt_nongermline2_info = twins_dt_nongermline2[, c('mut_ID', columns_req_filters2, 'sum_req_filters2'), with=FALSE]
+write.csv(twins_dt_nongermline2_info, 'Out/F1/F1_twins_nongermline_status_filters_20241208_542.csv', quote = FALSE, row.names = F)
 
 ######################################################################################################
 # FILTERING 3: MANUAL QC STEP
@@ -696,7 +712,7 @@ ggplot(data=mut_counts_qc, aes(x=V1, y=freq_norm, fill=status)) +
   theme_classic(base_size = 10)+
   labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', 
        title = glue('All mutations ({num_mut})'))
-ggsave('Figures/F1/20241208_mut_types_QC_all.pdf', width = 5, height = 3.5)
+ggsave('FiguresAdd/F1/F1_mut_types_QC_all.pdf', width = 5, height = 3.5)
 
 # compare removing germline mutations (many of which will be high-quality)
 muts_dt2 = twins_dt[f7_likelyGermline_bothTwins==0, c('mut_ID', 'Ref', 'Alt'), with=FALSE]
@@ -743,7 +759,7 @@ ggplot(data=mut_counts_qc2, aes(x=V1, y=freq_norm, fill=QC)) +
   theme_classic(base_size = 10)+
   labs(x = 'Mutation type', y = 'Fraction of mutations in the category', fill = 'Quality control', 
        title = glue('Excluded putative germline ({num_mut2})'))
-ggsave('Figures/F1/20241208_mut_types_QC_germline_excluded.pdf', width = 5, height = 3.5)
+ggsave('FiguresAdd/F1/F1_mut_types_QC_germline_excluded.pdf', width = 5, height = 3.5)
 
 ######################################################################################################
 # OUTPUT 4: PLOT DISTIRBUTON OF MUTATIONS IN TRI-NUC CONTEXTS AFTER FILTERING 
@@ -820,7 +836,7 @@ ggplot(data=mut_sign_counts, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Figures/F1/20241208_mut_trins_allmuts.pdf', width = 8, height = 2.5)
+ggsave('FiguresMain/SF1/F1_mut_trins_allmuts.pdf', width = 8, height = 2.5)
 
 # plot tri-nucleotide context for the filtered set of mutations  
 dtf = twins_dt[mut_ID %in% muts_final]
@@ -851,7 +867,7 @@ ggplot(data=mut_sign_counts2, aes(x=context, y=count, fill=mut_class)) +
   theme(panel.spacing = unit(0, "lines"))+
   theme(strip.text.x = element_text(size = 13))+
   geom_hline(yintercept = 0, colour="black", size = 0.1)
-ggsave('Figures/F1/20241208_mut_trins_finalSet255.pdf', width = 8, height = 2.5)
+ggsave('FiguresMain/SF1/F1_mut_trins_finalSet255.pdf', width = 8, height = 2.5)
 
 # Create a series of plots that show what happens when you progressively apply different filters
 # filters in the order of which removes the most mutations first 
@@ -893,7 +909,7 @@ for (f in filters){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Figures/F1/20241208_mut_trins_retainedMuts_{f}.pdf'), width = 8, height = 2.5)
+  ggsave(glue('FiguresAdd/F1/F1_mut_trins_retainedMuts_{f}.pdf'), width = 8, height = 2.5)
 }
 
 # show how signatures change after consecutive filters are applied
@@ -930,7 +946,7 @@ for (i in seq_along(filters)){
     theme(panel.spacing = unit(0, "lines"))+
     theme(strip.text.x = element_text(size = 13))+
     geom_hline(yintercept = 0, colour="black", size = 0.1)
-  ggsave(glue('Figures/F1/20241208_mut_trins_retainedMuts_consecutiveFilters_{i}.pdf'), width = 8, height = 2.5)
+  ggsave(glue('FiguresMain/SF1/F1_mut_trins_retainedMuts_consecutiveFilters_{i}.pdf'), width = 8, height = 2.5)
 }
 
 # show mutations EXCLUDED after each filter is applied  
@@ -975,7 +991,7 @@ for (i in seq_along(filters)){
       theme(panel.spacing = unit(0, "lines"))+
       theme(strip.text.x = element_text(size = 13))+
       geom_hline(yintercept = 0, colour="black", size = 0.1)
-    ggsave(glue('Figures/F1/20241208_mut_trins_filters_removedMuts_{i}.pdf'), width = 8, height = 2.5) }
+    ggsave(glue('FiguresMain/SF1/F1_mut_trins_filters_removedMuts_{i}.pdf'), width = 8, height = 2.5) }
 }
 
 ######################################################################################################
