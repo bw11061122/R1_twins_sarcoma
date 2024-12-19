@@ -312,9 +312,10 @@ ggplot(status_counts, aes(x = status, y = N, fill = status))+
   geom_bar(stat = 'identity')+
   geom_text(aes(label=N), vjust=-0.5) +
   scale_fill_manual(values = c(col_mutant, col_wt))+
-  theme_classic(base_size = 13)+
+  theme_classic(base_size = 12)+
   theme(legend.position="none")+
-  labs(x = 'Status', y = 'Number of reads', title = glue('Count of wt and mutant reads'))
+  ylim(c(0, 800))+
+  labs(x = 'Status', y = 'Number of reads')
 ggsave(glue('FiguresMain/SF4/F7_mut_wt_read_counts.pdf'), height = 4, width = 4)
 
 # how many mutations have reads reporting the mutant allele?
@@ -327,7 +328,7 @@ pdf('FiguresAdd/F7/F7_genotyping_hist_mutID.pdf', height = 5, width = 5)
 hist(mut_counts[,N], xlab = 'Number of reads spanning mutation', main = 'Mutation occurrence', breaks = 40)
 dev.off()
 
-# which mutation is seen > 10 times?
+# which mutations are seen > 10 times?
 muts_10reads = mut_counts[N>=10, V1] %>% unlist()
 twins_filtered_dt[mut_ID %in% muts_10reads, c('mut_ID', 'Gene', 'Effect'), with=FALSE]
 # I checked positions which are not annotated to a gene in the CaVEMan pileup output on Jbrowse (tracks > protein-coding):
@@ -422,9 +423,7 @@ ai_counts_dt$seurat_clusters_PD63383 = meta_PD63383$seurat_clusters[match(ai_cou
 paste('Number of barcodes assigned to PD62341 cluster:', length(ai_counts_dt[!is.na(seurat_clusters_PD62341), barcode] %>% unlist() %>% unique())) # 368
 paste('Number of barcodes assigned to PD63383 cluster:', length(ai_counts_dt[!is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 130
 
-###################################################################################################################################
 # Why are some barcodes missing cluster annotation?
-
 paste('Number of barcodes assigned to cluster for both twins:', length(ai_counts_dt[!is.na(seurat_clusters_PD62341) & !is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 0 - no cells assigned to both (that's good)
 paste('Number of barcodes missing a cluster:', length(ai_counts_dt[is.na(seurat_clusters_PD62341) & is.na(seurat_clusters_PD63383), barcode] %>% unlist() %>% unique())) # 194
 # 194 cells are not assigned to any cluster either from PD62341 or PD63383 
@@ -445,6 +444,7 @@ tumour.data = do.call("cbind", tumour.d)
 cells_all = colnames(tumour.data) 
 paste('Number of barcodes missing annotation present in CellRanger output:', sum(cells_missing %in% cells_all)) 
 # 110 cells were present in the CellRanger output but tossed out from clustering due to QC issues
+
 paste('Number of barcodes missing annotation absent from CellRanger output:', length(setdiff(cells_missing, cells_all))) 
 # 84 cells were absent from the CellRanger output 
 
@@ -549,7 +549,7 @@ for (mut in muts_in_scrna){
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+ 
       guides(size = "none")+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}'), col = 'category')
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}\n{mut_assignment} in WGS'), col = 'category')
     ggsave(glue('FiguresMain/SF4/F7_umap_tumour_PD62341only_mutation_{mut}.pdf'), height = 4, width = 4)
     
     ggplot(setorder(umap_PD62341, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
@@ -561,7 +561,7 @@ for (mut in muts_in_scrna){
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+ 
       guides(size = "none")+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment}'), col = 'category')
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment} in WGS'), col = 'category')
     ggsave(glue('FiguresAdd/F7/F7_umap_tumour_PD62341only_mutation_{mut}_desc.pdf'), height = 4, width = 4)
 
   }
@@ -595,7 +595,7 @@ for (mut in muts_in_scrna){
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+
       guides(size = "none")+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'), col = 'category')
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}\n{mut_assignment} in WGS'), col = 'category')
     ggsave(glue('FiguresMain/SF4/F7_umap_tumour_PD63383only_mutation_{mut}.pdf'), height = 4, width = 4)  
     
     ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
@@ -607,7 +607,7 @@ for (mut in muts_in_scrna){
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+
       guides(size = "none")+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'), col = 'category')
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment} in WGS'), col = 'category')
     ggsave(glue('FiguresAdd/F7/F7_umap_tumour_PD63383only_mutation_{mut}_desc.pdf'), height = 4, width = 4)  
     
   }
@@ -657,7 +657,7 @@ for (mut in muts_in_scrna){
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+ 
       guides(size = "none")+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}'), col = 'category')
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut_name}\n{mut_assignment} in WGS'), col = 'category')
     
     p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
       geom_point()+
@@ -668,7 +668,7 @@ for (mut in muts_in_scrna){
       xlim(c(-20, 20))+
       ylim(c(-20, 20))+  
       guides(size = "none")+
-      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}'), col = 'category')
+      labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut_name}\n{mut_assignment} in WGS'), col = 'category')
     
     plots = grid.arrange(p_PD62341, p_PD63383, ncol = 2)
     ggsave(glue('FiguresMain/SF4/F7_umap_tumour_both_mutation_{mut}.pdf'), plots, height = 4, width = 8)
@@ -683,7 +683,7 @@ for (mut in muts_in_scrna){
         xlim(c(-20, 20))+
         ylim(c(-20, 20))+
         guides(size = "none")+
-        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment}'), col = 'category')
+        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD62341 tumour\n{mut}\n{mut_assignment} in WGS'), col = 'category')
     
     p_PD63383 = ggplot(setorder(umap_PD63383, status2), aes(umap_1, umap_2, color = status2, order = status2, size = status2))+
         geom_point()+
@@ -694,7 +694,7 @@ for (mut in muts_in_scrna){
         xlim(c(-20, 20))+
         ylim(c(-20, 20))+ 
         guides(size = "none")+
-        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment}'), col = 'category')
+        labs(x = 'UMAP 1', y = 'UMAP 2', title = glue('PD63383 tumour\n{mut}\n{mut_assignment} in WGS'), col = 'category')
       
     plots = grid.arrange(p_PD62341, p_PD63383, ncol = 2)
     ggsave(glue('FiguresAdd/F7/F7_umap_tumour_both_mutation_{mut}_desc.pdf'), plots, height = 4, width = 8)  

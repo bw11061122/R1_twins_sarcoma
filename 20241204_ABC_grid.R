@@ -955,8 +955,8 @@ sum_vafs_spec_twin2_observed = sum(vafs_spec_twin2_observed)
 
 # set seed
 seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
-print(paste0("Random seed used in the simulation: ", seed))
-set.seed(seed)
+print(paste0("Random seed used in the simulation: ", seed)) # 2198.61151301869 run with 
+set.seed(seed) 
 
 # create an empty dt to store mutations for each cell on the phylogeny
 muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
@@ -1345,247 +1345,25 @@ ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_200xSeq_p.pdf'), height = 
 # save the simulation output to a file
 # convert columns to character or it screams otherwise
 out_sim_s2p = apply(out_sim_s2p, 2, as.character)
-write.table(out_sim_s2p, 'Out/F5/F5_20241215_out_sim_s2_2to7_p3values_mixingVsNomixing.csv', sep = ',', quote=F, row.names=F)
+write.table(out_sim_s2p, 'Out/F5/F5_20241215_out_sim_s2_2to7_p_3values_mixingVsNomixing.csv', sep = ',', quote=F, row.names=F)
 
-###################################################################################################################################
-# SIMULATION: test three varying parameters 
+# Plot output of the simulation as a heatmap (with distance to observed in color)
+library(RColorBrewer)
+pdf("FiguresAdd/F5_heatmap_s2_vs_p_distToObserved.pdf", width=3.5, height=8)
+heatmap.2(cell_alloc_mat,
+          density.info="none",  # turns off density plot inside color legend
+          trace="none",         # turns off trace lines inside the heat map
+          dendrogram="none",
+          na.color = "gray",
+          col=colorRampPalette(brewer.pal(9,"Blues"))(100),
+          Rowv = F,
+          Colv = F,
+          scale='none',
+          key=F,
+          cexRow=0.8,
+          cexCol=1,
+          notecex=1.0,
+          mar=c(10,6.5))
+dev.off()
 
-# what are the reasonable parameter values?
-# x, y = anything sufficiently large 
-# sd1, sd2 = fix 
-# s1 = set to 4
-# s2 = 2-7 (I think 7 is on the high end)
-# n = 2-6 (test different values: 3, 8, 13) (but we know from the phylogeny papers it is likely to be 3-4)
-# p = 0.25, 0.5, 0.75 (can try more fine-grained but realistically 0.2-0.8)
-# mu1, mu2 = set 2 before ZGA and 0.5 after ZGA (for now) 
-
-# specify parameters and test for s2 = 2, 3, 4, 5, 6
-x = 1000 # make larger such that overlapping points are rarely chosen
-y = 1000
-mu1 = 2
-mu2 = 0.5
-sd1 = 20
-sd2 = 10
-s1 = 3
-
-# set seed
-seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
-print(paste0("Random seed used in the simulation: ", seed))
-set.seed(seed)
-
-# create an empty dt to store mutations for each cell on the phylogeny
-muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
-# create an empty dt to store simulation results in 
-out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
-                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
-                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
-
-# test s2 from 2 to 7, 3 values of p, 3 values of n
-for (s2 in 2:7){
-  
-  for (p in c(0.25, 0.5, 0.75)){
-    
-      for (rep in 1:100){
-        
-        # keep track of simulations
-        if (rep == 1){
-          print(c(s2, p, n))
-        }
-        
-        out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = p)
-        
-        out_muts = out[[2]]
-        out_sim = get_output(out_muts)
-        
-        out_grid = out[[1]]
-        
-        # save a sample grid for each set of parameter combinations
-        if (rep == 1){
-          draw_area(out_grid)
-          ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{p}.pdf'), width = 4, height = 4)
-        }
-      }
-    }
-  }
-}
-
-# make sure that relevant columns in out_sim are numeric
-num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_twin1', 'nr_twin2')
-out_sim[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
-
-# how many mutations (shared / twin-specific) do we get for each s?
-for (s in 2:6){
-  
-  out_sim_sub = out_sim[s2 == s]
-  nr_shared_muts = out_sim_sub[, nr_shared] %>% unlist() %>% as.numeric()
-  nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
-  nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
-  
-  print(hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s}')))
-  print(hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s}')))
-  print(hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s}')))
-  
-}
-
-# Add sampling 
-
-# Take each VAF stored in the column, sample nr reads from Poisson w/ lambda 30, get sampled VAF 
-sim_sequencing = function(vafs, lambda = 30){
-  
-  vafs = vafs %>% strsplit(',') %>% unlist() %>% as.numeric() # create a list of VAF values from the character 
-  
-  if (length(vafs)==0){
-    return(0)
-  }
-  
-  else {
-    vafs_seq = c()
-    for (vaf in vafs){ 
-      depth = rpois(1, lambda) # sample nr of all reads sequenced from Poisson distribution, lambda = 30 
-      mtr = rbinom(1, size = depth, prob = vaf) # sample nr of mutant reads given coverage and true VAF 
-      vaf_seq = mtr / depth # calculate the VAF that would be estimated through sequencing 
-      vafs_seq = c(vafs_seq, vaf_seq)
-    } 
-    nr_muts_seq = length(vafs_seq[vafs_seq > 0.1]) # determine nr of mutations that would be estimated as present (VAF > 0.1)
-    return(vafs_seq)
-  }
-  
-}
-
-# add VAFs observed "after sequencing"
-out_sim[, vafs_shared_twin1_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_shared_twin1"] # vafs of shared mutations in twin1 
-out_sim[, vafs_shared_twin2_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_shared_twin2"] # vafs of shared mutations in twin1
-out_sim[, vafs_spec_twin1_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_spec_twin1"]
-out_sim[, vafs_spec_twin2_seq := apply(.SD, 1, sim_sequencing), .SDcols = "vafs_spec_twin2"]
-
-# add how many mutations would be observed based on the sequenced VAF 
-out_sim[, nr_shared_twin1_seq := sapply(vafs_shared_twin1_seq, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
-out_sim[, nr_shared_twin2_seq := sapply(vafs_shared_twin2_seq, function(x) length(x[x > 0.1]))] # this accounts for shared mutations being mis-classified as twin specific due to sampling 
-out_sim[, nr_spec_twin1_seq := sapply(vafs_spec_twin1_seq, function(x) length(x[x > 0.1]))]
-out_sim[, nr_spec_twin2_seq := sapply(vafs_spec_twin2_seq, function(x) length(x[x > 0.1]))]
-
-# calculate distance to observed statistics 
-# observed statistics 
-nr_shared_observed = 1
-nr_spec_twin1_observed = 6
-nr_spec_twin2_observed = 11
-vafs_shared_twin1_observed = 0.2
-vafs_shared_twin2_observed = 0.5
-vafs_spec_twin1_observed = c(0.48, 0.4, 0.4, 0.4, 0.4, 0.2)
-vafs_spec_twin2_observed = c(0.2, 0.2, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
-sum_vafs_spec_twin1_observed = sum(vafs_spec_twin1_observed)
-sum_vafs_spec_twin2_observed = sum(vafs_spec_twin2_observed)
-
-# difference between simulated (sequenced) and observed statistics 
-out_sim[, nr_shared_twin1_diff := nr_shared_twin1_seq - nr_shared_observed]
-out_sim[, nr_shared_twin2_diff := nr_shared_twin2_seq - nr_shared_observed]
-out_sim[, nr_spec_twin1_diff := nr_spec_twin1_seq - nr_spec_twin1_observed]
-out_sim[, nr_spec_twin2_diff := nr_spec_twin2_seq - nr_spec_twin1_observed]
-
-# Apply the function to each row of the data.table
-out_sim[, vaf_shared_twin1_diff := mapply(get_vaf_diff, vafs_shared_twin1_seq, vafs_shared_twin1_observed)]
-out_sim[, vaf_shared_twin2_diff := mapply(get_vaf_diff, vafs_shared_twin2_seq, vafs_shared_twin2_observed)]
-out_sim[, vaf_spec_twin1_diff := mapply(get_vaf_diff, vafs_spec_twin1_seq, sum_vafs_spec_twin1_observed)]
-out_sim[, vaf_spec_twin2_diff := mapply(get_vaf_diff, vafs_spec_twin2_seq, sum_vafs_spec_twin2_observed)]
-
-# plot the distance to observed statistics 
-summary_stats = c('nr_shared_twin1_diff', 'nr_shared_twin2_diff', 'nr_spec_twin1_diff', 'nr_spec_twin2_diff', 
-                  'vaf_shared_twin1_diff', 'vaf_shared_twin2_diff', 'vaf_spec_twin1_diff', 'vaf_spec_twin2_diff')
-
-for (stat in summary_stats){
-  
-  ggplot(out_sim_5k, aes(x = s2, y = out_sim_5k[[stat]]))+
-          geom_point()+ 
-          theme_classic(base_size = 13)+
-          labs(x = 'Number of post-ICM divisions', y = glue('difference to observed data {stat}'), title = glue('{stat}'), col = 'category')
-  ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_{stat}.pdf'), height = 4, width = 4)  
-  
-}
-
-
-###################################################################################################################################
-# SIMULATION with 2 varying parameters 
-
-# set seed
-seed = (runif(1, min=0, max=100) + runif(1, min=50, max=100)) * runif(1, min=0, max=100)
-print(paste0("Random seed used in the simulation: ", seed))
-set.seed(seed)
-
-# empty dt to write results to
-muts_sim=data.table(cell_x=numeric(), cell_y=numeric(), cell_gen=numeric(), cell_muts=character())
-out_sim=data.table(mu1=numeric(), mu2=numeric(), sd1=numeric(), sd2=numeric(), s1=numeric(), s2=numeric(), n=numeric(), p=numeric(),
-                   nr_shared=numeric(), nr_twin1=numeric(), nr_twin2 = numeric(),
-                   vafs_shared_twin1=character(), vafs_shared_twin2=character(), vafs_spec_twin1=character(), vafs_spec_twin2=character())
-# 8 parameters and 6 summary statistics (list of VAFs is not really a summary statistic but looking at this for now)
-
-# test s2 and p (0.3, 0.5, 0.7) (parameter screen kind of)
-for (s2 in 2:6){
-  
-  for (pf in c(0.3, 0.5, 0.7)){
-  
-    for (rep in 1:100){
-      
-      if (rep==1){ # print which simulation you are on
-        print(c(s2, pf))
-      }
-      
-      # run 100 simulations for each parameter value 
-      out = simulate_twinning(x, y, mu1 = mu1, mu2 = mu2, sd1 = sd1, sd2 = sd2, n = n, s1 = s1, s2 = s2, p = pf)
-      
-      out_muts = out[[2]]
-      out_sim = get_output(out_muts) # binds to existing dataframe so doesn't over-write previous observations when ran in a loop 
-    
-      if (rep == 100){ # save grid to output for each parameter combination  
-        out_grid = out[[1]]
-        draw_area(out_grid)
-        ggsave(glue('FiguresAdd/F5/F5_sim_output_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s2}_n_{n}_p_{pf}.pdf'), width = 4, height = 4)
-      }
-    
-    }
-  }
-}
-  
-num_cols = c('mu1', 'mu2', 'sd1', 'sd2', 's1', 's2', 'n', 'p', 'nr_shared', 'nr_twin1', 'nr_twin2')
-out_sim[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
-  
-# how many mutations (shared / twin-specific) do we get for each s?
-for (s_value in 2:6){
-  
-  for (p_value in c(0.3, 0.5, 0.7)){
-    
-    out_sim_sub = out_sim[s2 == s_value & p == p_value]
-    nr_shared_muts = out_sim_sub[, nr_shared] %>% unlist() %>% as.numeric()
-    nr_twin1_muts = out_sim_sub[, nr_twin1] %>% unlist() %>% as.numeric()
-    nr_twin2_muts = out_sim_sub[, nr_twin2] %>% unlist() %>% as.numeric()
-    
-    pdf(glue('FiguresAdd/F5/F5_sim_out_hist_sharedMuts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
-    hist(nr_shared_muts, xlab = 'Number of shared mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
-    dev.off()
-  
-    pdf(glue('FiguresAdd/F5/F5_sim_out_hist_twin1Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
-    hist(nr_twin1_muts, xlab = 'Number of twin1-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
-    dev.off()
-
-    pdf(glue('FiguresAdd/F5/F5_sim_out_hist_twin2Muts_mu1_{mu1}_mu2_{mu2}_sd1_{sd1}_sd2_{sd2}_s1_{s1}_s2_{s_value}_n_{n}_p_{p_value}.pdf'), height = 5, width = 5)
-    hist(nr_twin2_muts, xlab = 'Number of twin2-specific mutations', main = glue('s2 = {s_value}, p = {p_value}'), xlim = c(0, 20))
-    dev.off()
-    
-  }  
-}
-
-###################################################################################################################################
-# SIMULATION: ABC figuring this out 
-observed_data=data.frame(nr_shared = 1, 
-                         nr_twin1 = 7,
-                         nr_twin2 = 11)  
-
-abc_results=abc(target=observed_data, 
-                param=out_sim[,c("s1","s2","n","p")], 
-                sumstat=out_sim[,c("nr_shared","nr_twin1","nr_twin2")], 
-                tol=0.01, hcorr=F,method="rejection")
-
-# results of accepted simulations
-abs_results$unadj.values
-# s2 across 2, 3, 4, 5
-# weirdly p generally 0.3 
 

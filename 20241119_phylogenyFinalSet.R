@@ -998,6 +998,21 @@ for (mut in c(muts_all_normal, muts_PD62341_normal, muts_PD63383_normal)){
   ggsave(glue('FiguresAdd/F3/F3_earlyPhylo_dist_samples_withTumour_{mut}.pdf'), height = 3, width = 6.5)
 }
 
+# shared mutation (chr1_388) in the tumour: compare VAF in different tumour samples arranged by purity
+# This mutation would be expected to be at 0 if all tumour samples were pure 
+# add purity column 
+agg_vaf_dt_tumour = merge(, purity_dt, by = 'sample')
+
+agg_vaf_dt_tumour[, mut_ID := factor(mut_ID, levels = {
+  agg_vaf_dt[twin=='PD62341', .(mean_col = mean(purity)), by = mut_ID][order(mean_col), mut_ID]})]
+
+ggplot(twins_vaf_melt[mut_ID %in% muts_normal_all &status=='tumour'], aes(x = purity, y = value, col = sample))+
+  geom_point(size = 2.5, alpha = 0.6) +
+  theme_classic(base_size = 14)+
+  labs(x = 'Tumour purity', y = 'VAF of chr1_38872952_C_A', col = 'Sample ID')+
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, size = 8))
+ggsave('FiguresAdd/F3/F3_chr1_388_purity_vs_vaf_tumour.pdf', height = 3.5, width = 6.5)
+
 ######################################################################################################
 # Tumour evolution: subclonal structure 
 

@@ -405,8 +405,7 @@ ggplot(means_agg_finalEst, aes(x=sample, y=value, fill=composition))+
   geom_bar(stat = 'identity')+
   theme_classic(base_size=14)+
   scale_fill_manual(values = c(col_PD62341, col_PD63383))+
-  labs(x = 'Sample', y = glue('Cell fraction'), col = 'Cell origin')+
-  ggtitle(glue('Estimates of fraction of cells from the other twin in spleen samples'))
+  labs(x = 'Sample', y = glue('Cell fraction'), col = 'Cell origin')
 ggsave(glue('FiguresMain/Fig3/F4_twin_cell_transfer_est.pdf'), width=5, height=4)
 
 ######################################################################################################

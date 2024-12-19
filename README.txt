@@ -593,3 +593,16 @@ rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarco
 rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47451_CG_SB_NB13760628_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13760628.tsv.gz
 rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47451_CG_SB_NB13760629_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13760629.tsv.gz
 rsync -avhu bw18@farm22:"/lustre/scratch126/casm/team274sb/project_folders/Sarcoma/sc_raw_data/nonRMS/cellranger800_count_47451_CG_SB_NB13760630_GRCh38-1_2_0/filtered_feature_bc_matrix/barcodes.tsv.gz" /Users/bw18/Desktop/1SB/Data/scRNAseq/barcodes_NB13760630.tsv.gz
+
+# okay we concluded that those barcodes are missing as they are empty / poor quality GEMs removed by CellRanger before the filtered_feature_bc_matrix is created 
+
+# I am trying to get all the supplementary data together and realized I will need ASCAT calls to be complete
+
+rsync -avhu bw18@farm22:"/nfs/cancer_ref01/nst_links/live/3434/PD62341h/PD62341h.ascat_ngs.summary.csv" /Users/bw18/Desktop/1SB/Data/
+# ok this sends me to iRODS so is not going to work apparently 
+to avoid getting links instead of files, use -L option in rsync 
+rsync -avhu -L bw18@farm22:"/nfs/cancer_ref01/nst_links/live/3434/PD62341h/PD62341h.ascat_ngs.summary.csv" /Users/bw18/Desktop/1SB/Data/
+# this worked 
+
+rsync -avhu bw18@farm22:"/nfs/cancer_ref01/nst_links/live/3434/PD6*/*.pindel.annot.vcf.gz" /Users/bw18/Desktop/1SB/Data/
+
