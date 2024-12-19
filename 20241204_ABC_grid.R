@@ -1344,25 +1344,55 @@ ggsave(glue('FiguresAdd/F5/F5_diff_to_stat_cellMixing_200xSeq_p.pdf'), height = 
 
 # save the simulation output to a file
 # convert columns to character or it screams otherwise
-out_sim_s2p = apply(out_sim_s2p, 2, as.character)
-write.table(out_sim_s2p, 'Out/F5/F5_20241215_out_sim_s2_2to7_p_3values_mixingVsNomixing.csv', sep = ',', quote=F, row.names=F)
+out_sim_s2p = rbind(out_sim_s2p_bisect, out_sim_s2p_mixing)
+out_sim_s2p_char = apply(out_sim_s2p, 2, as.character)
+write.table(out_sim_s2p_char, 'Out/F5/F5_20241215_out_sim_s2_2to7_p_3values_mixingVsNomixing.txt', sep = '\t', quote=F, row.names=F)
 
-# Plot output of the simulation as a heatmap (with distance to observed in color)
-pdf("FiguresAdd/F5_heatmap_s2_vs_p_distToObserved.pdf", width=3.5, height=8)
-heatmap.2(cell_alloc_mat,
-          density.info="none",  # turns off density plot inside color legend
-          trace="none",         # turns off trace lines inside the heat map
-          dendrogram="none",
-          na.color = "gray",
-          col=colorRampPalette(brewer.pal(9,"Blues"))(100),
-          Rowv = F,
-          Colv = F,
-          scale='none',
-          key=F,
-          cexRow=0.8,
-          cexCol=1,
-          notecex=1.0,
-          mar=c(10,6.5))
-dev.off()
+###################################################################################################################################
+# Heatmap 
+
+# create a matrix s2 vs p with difference 
+summary_stats_diffs = c("nr_shared_diff_raw", "nr_spec_twin1_diff_raw",   
+                        "nr_spec_twin2_diff_raw",  "vaf_shared_twin1_diff_raw", "vaf_shared_twin2_diff_raw",
+                        "vaf_spec_twin1_diff_raw",   "vaf_spec_twin2_diff_raw", "nr_shared_twin1_diff_seq30", 
+                        "nr_shared_twin2_diff_seq30",  "nr_spec_twin1_diff_seq30","nr_spec_twin2_diff_seq30",  
+                        "vaf_shared_twin1_diff_seq30", "vaf_shared_twin2_diff_seq30", "vaf_spec_twin1_diff_seq30", 
+                        "vaf_spec_twin2_diff_seq30", "nr_shared_twin1_diff_seq200",  "nr_shared_twin2_diff_seq200",  
+                        "nr_spec_twin1_diff_seq200",  "nr_spec_twin2_diff_seq200",  "vaf_shared_twin1_diff_seq200", 
+                        "vaf_shared_twin2_diff_seq200", "vaf_spec_twin1_diff_seq200",   "vaf_spec_twin2_diff_seq200")
+
+# heatmap for each summary statistic difference to observed 
+for (stat_diff in summary_stats_diffs){
+  
+  # subset the dt to only include s2, p and the specific statistic
+  mat = out_sim_s2p[, c('s2', 'p', stat_diff), with=FALSE]
+  mat_abs = abs(mat)
+  
+  mat = dcast(mat, s2 ~ p, fun = mean) # mean difference from 1000 simulations
+  mat_abs = dcast(mat_abs, s2 ~ p, fun = mean) # mean difference from 1000 simulations
+  
+  mat = mat %>% remove_rownames %>% column_to_rownames(var="s2")
+  mat_abs = mat_abs %>% remove_rownames %>% column_to_rownames(var="s2")
+  
+  # Plot output of the simulation as a heatmap (with distance to observed in color)
+  pdf(glue("FiguresAdd/F5/F5_heatmap_s2_vs_p_distToObserved_{stat_diff}.pdf"), width=4, height=4)
+  pheatmap(mat, 
+           main=glue("{stat_diff}"), 
+           treeheight_row = 0,
+           cluster_rows = F, cluster_cols = F, 
+           show_rownames = T, show_colnames = T)
+  dev.off()
+  
+  pdf(glue("FiguresAdd/F5/F5_heatmap_s2_vs_p_distToObserved_{stat_diff}_absValues.pdf"), width=4, height=4)
+  pheatmap(mat, 
+           main=glue("{stat_diff}"), 
+           treeheight_row = 0,
+           cluster_rows = F, cluster_cols = F, 
+           show_rownames = T, show_colnames = T)
+  dev.off()
+  
+}
+
+
 
 
