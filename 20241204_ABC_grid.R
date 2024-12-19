@@ -1348,7 +1348,6 @@ out_sim_s2p = apply(out_sim_s2p, 2, as.character)
 write.table(out_sim_s2p, 'Out/F5/F5_20241215_out_sim_s2_2to7_p_3values_mixingVsNomixing.csv', sep = ',', quote=F, row.names=F)
 
 # Plot output of the simulation as a heatmap (with distance to observed in color)
-library(RColorBrewer)
 pdf("FiguresAdd/F5_heatmap_s2_vs_p_distToObserved.pdf", width=3.5, height=8)
 heatmap.2(cell_alloc_mat,
           density.info="none",  # turns off density plot inside color legend
